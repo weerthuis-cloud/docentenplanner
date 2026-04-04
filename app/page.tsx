@@ -251,24 +251,7 @@ export default function Dashboard() {
     );
   };
 
-  // Close overlays on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ignoreNextClick.current) {
-        ignoreNextClick.current = false;
-        return;
-      }
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-      if (gridRef.current && !gridRef.current.contains(e.target as Node)) {
-        setOpenDD(null);
-        setSelectedSeat(null);
-      }
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  }, []);
+  // Geen document event listeners meer - we gebruiken overlay divs
 
   // Timer component (herbruikbaar in topbar en lezen-modus)
   const TimerCompact = () => (
@@ -292,12 +275,17 @@ export default function Dashboard() {
 
   return (
     <div className="h-screen flex flex-col">
+      {/* Overlay om menu/dropdown te sluiten */}
+      {(menuOpen || openDD !== null || selectedSeat !== null) && (
+        <div className="fixed inset-0 z-30" onClick={() => { setMenuOpen(false); setOpenDD(null); setSelectedSeat(null); }} />
+      )}
+
       {/* TOP BAR - strak en minimaal */}
-      <div className="bg-[#1e3a5f] text-white px-4 py-1.5 flex items-center justify-between text-sm">
+      <div className="bg-[#1e3a5f] text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40">
         <div className="flex items-center gap-3">
           {/* Hamburger menu */}
-          <div className="relative" ref={menuRef}>
-            <button onClick={() => { ignoreNextClick.current = true; setMenuOpen(prev => !prev); }} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
+          <div className="relative">
+            <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
               <span className="block w-5 h-0.5 bg-white" />
               <span className="block w-5 h-0.5 bg-white" />
               <span className="block w-5 h-0.5 bg-white" />
