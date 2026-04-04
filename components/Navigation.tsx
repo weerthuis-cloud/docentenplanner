@@ -19,10 +19,7 @@ export default function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Dashboard heeft eigen navigatie
-  if (pathname === '/') return null;
-
-  // Sluit menu bij klik erbuiten via native event
+  // Alle hooks BOVEN de conditional return (React vereist dit)
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -33,11 +30,13 @@ export default function Navigation() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Dashboard heeft eigen navigatie
+  if (pathname === '/') return null;
+
   const currentPage = navItems.find(item => item.href === pathname);
 
   return (
     <div className="bg-[#1e3a5f] text-white px-4 py-2 flex items-center gap-3 text-sm" style={{ flexShrink: 0 }}>
-      {/* Hamburger */}
       <div className="relative" ref={menuRef}>
         <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
           <span className="block w-5 h-0.5 bg-white" />
