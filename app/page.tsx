@@ -1,19 +1,30 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 // Types
 interface Klas { id: number; naam: string; vak: string; lokaal: string; jaarlaag: string; aantal_leerlingen: number; }
 interface Leerling { id: number; klas_id: number; voornaam: string; achternaam: string; foto_url: string | null; seat_row: number; seat_col: number; boek_titel: string; boek_kleur: string; }
 interface Les { id: number; klas_id: number; datum: string; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; }
-interface Registratie { id: number; leerling_id: number; type: string; details: string | null; datum: string; }
 interface Layout { layout_data: (number | null)[][]; }
 
 type Mode = 'binnenkomst' | 'les' | 'lezen';
 
 interface LeerlingState { warnings: number; compliments: number; statuses: string[]; materiaal: string[]; }
 
+const NAV_ITEMS = [
+  { label: 'Dashboard', href: '/' },
+  { label: 'Agenda', href: '/agenda' },
+  { label: 'Planner', href: '/planner' },
+  { label: 'Klassen', href: '/klassen' },
+  { label: 'Cijfers', href: '/cijfers' },
+  { label: 'Resultaten', href: '/resultaten' },
+  { label: 'Toetsen', href: '/toetsen' },
+];
+
 export default function Dashboard() {
+  const router = useRouter();
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [activeKlas, setActiveKlas] = useState<number>(1);
   const [leerlingen, setLeerlingen] = useState<Leerling[]>([]);
@@ -27,12 +38,24 @@ export default function Dashboard() {
   const [mirrorV, setMirrorV] = useState(false);
   const [openDD, setOpenDD] = useState<number | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Timer state
   const [timerSec, setTimerSec] = useState(900);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [timerInputMin, setTimerInputMin] = useState(15);
-  const [timerInputSec, setTimerInputSec] = useState(0);
+  const [timerInput, setTimerInput] = useState('15:00');
+
+  // Parse timer input "mm:ss" or "m:ss" or just "mm"
+  const parseTimerInput = (val: string): number => {
+    const parts = val.split(':');
+    if (parts.length === 2) {
+      const m = parseInt(parts[0]) || 0;
+      const s = parseInt(parts[1]) || 0;
+      return m * 60 + s;
+    }
+    const m = parseInt(val) || 0;
+    return m * 60;
+  };
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -73,7 +96,7 @@ export default function Dashboard() {
     return () => clearInterval(i);
   }, []);
 
-  // Timer
+  // Timer countdown
   useEffect(() => {
     if (!timerRunning) return;
     if (timerSec <= 0) { setTimerRunning(false); return; }
@@ -82,7 +105,20 @@ export default function Dashboard() {
   }, [timerRunning, timerSec]);
 
   const timerDisplay = `${String(Math.floor(timerSec / 60)).padStart(2, '0')}:${String(timerSec % 60).padStart(2, '0')}`;
-  const resetTimer = () => { setTimerRunning(false); setTimerSec(timerInputMin * 60 + timerInputSec); };
+
+  const startTimer = () => {
+    if (timerSec <= 0) {
+      const secs = parseTimerInput(timerInput);
+      setTimerSec(secs);
+    }
+    setTimerRunning(true);
+  };
+
+  const resetTimer = () => {
+    setTimerRunning(false);
+    const secs = parseTimerInput(timerInput);
+    setTimerSec(secs);
+  };
 
   // Helpers
   const activeKlasObj = klassen.find(k => k.id === activeKlas);
@@ -121,7 +157,7 @@ export default function Dashboard() {
       body: JSON.stringify({ leerling_id: id, type: 'compliment' }) });
   };
 
-  // Render seat - klikbaar voor touchscreens (digibord)
+  // Render seat
   const renderSeat = (leerlingId: number | null) => {
     if (leerlingId === null) return <div key={Math.random()} className="border-2 border-dashed border-gray-300 rounded-lg min-h-[70px]" />;
 
@@ -138,7 +174,7 @@ export default function Dashboard() {
           ${warned ? 'bg-red-50 border-red-200' : isSelected ? 'border-blue-400 shadow-md bg-blue-50' : 'border-gray-200'}`}
         onClick={e => { e.stopPropagation(); setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
-        {/* Status dots - altijd zichtbaar */}
+        {/* Status dots */}
         {s.statuses.length > 0 && (
           <div className="absolute top-1 right-1 flex gap-0.5">
             {s.statuses.includes('telaat') && <span className="w-2 h-2 rounded-full bg-red-500" />}
@@ -157,7 +193,7 @@ export default function Dashboard() {
         </div>
         <div className="text-[10px] font-semibold mt-1 text-center truncate w-full">{l.voornaam} {l.achternaam}</div>
 
-        {/* Actieknoppen - zichtbaar als seat geselecteerd is (tik op leerling) */}
+        {/* Actieknoppen bij selectie */}
         {isSelected && (
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-lg z-20">
             <button className="w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold"
@@ -165,7 +201,7 @@ export default function Dashboard() {
             <button className="w-7 h-7 rounded-full bg-green-500 text-white text-xs flex items-center justify-center"
               onClick={e => { e.stopPropagation(); addCompliment(l.id); }}>&#10003;</button>
             <button className="w-7 h-7 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center"
-              onClick={e => { e.stopPropagation(); setOpenDD(openDD === l.id ? null : l.id); setSelectedSeat(l.id); }}>&#9662;</button>
+              onClick={e => { e.stopPropagation(); setOpenDD(openDD === l.id ? null : l.id); }}>&#9662;</button>
           </div>
         )}
 
@@ -194,14 +230,12 @@ export default function Dashboard() {
     );
   };
 
-  // Render grid from layout - met optionele verticale spiegeling
+  // Render grid
   const renderGrid = (gridClass: string) => {
     if (!layout || !layout.layout_data) return <div className="text-gray-400 text-center">Geen plattegrond beschikbaar</div>;
 
     let rows = layout.layout_data;
-    if (mirrorV) {
-      rows = [...rows].reverse();
-    }
+    if (mirrorV) rows = [...rows].reverse();
 
     return (
       <div className={`grid gap-2 flex-1 content-center ${gridClass}`} style={{ direction: mirrorH ? 'rtl' : 'ltr' }}>
@@ -214,36 +248,73 @@ export default function Dashboard() {
     );
   };
 
-  // Close dropdown + selection on click outside
+  // Close overlays on outside click
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      setOpenDD(null);
-      setSelectedSeat(null);
-    };
+    const handler = () => { setOpenDD(null); setSelectedSeat(null); setMenuOpen(false); };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, []);
 
+  // Timer component (herbruikbaar in topbar en lezen-modus)
+  const TimerCompact = () => (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        value={timerRunning ? timerDisplay : timerInput}
+        onChange={e => { if (!timerRunning) setTimerInput(e.target.value); }}
+        onKeyDown={e => { if (e.key === 'Enter' && !timerRunning) { setTimerSec(parseTimerInput(timerInput)); startTimer(); } }}
+        placeholder="mm:ss"
+        disabled={timerRunning}
+        className={`w-16 text-center bg-white/10 border border-white/20 rounded px-1 py-0.5 text-sm font-bold tabular-nums ${timerRunning ? 'text-white' : 'text-white/80'}`}
+      />
+      <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
+        className={`px-2.5 py-0.5 rounded text-[10px] font-semibold ${timerRunning ? 'bg-orange-500' : 'bg-green-500'}`}>
+        {timerRunning ? 'Pauze' : 'Start'}
+      </button>
+      <button onClick={resetTimer} className="px-2.5 py-0.5 rounded text-[10px] bg-white/10 border border-white/20">Reset</button>
+    </div>
+  );
+
   return (
-    <div className="h-screen flex flex-col" onClick={() => { setOpenDD(null); setSelectedSeat(null); }}>
-      {/* TOP BAR */}
-      <div className="bg-[#1e3a5f] text-white px-6 py-1.5 flex items-center justify-between text-sm">
-        <div className="flex items-center gap-4">
-          <h1 className="font-bold text-base">Docentenplanner</h1>
-          <nav className="flex gap-1">
-            {['Dashboard','Agenda','Planner','Klassen','Cijfers','Resultaten','Toetsen'].map(tab => (
-              <button key={tab} className={`px-3 py-1.5 rounded text-xs ${tab === 'Dashboard' ? 'bg-white/20 font-semibold' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>{tab}</button>
-            ))}
-          </nav>
-        </div>
+    <div className="h-screen flex flex-col" onClick={() => { setOpenDD(null); setSelectedSeat(null); setMenuOpen(false); }}>
+      {/* TOP BAR - strak en minimaal */}
+      <div className="bg-[#1e3a5f] text-white px-4 py-1.5 flex items-center justify-between text-sm">
         <div className="flex items-center gap-3">
+          {/* Hamburger menu */}
+          <div className="relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
+              <span className="block w-5 h-0.5 bg-white" />
+              <span className="block w-5 h-0.5 bg-white" />
+              <span className="block w-5 h-0.5 bg-white" />
+            </button>
+            {menuOpen && (
+              <div className="absolute top-10 left-0 bg-white text-gray-800 rounded-lg shadow-xl border border-gray-200 py-2 z-50 min-w-[180px]">
+                {NAV_ITEMS.map(item => (
+                  <button key={item.label}
+                    onClick={() => { router.push(item.href); setMenuOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors
+                      ${item.href === '/' ? 'bg-blue-50 text-blue-600 font-semibold' : ''}`}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <h1 className="font-bold text-base">Docentenplanner</h1>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Klas selector */}
           <select className="bg-white/10 border border-white/20 rounded px-2 py-1 text-xs" value={activeKlas} onChange={e => setActiveKlas(Number(e.target.value))}>
             {klassen.map(k => <option key={k.id} value={k.id} className="text-gray-800">{k.naam} - {k.vak}</option>)}
           </select>
           <span className="text-[11px] text-white/50">{activeKlasObj ? `${activeKlasObj.aantal_leerlingen} ll · Lok ${activeKlasObj.lokaal}` : ''}</span>
-          {/* Spiegel knoppen: horizontaal + verticaal */}
+
+          {/* Spiegel knoppen */}
           <button onClick={() => setMirrorH(!mirrorH)} className={`px-2 py-1 rounded text-xs border ${mirrorH ? 'bg-blue-500 border-blue-500' : 'bg-white/5 border-white/15'}`} title="Spiegel links/rechts">&#8596;</button>
           <button onClick={() => setMirrorV(!mirrorV)} className={`px-2 py-1 rounded text-xs border ${mirrorV ? 'bg-blue-500 border-blue-500' : 'bg-white/5 border-white/15'}`} title="Spiegel boven/onder">&#8597;</button>
+
+          {/* Mode switch */}
           <div className="flex bg-white/10 rounded p-0.5">
             {(['binnenkomst','les','lezen'] as Mode[]).map(m => (
               <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded text-xs font-semibold transition-all ${mode === m ? 'bg-white text-[#1e3a5f]' : 'text-white/60'}`}>
@@ -251,21 +322,13 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
+
           {/* Timer in topbar voor les-modus */}
           {mode === 'les' && (
             <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1">
               <span className="text-lg font-extrabold tabular-nums">{clock}</span>
               <span className="text-white/30">|</span>
-              <input type="number" value={timerInputMin} onChange={e => setTimerInputMin(Number(e.target.value))} className="w-8 text-center bg-white/10 border border-white/20 rounded px-0.5 text-xs text-white" />
-              <span className="text-[9px] text-white/40">m</span>
-              <input type="number" value={timerInputSec} onChange={e => setTimerInputSec(Number(e.target.value))} className="w-8 text-center bg-white/10 border border-white/20 rounded px-0.5 text-xs text-white" />
-              <span className="text-[9px] text-white/40">s</span>
-              <span className={`text-lg font-extrabold tabular-nums ${timerSec <= 0 && !timerRunning ? 'text-red-400 animate-pulse' : ''}`}>{timerDisplay}</span>
-              <button onClick={() => timerRunning ? setTimerRunning(false) : (timerSec <= 0 ? resetTimer() : null, setTimerRunning(true))}
-                className={`px-2 py-0.5 rounded text-[10px] font-semibold ${timerRunning ? 'bg-orange-500' : 'bg-green-500'}`}>
-                {timerRunning ? 'Pauze' : 'Start'}
-              </button>
-              <button onClick={resetTimer} className="px-2 py-0.5 rounded text-[10px] bg-white/10 border border-white/20">Reset</button>
+              <TimerCompact />
             </div>
           )}
         </div>
@@ -332,16 +395,19 @@ export default function Dashboard() {
             <div className="text-5xl opacity-30">&#128214;</div>
             <div className="text-white/40 uppercase tracking-[4px] font-bold text-sm">Leestijd</div>
             <div className={`text-[7rem] font-black text-white tabular-nums tracking-tighter leading-none ${timerSec <= 0 && !timerRunning ? 'text-red-500 animate-pulse' : ''}`}>{timerDisplay}</div>
-            <div className="flex items-center gap-2 mt-2">
-              <input type="number" value={timerInputMin} onChange={e => setTimerInputMin(Number(e.target.value))}
-                className="w-12 text-center p-1.5 border border-white/20 rounded-lg bg-white/10 text-white font-bold text-lg" />
-              <span className="text-white/40 text-sm">min</span>
-              <input type="number" value={timerInputSec} onChange={e => setTimerInputSec(Number(e.target.value))}
-                className="w-12 text-center p-1.5 border border-white/20 rounded-lg bg-white/10 text-white font-bold text-lg" />
-              <span className="text-white/40 text-sm">sec</span>
+            <div className="flex items-center gap-3 mt-4">
+              <input
+                type="text"
+                value={timerRunning ? timerDisplay : timerInput}
+                onChange={e => { if (!timerRunning) setTimerInput(e.target.value); }}
+                onKeyDown={e => { if (e.key === 'Enter' && !timerRunning) { setTimerSec(parseTimerInput(timerInput)); startTimer(); } }}
+                placeholder="mm:ss"
+                disabled={timerRunning}
+                className="w-20 text-center p-2 border border-white/20 rounded-lg bg-white/10 text-white font-bold text-lg tabular-nums"
+              />
             </div>
             <div className="flex gap-3 mt-4">
-              <button onClick={() => timerRunning ? setTimerRunning(false) : (timerSec <= 0 ? resetTimer() : null, setTimerRunning(true))}
+              <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
                 className={`px-6 py-2.5 rounded-xl font-bold text-base ${timerRunning ? 'bg-orange-500 text-white' : 'bg-green-500 text-white'}`}>
                 {timerRunning ? 'Pauze' : 'Start'}
               </button>
