@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: '📊' },
@@ -15,60 +16,50 @@ const navItems = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // On dashboard page, hide nav (full-screen digibord mode)
+  // Dashboard heeft eigen navigatie in de topbar
   if (pathname === '/') return null;
 
+  // Sluit menu bij klik erbuiten
+  useEffect(() => {
+    const handler = () => setMenuOpen(false);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
+  const currentPage = navItems.find(item => item.href === pathname);
+
   return (
-    <nav style={{
-      width: 220,
-      minHeight: '100vh',
-      background: '#1e293b',
-      color: 'white',
-      padding: '1rem 0',
-      display: 'flex',
-      flexDirection: 'column',
-      flexShrink: 0,
-    }}>
-      <div style={{
-        padding: '0 1.2rem 1.2rem',
-        borderBottom: '1px solid #334155',
-        marginBottom: '0.5rem',
-      }}>
-        <h1 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Docentenplanner</h1>
+    <div className="bg-[#1e3a5f] text-white px-4 py-2 flex items-center gap-3 text-sm" style={{ flexShrink: 0 }}>
+      {/* Hamburger */}
+      <div className="relative" onClick={e => e.stopPropagation()}>
+        <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
+          <span className="block w-5 h-0.5 bg-white" />
+          <span className="block w-5 h-0.5 bg-white" />
+          <span className="block w-5 h-0.5 bg-white" />
+        </button>
+        {menuOpen && (
+          <div className="absolute top-10 left-0 bg-white text-gray-800 rounded-lg shadow-xl border border-gray-200 py-2 z-50 min-w-[200px]">
+            {navItems.map(item => {
+              const isActive = pathname === item.href;
+              return (
+                <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors no-underline
+                    ${isActive ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'}`}>
+                  <span>{item.icon}</span>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {navItems.map(item => {
-        const isActive = pathname === item.href;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.7rem 1.2rem',
-              color: isActive ? '#fff' : '#94a3b8',
-              background: isActive ? '#334155' : 'transparent',
-              textDecoration: 'none',
-              fontSize: '0.95rem',
-              fontWeight: isActive ? 600 : 400,
-              borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
-              transition: 'all 0.15s',
-            }}
-          >
-            <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
-            {item.label}
-          </Link>
-        );
-      })}
-
-      <div style={{ marginTop: 'auto', padding: '1rem 1.2rem', borderTop: '1px solid #334155' }}>
-        <Link href="/" style={{ color: '#64748b', textDecoration: 'none', fontSize: '0.85rem' }}>
-          ← Terug naar digibord
-        </Link>
-      </div>
-    </nav>
+      <h1 className="font-bold text-base">Docentenplanner</h1>
+      {currentPage && (
+        <span className="text-white/50 text-xs">/ {currentPage.label}</span>
+      )}
+    </div>
   );
 }
