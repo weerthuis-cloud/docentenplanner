@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const ignoreNextClick = useRef(false);
 
   // Timer state
   const [timerSec, setTimerSec] = useState(900);
@@ -250,21 +251,23 @@ export default function Dashboard() {
     );
   };
 
-  // Close overlays on outside click (via native mousedown + ref check)
+  // Close overlays on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      // Sluit menu als klik buiten menu
+      if (ignoreNextClick.current) {
+        ignoreNextClick.current = false;
+        return;
+      }
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
-      // Sluit leerling-selectie/dropdown als klik buiten grid
       if (gridRef.current && !gridRef.current.contains(e.target as Node)) {
         setOpenDD(null);
         setSelectedSeat(null);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
   }, []);
 
   // Timer component (herbruikbaar in topbar en lezen-modus)
@@ -294,7 +297,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           {/* Hamburger menu */}
           <div className="relative" ref={menuRef}>
-            <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
+            <button onClick={() => { ignoreNextClick.current = true; setMenuOpen(prev => !prev); }} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
               <span className="block w-5 h-0.5 bg-white" />
               <span className="block w-5 h-0.5 bg-white" />
               <span className="block w-5 h-0.5 bg-white" />

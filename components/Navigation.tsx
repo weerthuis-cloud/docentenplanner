@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: '📊' },
@@ -18,27 +18,39 @@ export default function Navigation() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const ignoreNextClick = useRef(false);
 
-  // Alle hooks BOVEN de conditional return (React vereist dit)
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+  // Sluit menu bij klik erbuiten
+  const handleDocClick = useCallback((e: MouseEvent) => {
+    // Als we net op de button klikten, negeer deze document click
+    if (ignoreNextClick.current) {
+      ignoreNextClick.current = false;
+      return;
+    }
+    if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      setMenuOpen(false);
+    }
   }, []);
+
+  useEffect(() => {
+    document.addEventListener('click', handleDocClick, true);
+    return () => document.removeEventListener('click', handleDocClick, true);
+  }, [handleDocClick]);
 
   // Dashboard heeft eigen navigatie
   if (pathname === '/') return null;
 
   const currentPage = navItems.find(item => item.href === pathname);
 
+  const toggleMenu = () => {
+    ignoreNextClick.current = true;
+    setMenuOpen(prev => !prev);
+  };
+
   return (
     <div className="bg-[#1e3a5f] text-white px-4 py-2 flex items-center gap-3 text-sm" style={{ flexShrink: 0 }}>
       <div className="relative" ref={menuRef}>
-        <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
+        <button onClick={toggleMenu} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
           <span className="block w-5 h-0.5 bg-white" />
           <span className="block w-5 h-0.5 bg-white" />
           <span className="block w-5 h-0.5 bg-white" />
