@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 // Types
@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [openDD, setOpenDD] = useState<number | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   // Timer state
   const [timerSec, setTimerSec] = useState(900);
@@ -172,7 +174,7 @@ export default function Dashboard() {
       <div key={l.id}
         className={`relative bg-white border-2 rounded-lg p-1.5 flex flex-col items-center justify-center min-h-[70px] transition-all cursor-pointer
           ${warned ? 'bg-red-50 border-red-200' : isSelected ? 'border-blue-400 shadow-md bg-blue-50' : 'border-gray-200'}`}
-        onClick={e => { e.stopPropagation(); setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
+        onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
         {/* Status dots */}
         {s.statuses.length > 0 && (
@@ -238,7 +240,7 @@ export default function Dashboard() {
     if (mirrorV) rows = [...rows].reverse();
 
     return (
-      <div className={`grid gap-2 flex-1 content-center ${gridClass}`} style={{ direction: mirrorH ? 'rtl' : 'ltr' }}>
+      <div ref={gridRef} className={`grid gap-2 flex-1 content-center ${gridClass}`} style={{ direction: mirrorH ? 'rtl' : 'ltr' }}>
         {rows.flat().map((cell, idx) => {
           const colInRow = idx % 8;
           if (colInRow === 2 || colInRow === 5) return <div key={`aisle-${idx}`} style={{ direction: 'ltr' }} />;
@@ -248,11 +250,21 @@ export default function Dashboard() {
     );
   };
 
-  // Close overlays on outside click
+  // Close overlays on outside click (via native mousedown + ref check)
   useEffect(() => {
-    const handler = () => { setOpenDD(null); setSelectedSeat(null); setMenuOpen(false); };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    const handler = (e: MouseEvent) => {
+      // Sluit menu als klik buiten menu
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+      // Sluit leerling-selectie/dropdown als klik buiten grid
+      if (gridRef.current && !gridRef.current.contains(e.target as Node)) {
+        setOpenDD(null);
+        setSelectedSeat(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   // Timer component (herbruikbaar in topbar en lezen-modus)
@@ -276,12 +288,12 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="h-screen flex flex-col" onClick={() => { setOpenDD(null); setSelectedSeat(null); setMenuOpen(false); }}>
+    <div className="h-screen flex flex-col">
       {/* TOP BAR - strak en minimaal */}
       <div className="bg-[#1e3a5f] text-white px-4 py-1.5 flex items-center justify-between text-sm">
         <div className="flex items-center gap-3">
           {/* Hamburger menu */}
-          <div className="relative" onClick={e => e.stopPropagation()}>
+          <div className="relative" ref={menuRef}>
             <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
               <span className="block w-5 h-0.5 bg-white" />
               <span className="block w-5 h-0.5 bg-white" />
