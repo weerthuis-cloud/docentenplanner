@@ -70,7 +70,7 @@ export default function KlassenPage() {
   // Import
   const [showImport, setShowImport] = useState(false);
   const [importMode, setImportMode] = useState<'excel' | 'pdf' | null>(null);
-  const [importPreview, setImportPreview] = useState<{ voornaam: string; achternaam: string; email?: string; mentor?: string }[]>([]);
+  const [importPreview, setImportPreview] = useState<{ voornaam: string; achternaam: string; email?: string; mentor?: string; foto_data?: string }[]>([]);
   const [importDuplicates, setImportDuplicates] = useState<{ existing: Leerling; imported: { voornaam: string; achternaam: string; email?: string; mentor?: string } }[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [importMsg, setImportMsg] = useState('');
@@ -400,10 +400,87 @@ export default function KlassenPage() {
         return;
       }
 
+      // Extract photos: render each page, find image positions, crop photos
+      setImportMsg(`${names.length} namen gevonden, foto's worden geëxtraheerd...`);
+      const photos: string[] = []; // base64 JPEGs in operator order (= alphabetical)
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const OPS = (pdfjsLib as any).OPS;
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const ops = await page.getOperatorList();
+
+        // Collect image positions in operator order
+        const imgPositions: { x: number; y: number; w: number; h: number }[] = [];
+        for (let j = 0; j < ops.fnArray.length; j++) {
+          if (ops.fnArray[j] === OPS.paintImageXObject) {
+            // Find preceding transform
+            for (let k = j - 1; k >= Math.max(0, j - 5); k--) {
+              if (ops.fnArray[k] === OPS.transform) {
+                const t = ops.argsArray[k];
+                imgPositions.push({
+                  x: t[4], y: t[5],
+                  w: Math.abs(t[0]), h: Math.abs(t[3])
+                });
+                break;
+              }
+            }
+          }
+        }
+
+        if (imgPositions.length === 0) continue;
+
+        // Render page to canvas at scale 2 for quality
+        const scale = 2;
+        const vp = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+        // Crop each photo from canvas
+        for (const pos of imgPositions) {
+          const sx = pos.x * scale;
+          const sy = pos.y * scale;
+          const sw = pos.w * scale;
+          const sh = pos.h * scale;
+
+          const cropCanvas = document.createElement('canvas');
+          cropCanvas.width = sw;
+          cropCanvas.height = sh;
+          const cropCtx = cropCanvas.getContext('2d');
+          if (!cropCtx) { photos.push(''); continue; }
+          cropCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+          photos.push(cropCanvas.toDataURL('image/jpeg', 0.75));
+        }
+
+        // Clean up
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+
+      // Names are sorted alphabetically (by how they appear in the PDF grid).
+      // Photos are in operator order which matches the visual grid order (alphabetical).
+      // Sort names alphabetically to match photo order.
+      const sortedNames = [...names].sort((a, b) => {
+        const an = (a.achternaam + ' ' + a.voornaam).toLowerCase();
+        const bn = (b.achternaam + ' ' + b.voornaam).toLowerCase();
+        return an.localeCompare(bn, 'nl');
+      });
+
+      // Merge photos with names
+      const namesWithPhotos = sortedNames.map((n, idx) => ({
+        ...n,
+        foto_data: photos[idx] || undefined,
+      }));
+
       // Check duplicates
       const dupes: typeof importDuplicates = [];
       const newOnes: typeof importPreview = [];
-      for (const imp of names) {
+      for (const imp of namesWithPhotos) {
         const match = leerlingen.find(l =>
           l.voornaam.toLowerCase() === imp.voornaam.toLowerCase() &&
           l.achternaam.toLowerCase() === imp.achternaam.toLowerCase()
@@ -417,7 +494,8 @@ export default function KlassenPage() {
 
       setImportPreview(newOnes);
       setImportDuplicates(dupes);
-      setImportMsg(`${names.length} leerlingen uit PDF: ${newOnes.length} nieuw, ${dupes.length} al bestaand${klasNaam ? ` (klas: ${klasNaam})` : ''}`);
+      const photoCount = photos.filter(p => p).length;
+      setImportMsg(`${names.length} leerlingen uit PDF${photoCount > 0 ? ` met ${photoCount} foto's` : ''}: ${newOnes.length} nieuw, ${dupes.length} al bestaand${klasNaam ? ` (klas: ${klasNaam})` : ''}`);
     } catch (err) {
       console.error('PDF parse error:', err);
       setImportMsg('Fout bij verwerken PDF. Controleer of het een geldig PDF-bestand is.');
@@ -445,6 +523,7 @@ export default function KlassenPage() {
         const update: Record<string, unknown> = { id: d.existing.id };
         if (d.imported.email) update.email = d.imported.email;
         if (d.imported.mentor) update.mentor = d.imported.mentor;
+        if (d.imported.foto_data) update.foto_data = d.imported.foto_data;
         return update;
       });
       await fetch('/api/leerlingen', {
@@ -682,8 +761,15 @@ export default function KlassenPage() {
                       </h4>
                       <div style={{ maxHeight: 200, overflow: 'auto', fontSize: '0.85rem', color: '#475569' }}>
                         {importPreview.map((s, i) => (
-                          <div key={i} style={{ padding: '0.2rem 0' }}>
-                            {s.voornaam} {s.achternaam}{s.email ? ` · ${s.email}` : ''}{s.mentor ? ` · mentor: ${s.mentor}` : ''}
+                          <div key={i} style={{ padding: '0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {s.foto_data ? (
+                              <img src={s.foto_data} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: '#94a3b8' }}>
+                                {s.voornaam[0]}{s.achternaam[0]}
+                              </div>
+                            )}
+                            <span>{s.voornaam} {s.achternaam}{s.email ? ` · ${s.email}` : ''}{s.mentor ? ` · mentor: ${s.mentor}` : ''}</span>
                           </div>
                         ))}
                       </div>
