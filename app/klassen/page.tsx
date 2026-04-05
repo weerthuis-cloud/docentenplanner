@@ -185,6 +185,9 @@ export default function KlassenPage() {
               <Link href={`/klassen/plattegrond?klas_id=${selectedKlasData.id}`} style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
                 🪑 Plattegrond
               </Link>
+              <Link href={`/klassen/groepjes?klas_id=${selectedKlasData.id}`} style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                👥 Groepjes
+              </Link>
               <button onClick={() => deleteKlas(selectedKlasData.id)} style={btnDanger}>Klas verwijderen</button>
             </div>
           </div>

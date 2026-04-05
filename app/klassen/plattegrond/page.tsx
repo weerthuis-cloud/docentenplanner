@@ -601,8 +601,10 @@ function PlattegrondContent() {
                           </div>
                         </div>
                       )}
-                      {isTable && !student && editMode === 'students' && (
-                        <div style={{ color: '#94a3b8', fontSize: '0.6rem' }}>leeg</div>
+                      {isTable && !student && (
+                        <div style={{ color: '#94a3b8', fontSize: '0.65rem', textAlign: 'center' }}>
+                          {editMode === 'students' ? 'sleep hier' : ''}
+                        </div>
                       )}
                     </div>
                   );
