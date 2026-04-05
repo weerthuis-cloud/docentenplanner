@@ -329,8 +329,8 @@ export default function KlassenPage() {
 
       let klasNaam = '';
       const namesWithPos: { voornaam: string; achternaam: string; x: number; y: number }[] = [];
-      // Image positions from operator list (for spatial matching)
-      const imagePositions: { x: number; y: number }[] = [];
+      // Image positions from operator list (with original index for sorting)
+      const imagePositions: { x: number; y: number; pageNum: number; opIdx: number }[] = [];
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -415,7 +415,7 @@ export default function KlassenPage() {
             else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
               const w = Math.abs(cm[0]), h = Math.abs(cm[3]);
               if (w >= 80 && w <= 400 && h >= 80 && h <= 400 && Math.abs(w-h) < 50) {
-                imagePositions.push({ x: cm[4], y: cm[5] });
+                imagePositions.push({ x: cm[4], y: cm[5], pageNum: i, opIdx: j });
               }
             }
           }
@@ -458,32 +458,33 @@ export default function KlassenPage() {
         }
       } catch (photoErr) { console.error('Photo extraction error:', photoErr); }
 
-      // Match photos to names using spatial proximity
-      // Image positions (from operator list) are in same order as binary JPEGs
-      // Each imagePosition[i] corresponds to photoDataUrls[i]
-      const namesWithPhotos = namesWithPos.map(name => {
-        let bestPhoto: string | undefined;
-        let bestDist = Infinity;
-        for (let pi = 0; pi < imagePositions.length && pi < photoDataUrls.length; pi++) {
-          const photo = imagePositions[pi];
-          const dx = Math.abs(photo.x - name.x);
-          const dy = photo.y - name.y; // positive = photo above name in PDF coords
-          if (dy > 0 && dx < 150) {
-            const dist = dx + dy;
-            if (dist < bestDist) { bestDist = dist; bestPhoto = photoDataUrls[pi]; }
+      // Sort image positions by reading order (top-to-bottom, left-to-right)
+      // In PDF coords: higher y = higher on page, so sort descending y, then ascending x
+      const sortedImageIndices = imagePositions
+        .map((pos, idx) => ({ ...pos, origIdx: idx }))
+        .sort((a, b) => {
+          if (a.pageNum !== b.pageNum) return a.pageNum - b.pageNum;
+          // Group by row: images within ~30pt vertical distance are same row
+          const rowA = Math.round(a.y / 30);
+          const rowB = Math.round(b.y / 30);
+          if (rowA !== rowB) return rowB - rowA; // higher y = top of page = first
+          return a.x - b.x; // left to right
+        });
+
+      // photoDataUrls are in byte order = content stream order = operator list order
+      // sortedImageIndices gives us the reading-order permutation
+      // namesWithPos are already in reading order (top-to-bottom, left-to-right)
+      // So: namesWithPos[i] matches sortedImageIndices[i].origIdx -> photoDataUrls[origIdx]
+      console.log(`PDF matching: ${namesWithPos.length} names, ${imagePositions.length} image positions, ${photoDataUrls.length} photos`);
+      const namesWithPhotos = namesWithPos.map((name, i) => {
+        let foto_data: string | undefined;
+        if (i < sortedImageIndices.length) {
+          const photoIdx = sortedImageIndices[i].origIdx;
+          if (photoIdx < photoDataUrls.length) {
+            foto_data = photoDataUrls[photoIdx];
           }
         }
-        // Fallback: if no spatial match found, try with relaxed constraints
-        if (!bestPhoto) {
-          for (let pi = 0; pi < imagePositions.length && pi < photoDataUrls.length; pi++) {
-            const photo = imagePositions[pi];
-            const dx = Math.abs(photo.x - name.x);
-            const dy = Math.abs(photo.y - name.y);
-            const dist = dx + dy;
-            if (dx < 150 && dist < bestDist) { bestDist = dist; bestPhoto = photoDataUrls[pi]; }
-          }
-        }
-        return { voornaam: name.voornaam, achternaam: name.achternaam, foto_data: bestPhoto };
+        return { voornaam: name.voornaam, achternaam: name.achternaam, foto_data };
       });
 
       // Check duplicates
