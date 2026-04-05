@@ -404,62 +404,74 @@ export default function KlassenPage() {
       setImportMsg(`${names.length} namen gevonden, foto's worden geëxtraheerd...`);
       const photos: string[] = []; // base64 JPEGs in operator order (= alphabetical)
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const OPS = (pdfjsLib as any).OPS;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const OPS = (pdfjsLib as any).OPS;
+        console.log('PDF photo extraction: OPS available:', !!OPS, 'pages:', pdf.numPages);
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const ops = await page.getOperatorList();
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const ops = await page.getOperatorList();
 
-        // Collect image positions in operator order
-        const imgPositions: { x: number; y: number; w: number; h: number }[] = [];
-        for (let j = 0; j < ops.fnArray.length; j++) {
-          if (ops.fnArray[j] === OPS.paintImageXObject) {
-            // Find preceding transform
-            for (let k = j - 1; k >= Math.max(0, j - 5); k--) {
-              if (ops.fnArray[k] === OPS.transform) {
-                const t = ops.argsArray[k];
-                imgPositions.push({
-                  x: t[4], y: t[5],
-                  w: Math.abs(t[0]), h: Math.abs(t[3])
-                });
-                break;
+          // Collect image positions in operator order
+          const imgPositions: { x: number; y: number; w: number; h: number }[] = [];
+          for (let j = 0; j < ops.fnArray.length; j++) {
+            if (ops.fnArray[j] === OPS.paintImageXObject) {
+              for (let k = j - 1; k >= Math.max(0, j - 5); k--) {
+                if (ops.fnArray[k] === OPS.transform) {
+                  const t = ops.argsArray[k];
+                  imgPositions.push({
+                    x: t[4], y: t[5],
+                    w: Math.abs(t[0]), h: Math.abs(t[3])
+                  });
+                  break;
+                }
               }
             }
           }
+
+          console.log(`Page ${i}: found ${imgPositions.length} images`);
+          if (imgPositions.length === 0) continue;
+
+          // Render page to canvas at scale 1.5 for balance of quality/speed
+          const scale = 1.5;
+          const vp = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          canvas.width = vp.width;
+          canvas.height = vp.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { console.log('No canvas context'); continue; }
+
+          console.log(`Rendering page ${i} (${canvas.width}x${canvas.height})...`);
+          await page.render({ canvasContext: ctx, viewport: vp }).promise;
+          console.log('Page rendered successfully');
+
+          // Crop each photo from canvas
+          for (const pos of imgPositions) {
+            const sx = Math.round(pos.x * scale);
+            const sy = Math.round(pos.y * scale);
+            const sw = Math.round(pos.w * scale);
+            const sh = Math.round(pos.h * scale);
+
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = sw;
+            cropCanvas.height = sh;
+            const cropCtx = cropCanvas.getContext('2d');
+            if (!cropCtx) { photos.push(''); continue; }
+            cropCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            const dataUrl = cropCanvas.toDataURL('image/jpeg', 0.7);
+            photos.push(dataUrl);
+          }
+
+          console.log(`Cropped ${imgPositions.length} photos from page ${i}, first size: ${photos[0]?.length || 0} chars`);
+
+          // Clean up
+          canvas.width = 0;
+          canvas.height = 0;
         }
-
-        if (imgPositions.length === 0) continue;
-
-        // Render page to canvas at scale 2 for quality
-        const scale = 2;
-        const vp = page.getViewport({ scale });
-        const canvas = document.createElement('canvas');
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
-
-        // Crop each photo from canvas
-        for (const pos of imgPositions) {
-          const sx = pos.x * scale;
-          const sy = pos.y * scale;
-          const sw = pos.w * scale;
-          const sh = pos.h * scale;
-
-          const cropCanvas = document.createElement('canvas');
-          cropCanvas.width = sw;
-          cropCanvas.height = sh;
-          const cropCtx = cropCanvas.getContext('2d');
-          if (!cropCtx) { photos.push(''); continue; }
-          cropCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-          photos.push(cropCanvas.toDataURL('image/jpeg', 0.75));
-        }
-
-        // Clean up
-        canvas.width = 0;
-        canvas.height = 0;
+      } catch (photoErr) {
+        console.error('Photo extraction error:', photoErr);
+        // Continue without photos - names still work
       }
 
       // Names are sorted alphabetically (by how they appear in the PDF grid).
