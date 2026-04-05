@@ -162,54 +162,60 @@ export default function Dashboard() {
 
   // Render seat
   const renderSeat = (leerlingId: number | null) => {
-    if (leerlingId === null) return <div key={Math.random()} className="h-full min-h-0 rounded-md" style={{ border: '2px dashed #999' }} />;
+    const CELL = 80;
+    if (leerlingId === null) return <div key={Math.random()} style={{ width: CELL, height: CELL, borderRadius: 6, background: '#e2e8f0', border: '1px solid #d1d5db' }} />;
 
     const l = leerlingen.find(x => x.id === leerlingId);
-    if (!l) return <div key={Math.random()} className="h-full min-h-0 rounded-md" style={{ border: '2px dashed #999' }} />;
+    if (!l) return <div key={Math.random()} style={{ width: CELL, height: CELL, borderRadius: 6, background: '#e2e8f0', border: '1px solid #d1d5db' }} />;
 
     const s = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [] };
     const warned = s.warnings >= 3;
     const isSelected = selectedSeat === l.id;
-
     const hasFoto = !!(l.foto_data || l.foto_url);
 
     return (
       <div key={l.id}
-        className={`relative rounded-md transition-all cursor-pointer h-full min-h-0 flex flex-col items-center bg-white
-          ${warned ? 'ring-2 ring-red-300' : isSelected ? 'ring-2 ring-blue-400 shadow-md' : 'border border-gray-200'}`}
+        style={{
+          width: CELL, height: CELL, borderRadius: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer',
+          background: warned ? '#fef2f2' : '#334155',
+          border: isSelected ? '3px solid #3b82f6' : 'none',
+          boxShadow: isSelected ? '0 0 0 2px #93c5fd' : '0 1px 3px rgba(0,0,0,0.2)',
+          transition: 'all 0.15s',
+        }}
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
+        {/* Photo or initials */}
+        {hasFoto ? (
+          <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, position: 'absolute', inset: 0 }} />
+        ) : null}
+
         {/* Status dots */}
         {s.statuses.length > 0 && (
-          <div className="absolute top-0.5 right-0.5 flex gap-0.5 z-10">
-            {s.statuses.includes('telaat') && <span className="w-2 h-2 rounded-full bg-red-500" />}
-            {s.statuses.includes('absent') && <span className="w-2 h-2 rounded-full bg-gray-400" />}
-            {s.statuses.includes('huiswerk') && <span className="w-2 h-2 rounded-full bg-yellow-500" />}
-            {s.statuses.includes('materiaal') && <span className="w-2 h-2 rounded-full bg-orange-500" />}
-            {s.statuses.includes('verwijderd') && <span className="w-2 h-2 rounded-full bg-purple-500" />}
+          <div style={{ position: 'absolute', top: 2, right: 2, display: 'flex', gap: 2, zIndex: 10 }}>
+            {s.statuses.includes('telaat') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', border: '1px solid white' }} />}
+            {s.statuses.includes('absent') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#9ca3af', border: '1px solid white' }} />}
+            {s.statuses.includes('huiswerk') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#eab308', border: '1px solid white' }} />}
+            {s.statuses.includes('materiaal') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', border: '1px solid white' }} />}
+            {s.statuses.includes('verwijderd') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7', border: '1px solid white' }} />}
           </div>
         )}
 
         {/* Warning/compliment badges */}
-        {s.warnings > 0 && <span className="absolute top-0.5 left-0.5 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] flex items-center justify-center font-bold z-10">{s.warnings}</span>}
-        {s.compliments > 0 && <span className={`absolute ${s.warnings > 0 ? 'top-5' : 'top-0.5'} left-0.5 w-4 h-4 bg-green-500 text-white rounded-full text-[8px] flex items-center justify-center font-bold z-10`}>{s.compliments}</span>}
+        {s.warnings > 0 && <span style={{ position: 'absolute', top: 2, left: 2, width: 18, height: 18, background: '#ef4444', color: 'white', borderRadius: '50%', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, border: '1px solid white' }}>{s.warnings}</span>}
+        {s.compliments > 0 && <span style={{ position: 'absolute', top: s.warnings > 0 ? 22 : 2, left: 2, width: 18, height: 18, background: '#22c55e', color: 'white', borderRadius: '50%', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, border: '1px solid white' }}>{s.compliments}</span>}
 
-        {/* Photo area: takes most of the card */}
-        <div className="flex-1 w-full flex items-center justify-center overflow-hidden rounded-t-md min-h-0">
-          {hasFoto ? (
-            <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
-              className="w-full h-full object-cover" />
-          ) : (
-            <div className={`w-8 h-8 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
-              {getInitials(l)}
-            </div>
-          )}
-        </div>
-        {/* Name below photo */}
-        <div className="w-full px-0.5 py-0.5 text-center flex-shrink-0">
-          <div className="text-[8px] font-semibold text-gray-800 truncate leading-tight">{l.voornaam}</div>
-          <div className="text-[7px] text-gray-500 truncate leading-tight">{l.achternaam}</div>
-        </div>
+        {/* Name strip with gradient */}
+        {hasFoto ? (
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1, background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', borderRadius: '0 0 6px 6px', padding: '12px 4px 3px', textAlign: 'center' }}>
+            <div style={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', lineHeight: 1.2, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{l.voornaam}</div>
+          </div>
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.3 }}>{l.voornaam}</div>
+            <div style={{ color: '#cbd5e1', fontSize: '0.7rem', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CELL - 12 }}>{l.achternaam}</div>
+          </div>
+        )}
 
         {/* Actieknoppen bij selectie */}
         {isSelected && (
@@ -256,15 +262,21 @@ export default function Dashboard() {
     if (mirrorV) rows = [...rows].reverse();
     const numRows = rows.length;
 
+    const CELL = 80;
+    const numCols = rows[0]?.length || 8;
+
     return (
-      <div ref={gridRef} className="grid gap-1 h-full"
+      <div ref={gridRef}
         style={{
+          display: 'grid',
           direction: mirrorH ? 'rtl' : 'ltr',
-          gridTemplateColumns: '1fr 1fr 12px 1fr 1fr 12px 1fr 1fr',
-          gridTemplateRows: `repeat(${numRows}, 1fr)`,
+          gridTemplateColumns: Array.from({ length: numCols }, (_, i) => (i === 2 || i === 5) ? '12px' : `${CELL}px`).join(' '),
+          gridTemplateRows: `repeat(${numRows}, ${CELL}px)`,
+          gap: '6px',
+          width: 'fit-content',
         }}>
         {rows.flat().map((cell, idx) => {
-          const colInRow = idx % 8;
+          const colInRow = idx % numCols;
           if (colInRow === 2 || colInRow === 5) return <div key={`aisle-${idx}`} style={{ direction: 'ltr' }} />;
           return <div key={idx} style={{ direction: 'ltr' }}>{renderSeat(cell)}</div>;
         })}
@@ -360,7 +372,7 @@ export default function Dashboard() {
       {mode === 'binnenkomst' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond volle hoogte */}
-          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0">
+          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0 flex items-center justify-center overflow-auto">
             {renderGrid()}
           </div>
           {/* Rechts: welkom + startopdracht + opdracht */}
@@ -391,7 +403,7 @@ export default function Dashboard() {
       {mode === 'les' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond volle hoogte */}
-          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0">
+          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0 flex items-center justify-center overflow-auto">
             {renderGrid()}
           </div>
           {/* Rechts: programma + timer */}
