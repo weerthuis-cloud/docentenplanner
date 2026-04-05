@@ -322,39 +322,72 @@ export default function KlassenPage() {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-      let allText = '';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type PdfItem = { str: string; transform: number[]; width: number };
+
+      let klasNaam = '';
+      const names: { voornaam: string; achternaam: string }[] = [];
+
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pageText = content.items.map((item: any) => item.str || '').join('\n');
-        allText += pageText + '\n';
-      }
+        const items: PdfItem[] = content.items as PdfItem[];
 
-      // Parse names from Magister fotolijst
-      const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        // Extract klas name from text
+        const fullText = items.map(it => it.str).join('');
+        const klasMatch = fullText.match(/Klas\/\s*groep:\s*([A-Za-z0-9]+)/i);
+        if (klasMatch && !klasNaam) klasNaam = klasMatch[1];
 
-      // Extract klas name
-      const klasLine = lines.find(l => /Klas\/groep:/i.test(l));
-      const klasNaam = klasLine ? klasLine.replace(/Klas\/groep:\s*/i, '').trim() : '';
+        // Group items by y-coordinate (same visual row)
+        const rows: Record<number, PdfItem[]> = {};
+        for (const item of items) {
+          const y = Math.round(item.transform[5] / 3) * 3;
+          if (!rows[y]) rows[y] = [];
+          rows[y].push(item);
+        }
 
-      // Skip header/footer patterns
-      const skipPatterns = [
-        /^Fotolijst$/i, /^Klas\/groep:/i, /^Lesperiode:/i, /^Gebruiker:/i,
-        /^\d+\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)/i,
-        /^\d+ van \d+$/, /^\d+$/, /^Lesperiode/i,
-      ];
+        for (const rowItems of Object.values(rows)) {
+          rowItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
-      const names: { voornaam: string; achternaam: string }[] = [];
-      for (const line of lines) {
-        if (skipPatterns.some(p => p.test(line))) continue;
-        if (!/^[A-Za-zÀ-ÿ\s\-'\.ë]+$/.test(line)) continue;
-        const parts = line.split(/\s+/);
-        if (parts.length < 2) continue;
-        const voornaam = parts[0];
-        const achternaam = parts.slice(1).join(' ');
-        if (voornaam && achternaam && voornaam.length > 1) {
-          names.push({ voornaam, achternaam });
+          // Build name segments: wide spaces (>15px) separate different students
+          const segments: string[] = [];
+          let current = '';
+          for (const item of rowItems) {
+            if (item.str.trim() === '' && item.width > 15) {
+              if (current.trim()) segments.push(current.trim());
+              current = '';
+            } else {
+              current += item.str;
+            }
+          }
+          if (current.trim()) segments.push(current.trim());
+
+          // Filter name segments: remove headers/footers, keep only letter-based text
+          const nameSegs: string[] = [];
+          for (const seg of segments) {
+            if (/^Fotolijst$|Lesperiode|Gebruiker|groep:|^Klas\//i.test(seg)) continue;
+            if (/\d/.test(seg)) continue;
+            if (/^P\.\s/i.test(seg)) continue;
+            if (!/^[\p{L}\s\-'\.]+$/u.test(seg)) continue;
+            nameSegs.push(seg);
+          }
+          // Parse: multi-word segments are "Voornaam Achternaam", single words get paired
+          let pendingSingle = '';
+          for (const seg of nameSegs) {
+            const parts = seg.split(/\s+/);
+            if (parts.length >= 2) {
+              if (pendingSingle) { pendingSingle = ''; } // discard orphan
+              names.push({ voornaam: parts[0], achternaam: parts.slice(1).join(' ') });
+            } else if (parts[0].length > 1) {
+              if (pendingSingle) {
+                names.push({ voornaam: pendingSingle, achternaam: parts[0] });
+                pendingSingle = '';
+              } else {
+                pendingSingle = parts[0];
+              }
+            }
+          }
+          // If pendingSingle remains, discard (orphan word)
         }
       }
 
