@@ -403,9 +403,9 @@ function PlattegrondContent() {
           <div style={{ minWidth: 180 }}>
             <label style={{ fontSize: '0.8rem', color: '#64748b', display: 'block', marginBottom: 4, fontWeight: 600 }}>Opstelling</label>
             <select
-              value={selectedLayout?.id || ''}
+              value={selectedLayout ? String(selectedLayout.id) : ''}
               onChange={(e) => {
-                const layout = layouts.find((l) => l.id === e.target.value);
+                const layout = layouts.find((l) => String(l.id) === e.target.value);
                 if (layout) loadLayout(layout);
               }}
               style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', width: '100%' }}
