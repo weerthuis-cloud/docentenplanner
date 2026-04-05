@@ -343,7 +343,7 @@ function PlattegrondContent() {
 
   const selectedKlasData = klassen.find((k) => String(k.id) === selectedKlas);
   const unplacedStudents = getUnplacedStudents();
-  const CELL_SIZE = 64;
+  const CELL_SIZE = 80;
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 1400, margin: '0 auto' }}>
@@ -478,22 +478,46 @@ function PlattegrondContent() {
         </div>
       </div>
 
-      {/* Mode toggle + actions */}
+      {/* Layout name + actions */}
       {(layoutName || selectedLayout) && (
-        <div style={{ background: 'white', borderRadius: 12, padding: '0.75rem 1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {/* Layout name */}
+        <div style={{ background: 'white', borderRadius: 12, padding: '1rem 1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: '1rem' }}>
+          {/* Name row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <label style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Naam:</label>
             <input
               type="text" value={layoutName}
               onChange={(e) => setLayoutName(e.target.value)}
-              placeholder="Naam opstelling"
-              style={{ padding: '0.4rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', width: 200, fontWeight: 600 }}
+              placeholder="Geef deze opstelling een naam"
+              style={{ padding: '0.5rem 0.75rem', border: '2px solid #c7d2fe', borderRadius: 8, fontSize: '1rem', flex: 1, fontWeight: 600, color: '#1e293b' }}
             />
-            {/* Mode buttons */}
+            <button onClick={saveLayout} disabled={loading}
+              style={{ padding: '0.5rem 1.2rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', opacity: loading ? 0.5 : 1, whiteSpace: 'nowrap' }}>
+              Opslaan
+            </button>
+            {selectedLayout && !selectedLayout.is_actief && (
+              <button onClick={setActiveLayout} disabled={loading}
+                style={{ padding: '0.5rem 1.2rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', opacity: loading ? 0.5 : 1, whiteSpace: 'nowrap' }}>
+                Actief maken
+              </button>
+            )}
+            {selectedLayout?.is_actief && (
+              <span style={{ padding: '0.5rem 0.75rem', background: '#dcfce7', color: '#16a34a', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600 }}>
+                Actief
+              </span>
+            )}
+            {selectedLayout && (
+              <button onClick={deleteLayout} disabled={loading}
+                style={{ padding: '0.5rem 1.2rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                Verwijderen
+              </button>
+            )}
+          </div>
+          {/* Mode toggle */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               onClick={() => setEditMode('tables')}
               style={{
-                padding: '0.4rem 1rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                padding: '0.5rem 1.2rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
                 background: editMode === 'tables' ? '#4f46e5' : '#e2e8f0',
                 color: editMode === 'tables' ? 'white' : '#475569',
               }}
@@ -503,37 +527,13 @@ function PlattegrondContent() {
             <button
               onClick={() => setEditMode('students')}
               style={{
-                padding: '0.4rem 1rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                padding: '0.5rem 1.2rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
                 background: editMode === 'students' ? '#4f46e5' : '#e2e8f0',
                 color: editMode === 'students' ? 'white' : '#475569',
               }}
             >
               Leerlingen plaatsen
             </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={saveLayout} disabled={loading}
-              style={{ padding: '0.4rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', opacity: loading ? 0.5 : 1 }}>
-              Opslaan
-            </button>
-            {selectedLayout && !selectedLayout.is_actief && (
-              <button onClick={setActiveLayout} disabled={loading}
-                style={{ padding: '0.4rem 1rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', opacity: loading ? 0.5 : 1 }}>
-                Actief maken
-              </button>
-            )}
-            {selectedLayout?.is_actief && (
-              <span style={{ padding: '0.4rem 0.75rem', background: '#dcfce7', color: '#16a34a', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600 }}>
-                Actief
-              </span>
-            )}
-            {selectedLayout && (
-              <button onClick={deleteLayout} disabled={loading}
-                style={{ padding: '0.4rem 1rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}>
-                Verwijderen
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -590,14 +590,14 @@ function PlattegrondContent() {
                       {student && (
                         <div style={{
                           position: 'relative', zIndex: 1, textAlign: 'center',
-                          background: hasFoto ? 'rgba(0,0,0,0.5)' : 'transparent',
-                          borderRadius: hasFoto ? 4 : 0, padding: '1px 4px',
+                          background: hasFoto ? 'rgba(0,0,0,0.55)' : 'transparent',
+                          borderRadius: hasFoto ? 4 : 0, padding: '2px 6px',
                         }}>
-                          <div style={{ color: 'white', fontWeight: 700, fontSize: '0.7rem', lineHeight: 1.2 }}>
-                            {getInitials(student)}
-                          </div>
-                          <div style={{ color: '#e2e8f0', fontSize: '0.6rem', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CELL_SIZE - 8 }}>
+                          <div style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.3 }}>
                             {student.voornaam}
+                          </div>
+                          <div style={{ color: '#cbd5e1', fontSize: '0.7rem', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CELL_SIZE - 12 }}>
+                            {student.achternaam}
                           </div>
                         </div>
                       )}
