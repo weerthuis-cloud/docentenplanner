@@ -407,7 +407,7 @@ export default function KlassenPage() {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const OPS = (pdfjsLib as any).OPS;
-        console.log('PDF photo extraction: OPS available:', !!OPS, 'pages:', pdf.numPages);
+        console.error('PDF photo extraction: OPS available:', !!OPS, 'pages:', pdf.numPages);
 
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -430,7 +430,7 @@ export default function KlassenPage() {
             }
           }
 
-          console.log(`Page ${i}: found ${imgPositions.length} images`);
+          console.error(`Page ${i}: found ${imgPositions.length} images`);
           if (imgPositions.length === 0) continue;
 
           // Render page to canvas at scale 1.5 for balance of quality/speed
@@ -440,11 +440,11 @@ export default function KlassenPage() {
           canvas.width = vp.width;
           canvas.height = vp.height;
           const ctx = canvas.getContext('2d');
-          if (!ctx) { console.log('No canvas context'); continue; }
+          if (!ctx) { console.error('No canvas context'); continue; }
 
-          console.log(`Rendering page ${i} (${canvas.width}x${canvas.height})...`);
+          console.error(`Rendering page ${i} (${canvas.width}x${canvas.height})...`);
           await page.render({ canvasContext: ctx, viewport: vp }).promise;
-          console.log('Page rendered successfully');
+          console.error('Page rendered successfully');
 
           // Crop each photo from canvas
           for (const pos of imgPositions) {
@@ -463,7 +463,7 @@ export default function KlassenPage() {
             photos.push(dataUrl);
           }
 
-          console.log(`Cropped ${imgPositions.length} photos from page ${i}, first size: ${photos[0]?.length || 0} chars`);
+          console.error(`Cropped ${imgPositions.length} photos from page ${i}, first size: ${photos[0]?.length || 0} chars`);
 
           // Clean up
           canvas.width = 0;
