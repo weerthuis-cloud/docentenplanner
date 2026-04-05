@@ -317,7 +317,14 @@ export default function Dashboard() {
           <button onClick={() => setMirrorH(!mirrorH)} className={`px-2 py-1 rounded text-xs border ${mirrorH ? 'bg-blue-500 border-blue-500' : 'bg-white/5 border-white/15'}`} title="Spiegel links/rechts">&#8596;</button>
           <button onClick={() => setMirrorV(!mirrorV)} className={`px-2 py-1 rounded text-xs border ${mirrorV ? 'bg-blue-500 border-blue-500' : 'bg-white/5 border-white/15'}`} title="Spiegel boven/onder">&#8597;</button>
 
-          {/* Mode switch */}
+          {/* Timer in topbar (altijd ruimte reserveren) */}
+          <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1" style={{ visibility: mode === 'les' ? 'visible' : 'hidden' }}>
+            <span className="text-lg font-extrabold tabular-nums">{clock}</span>
+            <span className="text-white/30">|</span>
+            <TimerCompact />
+          </div>
+
+          {/* Mode switch - altijd op dezelfde plek */}
           <div className="flex bg-white/10 rounded p-0.5">
             {(['binnenkomst','les','lezen'] as Mode[]).map(m => (
               <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded text-xs font-semibold transition-all ${mode === m ? 'bg-white text-[#1e3a5f]' : 'text-white/60'}`}>
@@ -325,15 +332,6 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
-
-          {/* Timer in topbar voor les-modus */}
-          {mode === 'les' && (
-            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1">
-              <span className="text-lg font-extrabold tabular-nums">{clock}</span>
-              <span className="text-white/30">|</span>
-              <TimerCompact />
-            </div>
-          )}
         </div>
       </div>
 
