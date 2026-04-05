@@ -66,7 +66,7 @@ export default function Dashboard() {
       fetch('/api/klassen'),
       fetch(`/api/leerlingen?klas_id=${activeKlas}`),
       fetch(`/api/lessen?klas_id=${activeKlas}&datum=${new Date().toISOString().split('T')[0]}`),
-      fetch(`/api/layout?klas_id=${activeKlas}`),
+      fetch(`/api/layout?klas_id=${activeKlas}&actief=true`),
     ]);
     const kData = kRes.ok ? await kRes.json().catch(() => []) : [];
     const lData = lRes.ok ? await lRes.json().catch(() => []) : [];
