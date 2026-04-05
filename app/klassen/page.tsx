@@ -320,6 +320,7 @@ export default function KlassenPage() {
       const pdfjsLib = await loadPdfJs();
 
       const arrayBuffer = await file.arrayBuffer();
+      const pdfBytesForPhotos = new Uint8Array(arrayBuffer.slice(0)); // keep copy for photo extraction
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -405,7 +406,7 @@ export default function KlassenPage() {
       const photos: string[] = [];
 
       try {
-        const pdfBytes = new Uint8Array(arrayBuffer);
+        const pdfBytes = pdfBytesForPhotos;
         // Find all embedded JPEG images (marker: FF D8 FF ... FF D9)
         for (let i = 0; i < pdfBytes.length - 2; i++) {
           if (pdfBytes[i] === 0xFF && pdfBytes[i + 1] === 0xD8 && pdfBytes[i + 2] === 0xFF) {
