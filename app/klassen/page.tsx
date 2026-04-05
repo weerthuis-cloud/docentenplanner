@@ -320,6 +320,7 @@ export default function KlassenPage() {
       const pdfjsLib = await loadPdfJs();
 
       const arrayBuffer = await file.arrayBuffer();
+      const pdfBytesForPhotos = new Uint8Array(arrayBuffer.slice(0));
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -327,10 +328,9 @@ export default function KlassenPage() {
       const OPS = pdfjsLib.OPS;
 
       let klasNaam = '';
-      // Names with their x,y position for spatial matching
       const namesWithPos: { voornaam: string; achternaam: string; x: number; y: number }[] = [];
-      // Photos with their x,y position
-      const photosWithPos: { x: number; y: number; dataUrl: string }[] = [];
+      // Image positions from operator list (for spatial matching)
+      const imagePositions: { x: number; y: number }[] = [];
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -358,7 +358,6 @@ export default function KlassenPage() {
           const rowItems = rows[y];
           rowItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
-          // Build name segments: wide spaces (>15px) separate different students
           const segments: { text: string; x: number }[] = [];
           let current = '';
           let currentX = rowItems[0]?.transform[4] || 0;
@@ -374,7 +373,6 @@ export default function KlassenPage() {
           }
           if (current.trim()) segments.push({ text: current.trim(), x: currentX });
 
-          // Filter name segments: remove headers/footers, keep only letter-based text
           const nameSegs: { text: string; x: number }[] = [];
           for (const seg of segments) {
             if (/^Fotolijst$|Lesperiode|Gebruiker|groep:|^Klas\//i.test(seg.text)) continue;
@@ -383,7 +381,6 @@ export default function KlassenPage() {
             if (!/^[\p{L}\s\-'\.]+$/u.test(seg.text)) continue;
             nameSegs.push(seg);
           }
-          // Parse: multi-word segments are "Voornaam Achternaam", single words get paired
           for (const seg of nameSegs) {
             const parts = seg.text.split(/\s+/);
             if (parts.length >= 2) {
@@ -400,53 +397,29 @@ export default function KlassenPage() {
           }
         }
 
-        // === Extract photos with positions using operator list ===
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ops = await (page as any).getOperatorList();
-        const mStack: number[][] = [];
-        let cm = [1, 0, 0, 1, 0, 0];
-
-        for (let j = 0; j < ops.fnArray.length; j++) {
-          const fn = ops.fnArray[j];
-          const args = ops.argsArray[j];
-
-          if (fn === OPS.save) {
-            mStack.push([...cm]);
-          } else if (fn === OPS.restore) {
-            cm = mStack.pop() || [1, 0, 0, 1, 0, 0];
-          } else if (fn === OPS.transform) {
-            const [ta, tb, tc, td, te, tf] = args;
-            cm = [
-              cm[0]*ta + cm[2]*tb, cm[1]*ta + cm[3]*tb,
-              cm[0]*tc + cm[2]*td, cm[1]*tc + cm[3]*td,
-              cm[0]*te + cm[2]*tf + cm[4], cm[1]*te + cm[3]*tf + cm[5],
-            ];
-          } else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
-            const imgW = Math.abs(cm[0]);
-            const imgH = Math.abs(cm[3]);
-            // Filter for student passport photos (square, 80-400px)
-            if (imgW >= 80 && imgW <= 400 && imgH >= 80 && imgH <= 400 && Math.abs(imgW - imgH) < 50) {
-              const imgX = cm[4];
-              const imgY = cm[5];
-              const imgName = args[0];
-              try {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const imgObj: any = await new Promise((resolve) => {
-                  page.objs.get(imgName, resolve);
-                });
-                // Render small image to canvas for base64
-                const canvas = document.createElement('canvas');
-                canvas.width = imgObj.width;
-                canvas.height = imgObj.height;
-                const ctx = canvas.getContext('2d')!;
-                const imageData = ctx.createImageData(imgObj.width, imgObj.height);
-                imageData.data.set(imgObj.data);
-                ctx.putImageData(imageData, 0, 0);
-                photosWithPos.push({ x: imgX, y: imgY, dataUrl: canvas.toDataURL('image/jpeg', 0.85) });
-              } catch { /* skip if image data unavailable */ }
+        // Get image POSITIONS from operator list (no image data needed)
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const ops = await (page as any).getOperatorList();
+          const mStack: number[][] = [];
+          let cm = [1, 0, 0, 1, 0, 0];
+          for (let j = 0; j < ops.fnArray.length; j++) {
+            const fn = ops.fnArray[j];
+            const a = ops.argsArray[j];
+            if (fn === OPS.save) { mStack.push([...cm]); }
+            else if (fn === OPS.restore) { cm = mStack.pop() || [1,0,0,1,0,0]; }
+            else if (fn === OPS.transform) {
+              const [ta,tb,tc,td,te,tf] = a;
+              cm = [cm[0]*ta+cm[2]*tb, cm[1]*ta+cm[3]*tb, cm[0]*tc+cm[2]*td, cm[1]*tc+cm[3]*td, cm[0]*te+cm[2]*tf+cm[4], cm[1]*te+cm[3]*tf+cm[5]];
+            }
+            else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
+              const w = Math.abs(cm[0]), h = Math.abs(cm[3]);
+              if (w >= 80 && w <= 400 && h >= 80 && h <= 400 && Math.abs(w-h) < 50) {
+                imagePositions.push({ x: cm[4], y: cm[5] });
+              }
             }
           }
-        }
+        } catch (opsErr) { console.error('Operator list error:', opsErr); }
       }
 
       if (namesWithPos.length === 0) {
@@ -455,21 +428,59 @@ export default function KlassenPage() {
         return;
       }
 
-      // Match each name to the closest photo ABOVE it (photo y > name y, similar x)
-      setImportMsg(`${namesWithPos.length} namen gevonden, foto's worden gekoppeld...`);
+      // Extract JPEG data from binary (fast and reliable)
+      setImportMsg(`${namesWithPos.length} namen gevonden, foto's worden geëxtraheerd...`);
+      const photoDataUrls: string[] = [];
+      function getJpegDims(d: Uint8Array) {
+        for (let i = 2; i < d.length - 9; i++) {
+          if (d[i]===0xFF && (d[i+1]===0xC0||d[i+1]===0xC2)) return { w:(d[i+7]<<8)|d[i+8], h:(d[i+5]<<8)|d[i+6] };
+        }
+        return null;
+      }
+      try {
+        const pdfBytes = pdfBytesForPhotos;
+        for (let i = 0; i < pdfBytes.length - 2; i++) {
+          if (pdfBytes[i]===0xFF && pdfBytes[i+1]===0xD8 && pdfBytes[i+2]===0xFF) {
+            for (let j = i+3; j < pdfBytes.length-1; j++) {
+              if (pdfBytes[j]===0xFF && pdfBytes[j+1]===0xD9) {
+                const jpeg = pdfBytes.slice(i, j+2);
+                const dims = getJpegDims(jpeg);
+                if (dims && dims.w>=80 && dims.w<=400 && dims.h>=80 && dims.h<=400 && Math.abs(dims.w-dims.h)<50) {
+                  let bin = '';
+                  for (let k=0; k<jpeg.length; k++) bin += String.fromCharCode(jpeg[k]);
+                  photoDataUrls.push('data:image/jpeg;base64,' + btoa(bin));
+                }
+                i = j+1;
+                break;
+              }
+            }
+          }
+        }
+      } catch (photoErr) { console.error('Photo extraction error:', photoErr); }
+
+      // Match photos to names using spatial proximity
+      // Image positions (from operator list) are in same order as binary JPEGs
+      // Each imagePosition[i] corresponds to photoDataUrls[i]
       const namesWithPhotos = namesWithPos.map(name => {
         let bestPhoto: string | undefined;
         let bestDist = Infinity;
-        for (const photo of photosWithPos) {
-          // Photo should be above the name (higher y in PDF coords) and close in x
+        for (let pi = 0; pi < imagePositions.length && pi < photoDataUrls.length; pi++) {
+          const photo = imagePositions[pi];
           const dx = Math.abs(photo.x - name.x);
-          const dy = photo.y - name.y; // positive = photo is above name
+          const dy = photo.y - name.y; // positive = photo above name in PDF coords
           if (dy > 0 && dx < 150) {
             const dist = dx + dy;
-            if (dist < bestDist) {
-              bestDist = dist;
-              bestPhoto = photo.dataUrl;
-            }
+            if (dist < bestDist) { bestDist = dist; bestPhoto = photoDataUrls[pi]; }
+          }
+        }
+        // Fallback: if no spatial match found, try with relaxed constraints
+        if (!bestPhoto) {
+          for (let pi = 0; pi < imagePositions.length && pi < photoDataUrls.length; pi++) {
+            const photo = imagePositions[pi];
+            const dx = Math.abs(photo.x - name.x);
+            const dy = Math.abs(photo.y - name.y);
+            const dist = dx + dy;
+            if (dx < 150 && dist < bestDist) { bestDist = dist; bestPhoto = photoDataUrls[pi]; }
           }
         }
         return { voornaam: name.voornaam, achternaam: name.achternaam, foto_data: bestPhoto };
