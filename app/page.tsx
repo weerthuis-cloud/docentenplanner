@@ -175,49 +175,48 @@ export default function Dashboard() {
 
     return (
       <div key={l.id}
-        className={`relative border-2 rounded-lg min-h-[70px] transition-all cursor-pointer overflow-hidden
-          ${warned ? 'border-red-200' : isSelected ? 'border-blue-400 shadow-md' : 'border-gray-200'}`}
-        style={{ background: warned ? '#fef2f2' : isSelected ? '#eff6ff' : 'white' }}
+        className={`relative border-2 rounded-lg min-h-[70px] transition-all cursor-pointer
+          ${warned ? 'bg-red-50 border-red-200' : isSelected ? 'border-blue-400 shadow-md bg-blue-50' : 'border-gray-200 bg-white'}`}
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
+        {/* Full photo background */}
+        {hasFoto && (
+          <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
+            className="absolute inset-0 w-full h-full object-cover rounded-[6px]" />
+        )}
+
         {/* Status dots */}
         {s.statuses.length > 0 && (
           <div className="absolute top-1 right-1 flex gap-0.5 z-10">
-            {s.statuses.includes('telaat') && <span className="w-2 h-2 rounded-full bg-red-500" />}
-            {s.statuses.includes('absent') && <span className="w-2 h-2 rounded-full bg-gray-400" />}
-            {s.statuses.includes('huiswerk') && <span className="w-2 h-2 rounded-full bg-yellow-500" />}
-            {s.statuses.includes('materiaal') && <span className="w-2 h-2 rounded-full bg-orange-500" />}
-            {s.statuses.includes('verwijderd') && <span className="w-2 h-2 rounded-full bg-purple-500" />}
+            {s.statuses.includes('telaat') && <span className="w-2.5 h-2.5 rounded-full bg-red-500 border border-white" />}
+            {s.statuses.includes('absent') && <span className="w-2.5 h-2.5 rounded-full bg-gray-400 border border-white" />}
+            {s.statuses.includes('huiswerk') && <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-white" />}
+            {s.statuses.includes('materiaal') && <span className="w-2.5 h-2.5 rounded-full bg-orange-500 border border-white" />}
+            {s.statuses.includes('verwijderd') && <span className="w-2.5 h-2.5 rounded-full bg-purple-500 border border-white" />}
           </div>
         )}
 
         {/* Warning/compliment badges */}
-        {s.warnings > 0 && <span className="absolute top-1 left-1 w-5 h-5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10">{s.warnings}</span>}
-        {s.compliments > 0 && <span className={`absolute ${s.warnings > 0 ? 'top-7' : 'top-1'} left-1 w-5 h-5 bg-green-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10`}>{s.compliments}</span>}
+        {s.warnings > 0 && <span className="absolute top-1 left-1 w-5 h-5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10 border border-white">{s.warnings}</span>}
+        {s.compliments > 0 && <span className={`absolute ${s.warnings > 0 ? 'top-7' : 'top-1'} left-1 w-5 h-5 bg-green-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10 border border-white`}>{s.compliments}</span>}
 
-        <div className="flex items-stretch h-full min-h-[70px]">
-          {/* Left: photo or initials */}
-          {hasFoto ? (
-            <div className="relative w-[45%] flex-shrink-0">
-              <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
-                className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-y-0 right-0 w-6"
-                style={{ background: `linear-gradient(to right, transparent, ${warned ? '#fef2f2' : isSelected ? '#eff6ff' : 'white'})` }} />
+        {/* Content: centered initials (no photo) or gradient name strip (with photo) */}
+        {hasFoto ? (
+          <div className="relative z-[1] flex flex-col justify-end min-h-[70px]">
+            <div className="px-1.5 pb-1 pt-4 rounded-b-[6px]"
+              style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
+              <div className="text-white text-[10px] font-semibold leading-tight truncate text-center"
+                style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{l.voornaam}</div>
             </div>
-          ) : (
-            <div className="w-[45%] flex-shrink-0 bg-[#2d6a9f] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">{getInitials(l)}</span>
-              <div className="absolute inset-y-0 right-[55%] w-6"
-                style={{ background: `linear-gradient(to right, #2d6a9f, ${warned ? '#fef2f2' : isSelected ? '#eff6ff' : 'white'})` }} />
-            </div>
-          )}
-
-          {/* Right: name */}
-          <div className="flex-1 flex flex-col justify-center pl-1 pr-1.5 min-w-0">
-            <div className="text-[11px] font-bold text-gray-800 truncate leading-tight">{l.voornaam}</div>
-            <div className="text-[9px] text-gray-500 truncate leading-tight">{l.achternaam}</div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[70px] p-1.5">
+            <div className={`w-10 h-10 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-xs ${warned ? 'ring-2 ring-red-300' : ''}`}>
+              {getInitials(l)}
+            </div>
+            <div className="text-[10px] font-semibold mt-1 text-center truncate w-full">{l.voornaam} {l.achternaam}</div>
+          </div>
+        )}
 
         {/* Actieknoppen bij selectie */}
         {isSelected && (
