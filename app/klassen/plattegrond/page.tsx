@@ -816,12 +816,20 @@ function PlattegrondContent() {
                           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, position: 'absolute', inset: 0 }}
                         />
                       )}
-                      {student && (
+                      {student && hasFoto && (
                         <div style={{
-                          position: 'relative', zIndex: 1, textAlign: 'center',
-                          background: hasFoto ? 'rgba(0,0,0,0.55)' : 'transparent',
-                          borderRadius: hasFoto ? 4 : 0, padding: '2px 6px',
+                          position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1,
+                          background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                          borderRadius: '0 0 6px 6px', padding: '12px 4px 3px',
+                          textAlign: 'center',
                         }}>
+                          <div style={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', lineHeight: 1.2, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                            {student.voornaam}
+                          </div>
+                        </div>
+                      )}
+                      {student && !hasFoto && (
+                        <div style={{ textAlign: 'center' }}>
                           <div style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.3 }}>
                             {student.voornaam}
                           </div>
