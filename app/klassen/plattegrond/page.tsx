@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronDown, Trash2, Save, Eye } from 'lucide-react';
 
 interface Student {
   id: number;
@@ -16,7 +15,7 @@ interface Layout {
   klas_id: string;
   naam: string;
   layout_data: (number | null)[][];
-  is_active: boolean;
+  is_actief: boolean;
   created_at: string;
 }
 
@@ -246,13 +245,17 @@ export default function PlattegrondPage() {
 
     setLoading(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         klas_id: selectedKlas,
         naam: layoutName,
         layout_data: layoutData,
       };
 
-      const method = selectedLayout ? 'POST' : 'POST';
+      if (selectedLayout) {
+        payload.id = selectedLayout.id;
+      }
+
+      const method = 'POST';
       const res = await fetch('/api/layout', {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -315,7 +318,7 @@ export default function PlattegrondPage() {
       const res = await fetch('/api/layout', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedLayout.id }),
+        body: JSON.stringify({ klas_id: Number(selectedKlas), layout_id: selectedLayout.id }),
       });
 
       if (!res.ok) throw new Error('Failed to set active layout');
@@ -323,10 +326,10 @@ export default function PlattegrondPage() {
       // Update local state
       const updatedLayouts = layouts.map((l) => ({
         ...l,
-        is_active: l.id === selectedLayout.id,
+        is_actief: l.id === selectedLayout.id,
       }));
       setLayouts(updatedLayouts);
-      setSelectedLayout({ ...selectedLayout, is_active: true });
+      setSelectedLayout({ ...selectedLayout, is_actief: true });
       setError('');
     } catch (err) {
       setError('Fout bij activeren van opstelling');
@@ -427,7 +430,7 @@ export default function PlattegrondPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" />
+                <span className="absolute right-3 top-2.5 text-gray-400 pointer-events-none">▾</span>
               </div>
             </div>
 
@@ -450,11 +453,11 @@ export default function PlattegrondPage() {
                     {layouts.map((layout) => (
                       <option key={layout.id} value={layout.id}>
                         {layout.naam}
-                        {layout.is_active ? ' (actief)' : ''}
+                        {layout.is_actief ? ' (actief)' : ''}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <span className="absolute right-3 top-2.5 text-gray-400 pointer-events-none">▾</span>
                 </div>
                 <button
                   onClick={createNewLayout}
@@ -489,19 +492,17 @@ export default function PlattegrondPage() {
                   disabled={loading}
                   className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold rounded-lg transition"
                 >
-                  <Save className="w-4 h-4" />
-                  Opslaan
+                  💾 Opslaan
                 </button>
 
                 {selectedLayout && (
                   <>
                     <button
                       onClick={setActiveLayout}
-                      disabled={loading || selectedLayout.is_active}
+                      disabled={loading || selectedLayout.is_actief}
                       className="flex items-center gap-2 px-6 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white font-semibold rounded-lg transition"
                     >
-                      <Eye className="w-4 h-4" />
-                      {selectedLayout.is_active
+                      👁 {selectedLayout.is_actief
                         ? 'Actief'
                         : 'Actief maken'}
                     </button>
@@ -510,8 +511,7 @@ export default function PlattegrondPage() {
                       disabled={loading}
                       className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-semibold rounded-lg transition"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      Verwijderen
+                      🗑 Verwijderen
                     </button>
                   </>
                 )}
