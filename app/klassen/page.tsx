@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Klas {
@@ -49,6 +50,7 @@ const ONDERSTEUNING_OPTIES = [
 const GROUP_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4'];
 
 export default function KlassenPage() {
+  const searchParams = useSearchParams();
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [selectedKlas, setSelectedKlas] = useState<number | null>(null);
   const [leerlingen, setLeerlingen] = useState<Leerling[]>([]);
@@ -93,7 +95,11 @@ export default function KlassenPage() {
     const res = await fetch('/api/klassen');
     const data = await res.json().catch(() => []);
     setKlassen(data);
-    if (data.length > 0 && !selectedKlas) setSelectedKlas(data[0].id);
+    if (data.length > 0 && !selectedKlas) {
+      const urlKlasId = searchParams.get('klas_id');
+      const match = urlKlasId ? data.find((k: Klas) => k.id === Number(urlKlasId)) : null;
+      setSelectedKlas(match ? match.id : data[0].id);
+    }
   }
 
   async function fetchLeerlingen(klasId: number) {

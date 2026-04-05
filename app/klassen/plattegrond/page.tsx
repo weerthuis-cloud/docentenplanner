@@ -512,7 +512,7 @@ function PlattegrondContent() {
           </p>
         </div>
         <Link
-          href="/klassen"
+          href={selectedKlas ? `/klassen?klas_id=${selectedKlas}` : '/klassen'}
           style={{
             padding: '0.5rem 1rem', background: '#e2e8f0', color: '#475569',
             borderRadius: 8, textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500,
