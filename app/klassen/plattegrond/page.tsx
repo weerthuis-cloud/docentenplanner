@@ -93,9 +93,28 @@ function PlattegrondContent() {
         if (!res.ok) throw new Error('Failed to load layouts');
         const data = await res.json();
         setLayouts(data);
-        setSelectedLayout(null);
-        setLayoutName('');
-        initializeEmptyGrid();
+        // Auto-load the active layout, or first layout
+        const active = data.find((l: Layout) => l.is_actief);
+        if (active) {
+          setSelectedLayout(active);
+          setLayoutName(active.naam);
+          setLayoutData(active.layout_data);
+          setRows(active.layout_data.length);
+          setCols(active.layout_data[0]?.length || 8);
+          setEditMode('tables');
+        } else if (data.length > 0) {
+          const first = data[0];
+          setSelectedLayout(first);
+          setLayoutName(first.naam);
+          setLayoutData(first.layout_data);
+          setRows(first.layout_data.length);
+          setCols(first.layout_data[0]?.length || 8);
+          setEditMode('tables');
+        } else {
+          setSelectedLayout(null);
+          setLayoutName('');
+          initializeEmptyGrid();
+        }
       } catch (err) {
         setError('Fout bij laden van opstellingen');
         console.error(err);
@@ -112,7 +131,6 @@ function PlattegrondContent() {
       .fill(null)
       .map(() => Array(cols).fill(null));
     setLayoutData(newGrid);
-    setLayoutName('');
     setEditMode('tables');
   }, [rows, cols]);
 
