@@ -162,10 +162,10 @@ export default function Dashboard() {
 
   // Render seat
   const renderSeat = (leerlingId: number | null) => {
-    if (leerlingId === null) return <div key={Math.random()} className="rounded-lg bg-gray-200 h-full min-h-0" />;
+    if (leerlingId === null) return <div key={Math.random()} className="h-full min-h-0 rounded-md" style={{ border: '2px dashed #999' }} />;
 
     const l = leerlingen.find(x => x.id === leerlingId);
-    if (!l) return <div key={Math.random()} className="rounded-lg bg-gray-200 h-full min-h-0" />;
+    if (!l) return <div key={Math.random()} className="h-full min-h-0 rounded-md" style={{ border: '2px dashed #999' }} />;
 
     const s = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [] };
     const warned = s.warnings >= 3;
@@ -175,48 +175,41 @@ export default function Dashboard() {
 
     return (
       <div key={l.id}
-        className={`relative border-2 rounded-lg transition-all cursor-pointer h-full min-h-0
-          ${warned ? 'bg-red-50 border-red-200' : isSelected ? 'border-blue-400 shadow-md bg-blue-50' : 'border-gray-200 bg-white'}`}
+        className={`relative rounded-md transition-all cursor-pointer h-full min-h-0 flex flex-col items-center bg-white
+          ${warned ? 'ring-2 ring-red-300' : isSelected ? 'ring-2 ring-blue-400 shadow-md' : 'border border-gray-200'}`}
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
-        {/* Full photo background */}
-        {hasFoto && (
-          <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
-            className="absolute inset-0 w-full h-full object-cover rounded-[6px]" />
-        )}
-
         {/* Status dots */}
         {s.statuses.length > 0 && (
-          <div className="absolute top-1 right-1 flex gap-0.5 z-10">
-            {s.statuses.includes('telaat') && <span className="w-2.5 h-2.5 rounded-full bg-red-500 border border-white" />}
-            {s.statuses.includes('absent') && <span className="w-2.5 h-2.5 rounded-full bg-gray-400 border border-white" />}
-            {s.statuses.includes('huiswerk') && <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-white" />}
-            {s.statuses.includes('materiaal') && <span className="w-2.5 h-2.5 rounded-full bg-orange-500 border border-white" />}
-            {s.statuses.includes('verwijderd') && <span className="w-2.5 h-2.5 rounded-full bg-purple-500 border border-white" />}
+          <div className="absolute top-0.5 right-0.5 flex gap-0.5 z-10">
+            {s.statuses.includes('telaat') && <span className="w-2 h-2 rounded-full bg-red-500" />}
+            {s.statuses.includes('absent') && <span className="w-2 h-2 rounded-full bg-gray-400" />}
+            {s.statuses.includes('huiswerk') && <span className="w-2 h-2 rounded-full bg-yellow-500" />}
+            {s.statuses.includes('materiaal') && <span className="w-2 h-2 rounded-full bg-orange-500" />}
+            {s.statuses.includes('verwijderd') && <span className="w-2 h-2 rounded-full bg-purple-500" />}
           </div>
         )}
 
         {/* Warning/compliment badges */}
-        {s.warnings > 0 && <span className="absolute top-1 left-1 w-5 h-5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10 border border-white">{s.warnings}</span>}
-        {s.compliments > 0 && <span className={`absolute ${s.warnings > 0 ? 'top-7' : 'top-1'} left-1 w-5 h-5 bg-green-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10 border border-white`}>{s.compliments}</span>}
+        {s.warnings > 0 && <span className="absolute top-0.5 left-0.5 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] flex items-center justify-center font-bold z-10">{s.warnings}</span>}
+        {s.compliments > 0 && <span className={`absolute ${s.warnings > 0 ? 'top-5' : 'top-0.5'} left-0.5 w-4 h-4 bg-green-500 text-white rounded-full text-[8px] flex items-center justify-center font-bold z-10`}>{s.compliments}</span>}
 
-        {/* Content: centered initials (no photo) or gradient name strip (with photo) */}
-        {hasFoto ? (
-          <div className="absolute inset-0 flex flex-col justify-end z-[1]">
-            <div className="px-1.5 pb-1 pt-5 rounded-b-[6px]"
-              style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.65))' }}>
-              <div className="text-white text-[11px] font-semibold leading-tight truncate text-center"
-                style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{l.voornaam}</div>
-            </div>
-          </div>
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-1">
-            <div className={`w-8 h-8 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${warned ? 'ring-2 ring-red-300' : ''}`}>
+        {/* Photo area: takes most of the card */}
+        <div className="flex-1 w-full flex items-center justify-center overflow-hidden rounded-t-md min-h-0">
+          {hasFoto ? (
+            <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
+              className="w-full h-full object-cover" />
+          ) : (
+            <div className={`w-8 h-8 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}>
               {getInitials(l)}
             </div>
-            <div className="text-[8px] font-semibold mt-0.5 text-center truncate w-full">{l.voornaam}</div>
-          </div>
-        )}
+          )}
+        </div>
+        {/* Name below photo */}
+        <div className="w-full px-0.5 py-0.5 text-center flex-shrink-0">
+          <div className="text-[8px] font-semibold text-gray-800 truncate leading-tight">{l.voornaam}</div>
+          <div className="text-[7px] text-gray-500 truncate leading-tight">{l.achternaam}</div>
+        </div>
 
         {/* Actieknoppen bij selectie */}
         {isSelected && (
@@ -370,16 +363,26 @@ export default function Dashboard() {
           <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0">
             {renderGrid()}
           </div>
-          {/* Rechts: klok + startopdracht */}
-          <div className="bg-[#1e3a5f] flex flex-col items-center justify-center p-8 gap-8" style={{ width: '40%', minWidth: 360 }}>
-            <div className="text-center">
-              <div className="text-7xl font-extrabold text-white tabular-nums tracking-tighter">{clock}</div>
-              <div className="text-white/50 text-lg mt-1">{date}</div>
-            </div>
-            <div className="bg-white/10 border-2 border-white/15 rounded-2xl p-7 w-full">
-              <span className="inline-block bg-blue-500 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider mb-3">Startopdracht</span>
-              <div className="text-white/85 text-lg leading-relaxed">{les?.startopdracht || 'Geen startopdracht ingesteld'}</div>
-            </div>
+          {/* Rechts: welkom + startopdracht + opdracht */}
+          <div className="bg-[#f0faf8] flex flex-col justify-center p-10 gap-6" style={{ width: '42%', minWidth: 360 }}>
+            <h2 className="text-3xl font-black uppercase tracking-wide" style={{ color: '#0d9488' }}>
+              Welkom bij {activeKlasObj?.vak || 'de les'}
+            </h2>
+            {les?.startopdracht && (
+              <div>
+                <h3 className="text-xl font-bold uppercase tracking-wide mb-2" style={{ color: '#0d9488' }}>Startopdracht</h3>
+                <div className="text-xl leading-relaxed text-gray-800">{les.startopdracht}</div>
+              </div>
+            )}
+            {les?.terugkijken && (
+              <div>
+                <h3 className="text-xl font-bold uppercase tracking-wide mb-2" style={{ color: '#0d9488' }}>Opdracht</h3>
+                <div className="text-xl leading-relaxed text-gray-800">{les.terugkijken}</div>
+              </div>
+            )}
+            {!les?.startopdracht && !les?.terugkijken && (
+              <div className="text-lg text-gray-400">Geen opdrachten ingesteld voor deze les</div>
+            )}
           </div>
         </div>
       )}
