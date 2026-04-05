@@ -335,7 +335,7 @@ export default function KlassenPage() {
 
         // Extract klas name from text
         const fullText = items.map(it => it.str).join('');
-        const klasMatch = fullText.match(/Klas\/\s*groep:\s*([A-Za-z0-9]+)/i);
+        const klasMatch = fullText.match(/Klas\/\s*groep:\s*([A-Za-z0-9]+?)(?:Lesperiode|$)/i);
         if (klasMatch && !klasNaam) klasNaam = klasMatch[1];
 
         // Group items by y-coordinate (same visual row)
@@ -346,7 +346,12 @@ export default function KlassenPage() {
           rows[y].push(item);
         }
 
-        for (const rowItems of Object.values(rows)) {
+        // Sort rows top-to-bottom (high y = top of page)
+        const sortedYs = Object.keys(rows).map(Number).sort((a, b) => b - a);
+        let pendingSingle = '';
+
+        for (const y of sortedYs) {
+          const rowItems = rows[y];
           rowItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
           // Build name segments: wide spaces (>15px) separate different students
@@ -372,11 +377,10 @@ export default function KlassenPage() {
             nameSegs.push(seg);
           }
           // Parse: multi-word segments are "Voornaam Achternaam", single words get paired
-          let pendingSingle = '';
           for (const seg of nameSegs) {
             const parts = seg.split(/\s+/);
             if (parts.length >= 2) {
-              if (pendingSingle) { pendingSingle = ''; } // discard orphan
+              if (pendingSingle) { pendingSingle = ''; }
               names.push({ voornaam: parts[0], achternaam: parts.slice(1).join(' ') });
             } else if (parts[0].length > 1) {
               if (pendingSingle) {
@@ -387,7 +391,6 @@ export default function KlassenPage() {
               }
             }
           }
-          // If pendingSingle remains, discard (orphan word)
         }
       }
 
