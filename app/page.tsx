@@ -171,15 +171,18 @@ export default function Dashboard() {
     const warned = s.warnings >= 3;
     const isSelected = selectedSeat === l.id;
 
+    const hasFoto = !!(l.foto_data || l.foto_url);
+
     return (
       <div key={l.id}
-        className={`relative bg-white border-2 rounded-lg p-1.5 flex flex-col items-center justify-center min-h-[70px] transition-all cursor-pointer
-          ${warned ? 'bg-red-50 border-red-200' : isSelected ? 'border-blue-400 shadow-md bg-blue-50' : 'border-gray-200'}`}
+        className={`relative border-2 rounded-lg min-h-[70px] transition-all cursor-pointer overflow-hidden
+          ${warned ? 'border-red-200' : isSelected ? 'border-blue-400 shadow-md' : 'border-gray-200'}`}
+        style={{ background: warned ? '#fef2f2' : isSelected ? '#eff6ff' : 'white' }}
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
         {/* Status dots */}
         {s.statuses.length > 0 && (
-          <div className="absolute top-1 right-1 flex gap-0.5">
+          <div className="absolute top-1 right-1 flex gap-0.5 z-10">
             {s.statuses.includes('telaat') && <span className="w-2 h-2 rounded-full bg-red-500" />}
             {s.statuses.includes('absent') && <span className="w-2 h-2 rounded-full bg-gray-400" />}
             {s.statuses.includes('huiswerk') && <span className="w-2 h-2 rounded-full bg-yellow-500" />}
@@ -188,17 +191,33 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Avatar */}
-        <div className={`relative w-10 h-10 rounded-full ${!(l.foto_data || l.foto_url) ? 'bg-[#2d6a9f]' : ''} text-white flex items-center justify-center font-bold text-xs ${warned ? 'ring-2 ring-red-300' : ''}`} style={{ overflow: 'hidden' }}>
-          {s.warnings > 0 && <span className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10">{s.warnings}</span>}
-          {s.compliments > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10">{s.compliments}</span>}
-          {(l.foto_data || l.foto_url) ? (
-            <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam} className="w-full h-full object-cover" />
+        {/* Warning/compliment badges */}
+        {s.warnings > 0 && <span className="absolute top-1 left-1 w-5 h-5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10">{s.warnings}</span>}
+        {s.compliments > 0 && <span className={`absolute ${s.warnings > 0 ? 'top-7' : 'top-1'} left-1 w-5 h-5 bg-green-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10`}>{s.compliments}</span>}
+
+        <div className="flex items-stretch h-full min-h-[70px]">
+          {/* Left: photo or initials */}
+          {hasFoto ? (
+            <div className="relative w-[45%] flex-shrink-0">
+              <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
+                className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-y-0 right-0 w-6"
+                style={{ background: `linear-gradient(to right, transparent, ${warned ? '#fef2f2' : isSelected ? '#eff6ff' : 'white'})` }} />
+            </div>
           ) : (
-            getInitials(l)
+            <div className="w-[45%] flex-shrink-0 bg-[#2d6a9f] flex items-center justify-center">
+              <span className="text-white font-bold text-sm">{getInitials(l)}</span>
+              <div className="absolute inset-y-0 right-[55%] w-6"
+                style={{ background: `linear-gradient(to right, #2d6a9f, ${warned ? '#fef2f2' : isSelected ? '#eff6ff' : 'white'})` }} />
+            </div>
           )}
+
+          {/* Right: name */}
+          <div className="flex-1 flex flex-col justify-center pl-1 pr-1.5 min-w-0">
+            <div className="text-[11px] font-bold text-gray-800 truncate leading-tight">{l.voornaam}</div>
+            <div className="text-[9px] text-gray-500 truncate leading-tight">{l.achternaam}</div>
+          </div>
         </div>
-        <div className="text-[10px] font-semibold mt-1 text-center truncate w-full">{l.voornaam} {l.achternaam}</div>
 
         {/* Actieknoppen bij selectie */}
         {isSelected && (
