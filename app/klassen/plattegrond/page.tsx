@@ -799,10 +799,10 @@ function PlattegrondContent() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: editMode === 'tables' ? 'pointer' : (typeof cell === 'number' && cell > 0 ? 'grab' : 'default'),
                         background: isTable
-                          ? (groupColor ? groupColor : (student ? '#334155' : (editMode === 'students' ? '#c8d6e5' : '#64748b')))
+                          ? (groupColor ? groupColor : (student ? '#334155' : '#e2e8f0'))
                           : (editMode === 'tables' ? '#ffffff' : 'transparent'),
                         border: isTable
-                          ? (groupColor ? `3px solid ${groupColor}` : (student ? 'none' : (editMode === 'students' ? '2px dashed #94a3b8' : 'none')))
+                          ? (groupColor ? `3px solid ${groupColor}` : (student ? 'none' : (editMode === 'students' ? '2px dashed #94a3b8' : '1px solid #d1d5db')))
                           : (editMode === 'tables' ? '2px dashed #cbd5e1' : '1px solid transparent'),
                         boxShadow: isTable ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
                         position: 'relative', overflow: 'hidden',

@@ -162,10 +162,10 @@ export default function Dashboard() {
 
   // Render seat
   const renderSeat = (leerlingId: number | null) => {
-    if (leerlingId === null) return <div key={Math.random()} className="border-2 border-dashed border-gray-300 rounded-lg min-h-[70px]" />;
+    if (leerlingId === null) return <div key={Math.random()} className="rounded-lg bg-gray-200" style={{ aspectRatio: '1' }} />;
 
     const l = leerlingen.find(x => x.id === leerlingId);
-    if (!l) return <div key={Math.random()} className="border-2 border-dashed border-gray-300 rounded-lg min-h-[70px]" />;
+    if (!l) return <div key={Math.random()} className="rounded-lg bg-gray-200" style={{ aspectRatio: '1' }} />;
 
     const s = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [] };
     const warned = s.warnings >= 3;
@@ -175,8 +175,9 @@ export default function Dashboard() {
 
     return (
       <div key={l.id}
-        className={`relative border-2 rounded-lg min-h-[70px] transition-all cursor-pointer
+        className={`relative border-2 rounded-lg transition-all cursor-pointer
           ${warned ? 'bg-red-50 border-red-200' : isSelected ? 'border-blue-400 shadow-md bg-blue-50' : 'border-gray-200 bg-white'}`}
+        style={{ aspectRatio: '1' }}
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
         {/* Full photo background */}
@@ -202,15 +203,15 @@ export default function Dashboard() {
 
         {/* Content: centered initials (no photo) or gradient name strip (with photo) */}
         {hasFoto ? (
-          <div className="relative z-[1] flex flex-col justify-end min-h-[70px]">
-            <div className="px-1.5 pb-1 pt-4 rounded-b-[6px]"
-              style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
-              <div className="text-white text-[10px] font-semibold leading-tight truncate text-center"
+          <div className="absolute inset-0 flex flex-col justify-end z-[1]">
+            <div className="px-1.5 pb-1 pt-5 rounded-b-[6px]"
+              style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.65))' }}>
+              <div className="text-white text-[11px] font-semibold leading-tight truncate text-center"
                 style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{l.voornaam}</div>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center min-h-[70px] p-1.5">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-1.5">
             <div className={`w-10 h-10 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-xs ${warned ? 'ring-2 ring-red-300' : ''}`}>
               {getInitials(l)}
             </div>
