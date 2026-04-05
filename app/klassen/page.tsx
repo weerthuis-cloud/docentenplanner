@@ -11,6 +11,10 @@ interface Leerling {
   id: number; klas_id: number; voornaam: string; achternaam: string; boek_titel: string; boek_kleur: string;
 }
 
+interface GroepjesSet {
+  id: number; klas_id: number; naam: string; groepjes_data: number[][]; created_at: string;
+}
+
 export default function KlassenPage() {
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [selectedKlas, setSelectedKlas] = useState<number | null>(null);
@@ -20,13 +24,17 @@ export default function KlassenPage() {
   const [newKlas, setNewKlas] = useState({ naam: '', vak: 'Nederlands', lokaal: '', jaarlaag: '' });
   const [newLeerling, setNewLeerling] = useState({ voornaam: '', achternaam: '', boek_titel: '', boek_kleur: '#2E4057' });
   const [editLeerling, setEditLeerling] = useState<Leerling | null>(null);
+  const [groepjesSets, setGroepjesSets] = useState<GroepjesSet[]>([]);
 
   useEffect(() => {
     fetchKlassen();
   }, []);
 
   useEffect(() => {
-    if (selectedKlas) fetchLeerlingen(selectedKlas);
+    if (selectedKlas) {
+      fetchLeerlingen(selectedKlas);
+      fetchGroepjes(selectedKlas);
+    }
   }, [selectedKlas]);
 
   async function fetchKlassen() {
@@ -41,6 +49,20 @@ export default function KlassenPage() {
     const data = await res.json().catch(() => []);
     setLeerlingen(data);
   }
+
+  async function fetchGroepjes(klasId: number) {
+    const res = await fetch(`/api/groepjes?klas_id=${klasId}`);
+    const data = await res.json().catch(() => []);
+    setGroepjesSets(data);
+  }
+
+  async function deleteGroepjesSet(id: number) {
+    if (!confirm('Weet je zeker dat je deze groepjes wilt verwijderen?')) return;
+    await fetch(`/api/groepjes?id=${id}`, { method: 'DELETE' });
+    if (selectedKlas) fetchGroepjes(selectedKlas);
+  }
+
+  const GROUP_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4'];
 
   async function createKlas() {
     if (!newKlas.naam.trim()) return;
@@ -282,6 +304,54 @@ export default function KlassenPage() {
               Nog geen leerlingen in deze klas. Voeg er een toe!
             </p>
           )}
+        </div>
+      )}
+
+      {/* Opgeslagen groepjes */}
+      {selectedKlasData && groepjesSets.length > 0 && (
+        <div style={{ background: 'white', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>
+              Opgeslagen groepjes
+            </h2>
+            <Link href={`/klassen/groepjes?klas_id=${selectedKlasData.id}`} style={{ ...btnPrimary, textDecoration: 'none', fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>
+              + Nieuwe groepjes
+            </Link>
+          </div>
+          {groepjesSets.map((set) => (
+            <div key={set.id} style={{ marginBottom: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <div>
+                  <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{set.naam}</span>
+                  <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                    ({set.groepjes_data.length} groepen, {set.groepjes_data.flat().length} leerlingen)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <Link href={`/klassen/plattegrond?klas_id=${selectedKlasData.id}&groepjes_id=${set.id}`}
+                    style={{ ...btnSecondary, textDecoration: 'none', fontSize: '0.8rem', padding: '0.3rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    🪑 Op plattegrond
+                  </Link>
+                  <button onClick={() => deleteGroepjesSet(set.id)} style={{ ...btnDanger, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {set.groepjes_data.map((group, gi) => (
+                  <div key={gi} style={{ background: 'white', borderRadius: 8, padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', minWidth: 120 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: GROUP_COLORS[gi % GROUP_COLORS.length], marginBottom: '0.3rem' }}>
+                      Groep {gi + 1}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.5 }}>
+                      {group.map((id) => {
+                        const ll = leerlingen.find((l) => l.id === id);
+                        return ll ? <div key={id}>{ll.voornaam} {ll.achternaam}</div> : null;
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

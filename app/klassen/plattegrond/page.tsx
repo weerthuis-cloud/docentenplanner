@@ -29,9 +29,18 @@ interface Klas {
 type LayoutData = (number | null)[][];
 type EditMode = 'tables' | 'students';
 
+const GROUP_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4'];
+
+interface GroepjesSet {
+  id: number;
+  naam: string;
+  groepjes_data: number[][];
+}
+
 function PlattegrondContent() {
   const searchParams = useSearchParams();
   const initialKlasId = searchParams.get('klas_id') || '';
+  const groepjesId = searchParams.get('groepjes_id') || '';
 
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [selectedKlas, setSelectedKlas] = useState<string>(initialKlasId);
@@ -51,6 +60,22 @@ function PlattegrondContent() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const dragSourceRef = useRef<{ row: number; col: number } | null>(null);
+
+  // Groepjes overlay
+  const [groepjesSets, setGroepjesSets] = useState<GroepjesSet[]>([]);
+  const [activeGroepjes, setActiveGroepjes] = useState<GroepjesSet | null>(null);
+
+  // Build student-to-group color map
+  const studentGroupColor = useCallback((): Map<number, string> => {
+    const map = new Map<number, string>();
+    if (!activeGroepjes) return map;
+    activeGroepjes.groepjes_data.forEach((group, gi) => {
+      group.forEach((studentId) => {
+        map.set(studentId, GROUP_COLORS[gi % GROUP_COLORS.length]);
+      });
+    });
+    return map;
+  }, [activeGroepjes]);
 
   // Load classes on mount
   useEffect(() => {
@@ -121,8 +146,22 @@ function PlattegrondContent() {
       }
     };
 
+    const fetchGroepjes = async () => {
+      try {
+        const res = await fetch(`/api/groepjes?klas_id=${selectedKlas}`);
+        const data = await res.json();
+        setGroepjesSets(data);
+        // Auto-select groepjes if ID in URL
+        if (groepjesId) {
+          const match = data.find((g: GroepjesSet) => String(g.id) === groepjesId);
+          if (match) setActiveGroepjes(match);
+        }
+      } catch { /* ignore */ }
+    };
+
     fetchStudents();
     fetchLayouts();
+    fetchGroepjes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKlas]);
 
@@ -442,6 +481,27 @@ function PlattegrondContent() {
             </div>
           )}
 
+          {/* Groepjes overlay */}
+          {(layoutName || selectedLayout) && groepjesSets.length > 0 && (
+            <div style={{ minWidth: 160 }}>
+              <label style={{ fontSize: '0.8rem', color: '#64748b', display: 'block', marginBottom: 4, fontWeight: 600 }}>Groepjes</label>
+              <select
+                value={activeGroepjes ? String(activeGroepjes.id) : ''}
+                onChange={(e) => {
+                  if (!e.target.value) { setActiveGroepjes(null); return; }
+                  const g = groepjesSets.find((s) => String(s.id) === e.target.value);
+                  setActiveGroepjes(g || null);
+                }}
+                style={{ padding: '0.5rem', border: activeGroepjes ? '2px solid #f59e0b' : '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', width: '100%' }}
+              >
+                <option value="">Geen overlay</option>
+                {groepjesSets.map((g) => (
+                  <option key={g.id} value={g.id}>{g.naam} ({g.groepjes_data.length} gr.)</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Grid size */}
           {(layoutName || selectedLayout) && (
             <>
@@ -560,6 +620,8 @@ function PlattegrondContent() {
                   const isTable = cell === 0 || (typeof cell === 'number' && cell > 0);
                   const student = typeof cell === 'number' && cell > 0 ? getStudentById(cell) : null;
                   const hasFoto = student && (student.foto_url || student.foto_data);
+                  const colorMap = studentGroupColor();
+                  const groupColor = student ? colorMap.get(student.id) : undefined;
 
                   return (
                     <div
@@ -573,8 +635,12 @@ function PlattegrondContent() {
                         width: CELL_SIZE, height: CELL_SIZE, borderRadius: 6,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: editMode === 'tables' ? 'pointer' : (typeof cell === 'number' && cell > 0 ? 'grab' : 'default'),
-                        background: isTable ? (student ? '#334155' : '#64748b') : (editMode === 'tables' ? '#ffffff' : 'transparent'),
-                        border: isTable ? 'none' : (editMode === 'tables' ? '2px dashed #cbd5e1' : '1px solid transparent'),
+                        background: isTable
+                          ? (groupColor ? groupColor : (student ? '#334155' : '#64748b'))
+                          : (editMode === 'tables' ? '#ffffff' : 'transparent'),
+                        border: isTable
+                          ? (groupColor ? `3px solid ${groupColor}` : 'none')
+                          : (editMode === 'tables' ? '2px dashed #cbd5e1' : '1px solid transparent'),
                         boxShadow: isTable ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
                         position: 'relative', overflow: 'hidden',
                         transition: 'all 0.15s',
@@ -617,6 +683,23 @@ function PlattegrondContent() {
                 ? 'Klik op cellen om tafels toe te voegen of te verwijderen'
                 : 'Sleep leerlingen van rechts naar een tafel'}
             </p>
+
+            {/* Groepjes legenda */}
+            {activeGroepjes && (
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#92400e', marginBottom: '0.4rem' }}>
+                  Groepjes: {activeGroepjes.naam}
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {activeGroepjes.groepjes_data.map((group, gi) => (
+                    <div key={gi} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <div style={{ width: 14, height: 14, borderRadius: 3, background: GROUP_COLORS[gi % GROUP_COLORS.length] }} />
+                      <span style={{ fontSize: '0.8rem', color: '#475569' }}>Groep {gi + 1} ({group.length})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar - students */}
