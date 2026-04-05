@@ -64,6 +64,7 @@ function PlattegrondContent() {
   // Groepjes overlay
   const [groepjesSets, setGroepjesSets] = useState<GroepjesSet[]>([]);
   const [activeGroepjes, setActiveGroepjes] = useState<GroepjesSet | null>(null);
+  const [dragGroup, setDragGroup] = useState<number | null>(null);
 
   // Build student-to-group color map
   const studentGroupColor = useCallback((): Map<number, string> => {
@@ -380,6 +381,117 @@ function PlattegrondContent() {
     setLayoutData(newData);
   };
 
+  // Place groepjes on grid: creates tables and assigns students in clusters
+  const placeGroepjesOnGrid = () => {
+    if (!activeGroepjes) return;
+    const groups = activeGroepjes.groepjes_data;
+
+    // Calculate how many columns per group
+    const maxGroupSize = Math.max(...groups.map((g) => g.length));
+    // Each group gets a block: rows = ceil(groupSize / groupCols), where groupCols depends on grid width
+    const groupsPerRow = Math.min(groups.length, Math.floor(cols / 2)); // at least 2 cols per group
+    const groupCols = Math.max(1, Math.floor(cols / groupsPerRow));
+    const groupRows = Math.ceil(maxGroupSize / groupCols);
+
+    // Calculate needed rows
+    const groupRowSets = Math.ceil(groups.length / groupsPerRow);
+    const neededRows = groupRowSets * (groupRows + 1); // +1 for spacing
+    const newRows = Math.max(rows, neededRows);
+    const newCols = Math.max(cols, groupsPerRow * groupCols);
+
+    // Create empty grid
+    const newData: LayoutData = Array(newRows).fill(null).map(() => Array(newCols).fill(null));
+
+    // Place each group
+    groups.forEach((group, gi) => {
+      const groupRow = Math.floor(gi / groupsPerRow);
+      const groupCol = gi % groupsPerRow;
+      const startR = groupRow * (groupRows + 1);
+      const startC = groupCol * groupCols;
+
+      group.forEach((studentId, si) => {
+        const r = startR + Math.floor(si / groupCols);
+        const c = startC + (si % groupCols);
+        if (r < newRows && c < newCols) {
+          newData[r][c] = studentId;
+        }
+      });
+    });
+
+    setRows(newRows);
+    setCols(newCols);
+    setLayoutData(newData);
+    setEditMode('students');
+  };
+
+  // Drag entire group
+  const handleGroupDragStart = (e: React.DragEvent, groupIndex: number) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDragGroup(groupIndex);
+  };
+
+  const handleGroupDrop = (e: React.DragEvent, targetRow: number, targetCol: number) => {
+    e.preventDefault();
+    if (dragGroup === null || !activeGroepjes) return;
+
+    const group = activeGroepjes.groepjes_data[dragGroup];
+    if (!group) return;
+
+    // Find current positions of this group's students
+    const currentPositions: { row: number; col: number; studentId: number }[] = [];
+    layoutData.forEach((row, r) => {
+      row.forEach((cell, c) => {
+        if (typeof cell === 'number' && cell > 0 && group.includes(cell)) {
+          currentPositions.push({ row: r, col: c, studentId: cell });
+        }
+      });
+    });
+
+    if (currentPositions.length === 0) { setDragGroup(null); return; }
+
+    // Calculate offset from the top-left of the group
+    const minR = Math.min(...currentPositions.map((p) => p.row));
+    const minC = Math.min(...currentPositions.map((p) => p.col));
+    const offsetR = targetRow - minR;
+    const offsetC = targetCol - minC;
+
+    // Check if new positions are valid
+    const newPositions = currentPositions.map((p) => ({
+      ...p,
+      newRow: p.row + offsetR,
+      newCol: p.col + offsetC,
+    }));
+
+    const allValid = newPositions.every((p) =>
+      p.newRow >= 0 && p.newRow < rows && p.newCol >= 0 && p.newCol < cols
+    );
+
+    if (!allValid) { setDragGroup(null); return; }
+
+    // Check target cells are either empty(null), empty table(0), or occupied by same group
+    const groupIds = new Set(group);
+    const allFree = newPositions.every((p) => {
+      const targetCell = layoutData[p.newRow][p.newCol];
+      return targetCell === null || targetCell === 0 || (typeof targetCell === 'number' && groupIds.has(targetCell));
+    });
+
+    if (!allFree) { setDragGroup(null); return; }
+
+    // Move the group
+    const newData = layoutData.map((r) => [...r]);
+    // Clear old positions
+    currentPositions.forEach((p) => {
+      newData[p.row][p.col] = 0; // leave as empty table
+    });
+    // Place at new positions
+    newPositions.forEach((p) => {
+      newData[p.newRow][p.newCol] = p.studentId;
+    });
+
+    setLayoutData(newData);
+    setDragGroup(null);
+  };
+
   const selectedKlasData = klassen.find((k) => String(k.id) === selectedKlas);
   const unplacedStudents = getUnplacedStudents();
   const CELL_SIZE = 80;
@@ -499,6 +611,14 @@ function PlattegrondContent() {
                   <option key={g.id} value={g.id}>{g.naam} ({g.groepjes_data.length} gr.)</option>
                 ))}
               </select>
+              {activeGroepjes && (
+                <button
+                  onClick={placeGroepjesOnGrid}
+                  style={{ marginTop: 4, padding: '0.4rem 0.6rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem', width: '100%' }}
+                >
+                  Op grid plaatsen
+                </button>
+              )}
             </div>
           )}
 
@@ -623,12 +743,29 @@ function PlattegrondContent() {
                   const colorMap = studentGroupColor();
                   const groupColor = student ? colorMap.get(student.id) : undefined;
 
+                  // Find which group this student belongs to
+                  const studentGroupIndex = activeGroepjes && student
+                    ? activeGroepjes.groepjes_data.findIndex((g) => g.includes(student.id))
+                    : -1;
+
                   return (
                     <div
                       key={`${r}-${c}`}
-                      onDragStart={(e) => handleCellDragStart(e, r, c)}
+                      onDragStart={(e) => {
+                        if (activeGroepjes && studentGroupIndex >= 0) {
+                          handleGroupDragStart(e, studentGroupIndex);
+                        } else {
+                          handleCellDragStart(e, r, c);
+                        }
+                      }}
                       onDragOver={handleCellDragOver}
-                      onDrop={(e) => handleCellDrop(e, r, c)}
+                      onDrop={(e) => {
+                        if (dragGroup !== null) {
+                          handleGroupDrop(e, r, c);
+                        } else {
+                          handleCellDrop(e, r, c);
+                        }
+                      }}
                       onClick={() => toggleTable(r, c)}
                       draggable={editMode === 'students' && typeof cell === 'number' && cell > 0}
                       style={{
@@ -665,6 +802,19 @@ function PlattegrondContent() {
                           <div style={{ color: '#cbd5e1', fontSize: '0.7rem', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: CELL_SIZE - 12 }}>
                             {student.achternaam}
                           </div>
+                        </div>
+                      )}
+                      {/* Group badge */}
+                      {studentGroupIndex >= 0 && (
+                        <div style={{
+                          position: 'absolute', top: 2, right: 2, zIndex: 2,
+                          width: 18, height: 18, borderRadius: '50%',
+                          background: GROUP_COLORS[studentGroupIndex % GROUP_COLORS.length],
+                          color: 'white', fontSize: '0.65rem', fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          border: '2px solid white', boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                        }}>
+                          {studentGroupIndex + 1}
                         </div>
                       )}
                       {isTable && !student && (
