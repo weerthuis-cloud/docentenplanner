@@ -492,8 +492,8 @@ export default function KlassenPage() {
 
       setImportPreview(newOnes);
       setImportDuplicates(dupes);
-      const photoCount = photos.filter(p => p).length;
-      setImportMsg(`${names.length} leerlingen uit PDF${photoCount > 0 ? ` met ${photoCount} foto's` : ''}: ${newOnes.length} nieuw, ${dupes.length} al bestaand${klasNaam ? ` (klas: ${klasNaam})` : ''}`);
+      const photoCount = photosWithPos.length;
+      setImportMsg(`${namesWithPos.length} leerlingen uit PDF${photoCount > 0 ? ` met ${photoCount} foto's` : ''}: ${newOnes.length} nieuw, ${dupes.length} al bestaand${klasNaam ? ` (klas: ${klasNaam})` : ''}`);
     } catch (err) {
       console.error('PDF parse error:', err);
       setImportMsg('Fout bij verwerken PDF. Controleer of het een geldig PDF-bestand is.');
