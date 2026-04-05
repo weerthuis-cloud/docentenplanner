@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 interface Student {
   id: number;
@@ -28,9 +29,12 @@ type LayoutData = (number | null)[][];
 type EditMode = 'tables' | 'students';
 
 export default function PlattegrondPage() {
+  const searchParams = useSearchParams();
+  const initialKlasId = searchParams.get('klas_id') || '';
+
   // State for classes and students
   const [klassen, setKlassen] = useState<Klas[]>([]);
-  const [selectedKlas, setSelectedKlas] = useState<string>('');
+  const [selectedKlas, setSelectedKlas] = useState<string>(initialKlasId);
   const [students, setStudents] = useState<Student[]>([]);
 
   // State for layouts
@@ -58,7 +62,7 @@ export default function PlattegrondPage() {
         if (!res.ok) throw new Error('Failed to load classes');
         const data = await res.json();
         setKlassen(data);
-        if (data.length > 0) {
+        if (!initialKlasId && data.length > 0) {
           setSelectedKlas(data[0].id);
         }
       } catch (err) {

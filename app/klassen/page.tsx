@@ -182,7 +182,7 @@ export default function KlassenPage() {
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button onClick={() => setShowNewLeerling(true)} style={btnPrimary}>+ Leerling toevoegen</button>
-              <Link href="/klassen/plattegrond" style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Link href={`/klassen/plattegrond?klas_id=${selectedKlasData.id}`} style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
                 🪑 Plattegrond
               </Link>
               <button onClick={() => deleteKlas(selectedKlasData.id)} style={btnDanger}>Klas verwijderen</button>
