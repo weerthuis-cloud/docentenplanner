@@ -162,7 +162,7 @@ export default function Dashboard() {
 
   // Render seat
   const renderSeat = (leerlingId: number | null) => {
-    const CELL = 88;
+    const CELL = 97;
     if (leerlingId === null) return <div key={Math.random()} style={{ width: CELL, height: CELL, borderRadius: 6, background: '#e2e8f0', border: '1px solid #d1d5db' }} />;
 
     const l = leerlingen.find(x => x.id === leerlingId);
@@ -262,7 +262,7 @@ export default function Dashboard() {
     if (mirrorV) rows = [...rows].reverse();
     const numRows = rows.length;
 
-    const CELL = 88;
+    const CELL = 97;
     const numCols = rows[0]?.length || 8;
 
     return (
