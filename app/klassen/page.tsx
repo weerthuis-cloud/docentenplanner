@@ -503,7 +503,7 @@ export default function KlassenPage() {
 
       setImportPreview(newOnes);
       setImportDuplicates(dupes);
-      const photoCount = photosWithPos.length;
+      const photoCount = photoDataUrls.length;
       setImportMsg(`${namesWithPos.length} leerlingen uit PDF${photoCount > 0 ? ` met ${photoCount} foto's` : ''}: ${newOnes.length} nieuw, ${dupes.length} al bestaand${klasNaam ? ` (klas: ${klasNaam})` : ''}`);
     } catch (err) {
       console.error('PDF parse error:', err);
