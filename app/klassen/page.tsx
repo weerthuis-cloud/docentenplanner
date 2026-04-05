@@ -400,78 +400,31 @@ export default function KlassenPage() {
         return;
       }
 
-      // Extract photos: render each page, find image positions, crop photos
+      // Extract photos directly from PDF binary (much faster than page rendering)
       setImportMsg(`${names.length} namen gevonden, foto's worden geëxtraheerd...`);
-      const photos: string[] = []; // base64 JPEGs in operator order (= alphabetical)
+      const photos: string[] = [];
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const OPS = (pdfjsLib as any).OPS;
-        console.error('PDF photo extraction: OPS available:', !!OPS, 'pages:', pdf.numPages);
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const ops = await page.getOperatorList();
-
-          // Collect image positions in operator order
-          const imgPositions: { x: number; y: number; w: number; h: number }[] = [];
-          for (let j = 0; j < ops.fnArray.length; j++) {
-            if (ops.fnArray[j] === OPS.paintImageXObject) {
-              for (let k = j - 1; k >= Math.max(0, j - 5); k--) {
-                if (ops.fnArray[k] === OPS.transform) {
-                  const t = ops.argsArray[k];
-                  imgPositions.push({
-                    x: t[4], y: t[5],
-                    w: Math.abs(t[0]), h: Math.abs(t[3])
-                  });
-                  break;
+        const pdfBytes = new Uint8Array(arrayBuffer);
+        // Find all embedded JPEG images (marker: FF D8 FF ... FF D9)
+        for (let i = 0; i < pdfBytes.length - 2; i++) {
+          if (pdfBytes[i] === 0xFF && pdfBytes[i + 1] === 0xD8 && pdfBytes[i + 2] === 0xFF) {
+            for (let j = i + 3; j < pdfBytes.length - 1; j++) {
+              if (pdfBytes[j] === 0xFF && pdfBytes[j + 1] === 0xD9) {
+                const jpegSlice = pdfBytes.slice(i, j + 2);
+                let binary = '';
+                for (let k = 0; k < jpegSlice.length; k++) {
+                  binary += String.fromCharCode(jpegSlice[k]);
                 }
+                photos.push('data:image/jpeg;base64,' + btoa(binary));
+                i = j + 1;
+                break;
               }
             }
           }
-
-          console.error(`Page ${i}: found ${imgPositions.length} images`);
-          if (imgPositions.length === 0) continue;
-
-          // Render page to canvas at scale 1.5 for balance of quality/speed
-          const scale = 1.5;
-          const vp = page.getViewport({ scale });
-          const canvas = document.createElement('canvas');
-          canvas.width = vp.width;
-          canvas.height = vp.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) { console.error('No canvas context'); continue; }
-
-          console.error(`Rendering page ${i} (${canvas.width}x${canvas.height})...`);
-          await page.render({ canvasContext: ctx, viewport: vp }).promise;
-          console.error('Page rendered successfully');
-
-          // Crop each photo from canvas
-          for (const pos of imgPositions) {
-            const sx = Math.round(pos.x * scale);
-            const sy = Math.round(pos.y * scale);
-            const sw = Math.round(pos.w * scale);
-            const sh = Math.round(pos.h * scale);
-
-            const cropCanvas = document.createElement('canvas');
-            cropCanvas.width = sw;
-            cropCanvas.height = sh;
-            const cropCtx = cropCanvas.getContext('2d');
-            if (!cropCtx) { photos.push(''); continue; }
-            cropCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-            const dataUrl = cropCanvas.toDataURL('image/jpeg', 0.7);
-            photos.push(dataUrl);
-          }
-
-          console.error(`Cropped ${imgPositions.length} photos from page ${i}, first size: ${photos[0]?.length || 0} chars`);
-
-          // Clean up
-          canvas.width = 0;
-          canvas.height = 0;
         }
       } catch (photoErr) {
         console.error('Photo extraction error:', photoErr);
-        // Continue without photos - names still work
       }
 
       // Names are sorted alphabetically (by how they appear in the PDF grid).
