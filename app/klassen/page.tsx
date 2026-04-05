@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
 interface Klas {
@@ -8,28 +8,80 @@ interface Klas {
 }
 
 interface Leerling {
-  id: number; klas_id: number; voornaam: string; achternaam: string; boek_titel: string; boek_kleur: string;
+  id: number; klas_id: number; voornaam: string; achternaam: string;
+  email?: string; mentor?: string; ondersteuningsprofiel?: string[];
+  foto_url?: string; foto_data?: string;
+  boek_titel: string; boek_kleur: string;
 }
 
 interface GroepjesSet {
   id: number; klas_id: number; naam: string; groepjes_data: number[][]; created_at: string;
 }
 
+type KlasTab = 'leerlingen' | 'plattegrond' | 'groepjes';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadPdfJs(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    if (w.pdfjsLib) { resolve(w.pdfjsLib); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      const lib = w.pdfjsLib;
+      if (!lib) { reject(new Error('pdfjsLib not loaded')); return; }
+      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(lib);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+const ONDERSTEUNING_OPTIES = [
+  'Dyslexie', 'Dyscalculie', 'ADHD', 'ADD', 'ASS',
+  'Extra tijd', 'Time-out kaart', 'Vooraan zitten',
+  'Hoogbegaafd', 'NT2', 'Rugzakje',
+  'Aangepaste toets', 'Visuele ondersteuning', 'Prikkelarm',
+];
+
+const GROUP_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4'];
+
 export default function KlassenPage() {
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [selectedKlas, setSelectedKlas] = useState<number | null>(null);
   const [leerlingen, setLeerlingen] = useState<Leerling[]>([]);
-  const [showNewKlas, setShowNewKlas] = useState(false);
-  const [showNewLeerling, setShowNewLeerling] = useState(false);
-  const [newKlas, setNewKlas] = useState({ naam: '', vak: 'Nederlands', lokaal: '', jaarlaag: '' });
-  const [newLeerling, setNewLeerling] = useState({ voornaam: '', achternaam: '', boek_titel: '', boek_kleur: '#2E4057' });
-  const [editLeerling, setEditLeerling] = useState<Leerling | null>(null);
   const [groepjesSets, setGroepjesSets] = useState<GroepjesSet[]>([]);
+  const [activeTab, setActiveTab] = useState<KlasTab>('leerlingen');
 
-  useEffect(() => {
-    fetchKlassen();
-  }, []);
+  // Klas CRUD
+  const [showNewKlas, setShowNewKlas] = useState(false);
+  const [newKlas, setNewKlas] = useState({ naam: '', vak: 'Nederlands', lokaal: '', jaarlaag: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
+  // Leerling CRUD
+  const [showNewLeerling, setShowNewLeerling] = useState(false);
+  const [newLeerling, setNewLeerling] = useState({ voornaam: '', achternaam: '', email: '', mentor: '' });
+  const [editLeerling, setEditLeerling] = useState<Leerling | null>(null);
+  const [showOndersteuning, setShowOndersteuning] = useState<number | null>(null);
+
+  // Import
+  const [showImport, setShowImport] = useState(false);
+  const [importMode, setImportMode] = useState<'excel' | 'pdf' | null>(null);
+  const [importPreview, setImportPreview] = useState<{ voornaam: string; achternaam: string; email?: string; mentor?: string }[]>([]);
+  const [importDuplicates, setImportDuplicates] = useState<{ existing: Leerling; imported: { voornaam: string; achternaam: string; email?: string; mentor?: string } }[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importMsg, setImportMsg] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  // Messages
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  useEffect(() => { fetchKlassen(); }, []);
   useEffect(() => {
     if (selectedKlas) {
       fetchLeerlingen(selectedKlas);
@@ -56,14 +108,7 @@ export default function KlassenPage() {
     setGroepjesSets(data);
   }
 
-  async function deleteGroepjesSet(id: number) {
-    if (!confirm('Weet je zeker dat je deze groepjes wilt verwijderen?')) return;
-    await fetch(`/api/groepjes?id=${id}`, { method: 'DELETE' });
-    if (selectedKlas) fetchGroepjes(selectedKlas);
-  }
-
-  const GROUP_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4'];
-
+  // === KLAS CRUD ===
   async function createKlas() {
     if (!newKlas.naam.trim()) return;
     await fetch('/api/klassen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newKlas) });
@@ -72,14 +117,31 @@ export default function KlassenPage() {
     fetchKlassen();
   }
 
+  async function deleteKlas(id: number) {
+    const klas = klassen.find(k => k.id === id);
+    if (!klas) return;
+    if (deleteConfirmText !== klas.naam) {
+      setError(`Typ "${klas.naam}" om te bevestigen`);
+      return;
+    }
+    await fetch(`/api/klassen?id=${id}`, { method: 'DELETE' });
+    setDeleteConfirm(null);
+    setDeleteConfirmText('');
+    setSelectedKlas(null);
+    setLeerlingen([]);
+    fetchKlassen();
+    setSuccess('Klas verwijderd');
+    setTimeout(() => setSuccess(''), 2000);
+  }
+
+  // === LEERLING CRUD ===
   async function createLeerling() {
     if (!newLeerling.voornaam.trim() || !newLeerling.achternaam.trim() || !selectedKlas) return;
     await fetch('/api/leerlingen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...newLeerling, klas_id: selectedKlas }),
     });
-    setNewLeerling({ voornaam: '', achternaam: '', boek_titel: '', boek_kleur: '#2E4057' });
+    setNewLeerling({ voornaam: '', achternaam: '', email: '', mentor: '' });
     setShowNewLeerling(false);
     fetchLeerlingen(selectedKlas);
     fetchKlassen();
@@ -88,8 +150,7 @@ export default function KlassenPage() {
   async function updateLeerling() {
     if (!editLeerling) return;
     await fetch('/api/leerlingen', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editLeerling),
     });
     setEditLeerling(null);
@@ -97,261 +158,691 @@ export default function KlassenPage() {
   }
 
   async function deleteLeerling(id: number) {
-    if (!confirm('Weet je zeker dat je deze leerling wilt verwijderen?')) return;
+    if (!confirm('Leerling verwijderen?')) return;
     await fetch(`/api/leerlingen?id=${id}`, { method: 'DELETE' });
     if (selectedKlas) fetchLeerlingen(selectedKlas);
     fetchKlassen();
   }
 
-  async function deleteKlas(id: number) {
-    if (!confirm('Weet je zeker dat je deze klas wilt verwijderen? Alle leerlingen worden ook verwijderd.')) return;
-    await fetch(`/api/klassen?id=${id}`, { method: 'DELETE' });
-    setSelectedKlas(null);
-    setLeerlingen([]);
+  async function toggleOndersteuning(leerlingId: number, tag: string) {
+    const ll = leerlingen.find(l => l.id === leerlingId);
+    if (!ll) return;
+    const current = ll.ondersteuningsprofiel || [];
+    const updated = current.includes(tag)
+      ? current.filter(t => t !== tag)
+      : [...current, tag];
+    await fetch('/api/leerlingen', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: leerlingId, ondersteuningsprofiel: updated }),
+    });
+    if (selectedKlas) fetchLeerlingen(selectedKlas);
+  }
+
+  // === IMPORT: EXCEL ===
+  function downloadExcelTemplate() {
+    const header = 'voornaam\tachternaam\temail\tmentor';
+    const example = 'Jan\tJansen\tjan@school.nl\tMevr. De Vries';
+    const tsv = header + '\n' + example + '\n';
+    const blob = new Blob(['\ufeff' + tsv], { type: 'text/tab-separated-values;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'leerlingen_template.xls';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExcelUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true);
+    setImportMsg('');
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) {
+        setImportMsg('Bestand is leeg of bevat alleen een header');
+        setImportLoading(false);
+        return;
+      }
+
+      // Detect separator (tab or semicolon or comma)
+      const header = lines[0];
+      const sep = header.includes('\t') ? '\t' : header.includes(';') ? ';' : ',';
+      const cols = header.split(sep).map(c => c.trim().toLowerCase());
+
+      const vnIdx = cols.findIndex(c => c.includes('voornaam') || c === 'first name' || c === 'first_name');
+      const anIdx = cols.findIndex(c => c.includes('achternaam') || c === 'last name' || c === 'last_name' || c === 'naam');
+      const emIdx = cols.findIndex(c => c.includes('email') || c.includes('e-mail'));
+      const meIdx = cols.findIndex(c => c.includes('mentor'));
+
+      if (vnIdx === -1 || anIdx === -1) {
+        setImportMsg('Kolommen "voornaam" en "achternaam" niet gevonden. Controleer de header.');
+        setImportLoading(false);
+        return;
+      }
+
+      const parsed = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+        const voornaam = vals[vnIdx] || '';
+        const achternaam = vals[anIdx] || '';
+        if (!voornaam || !achternaam) continue;
+        parsed.push({
+          voornaam,
+          achternaam,
+          email: emIdx >= 0 ? vals[emIdx] || '' : '',
+          mentor: meIdx >= 0 ? vals[meIdx] || '' : '',
+        });
+      }
+
+      if (parsed.length === 0) {
+        setImportMsg('Geen leerlingen gevonden in het bestand');
+        setImportLoading(false);
+        return;
+      }
+
+      // Check for duplicates with existing students
+      const dupes: typeof importDuplicates = [];
+      const newOnes: typeof importPreview = [];
+      for (const imp of parsed) {
+        const match = leerlingen.find(l =>
+          l.voornaam.toLowerCase() === imp.voornaam.toLowerCase() &&
+          l.achternaam.toLowerCase() === imp.achternaam.toLowerCase()
+        );
+        if (match) {
+          dupes.push({ existing: match, imported: imp });
+        } else {
+          newOnes.push(imp);
+        }
+      }
+
+      setImportPreview(newOnes);
+      setImportDuplicates(dupes);
+      setImportLoading(false);
+      setImportMsg(`${parsed.length} leerlingen gevonden: ${newOnes.length} nieuw, ${dupes.length} al bestaand`);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // === IMPORT: PDF (Magister fotoboek) - client-side parsing ===
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true);
+    setImportMsg('Fotoboek wordt verwerkt...');
+
+    try {
+      // Load pdf.js from CDN
+      const pdfjsLib = await loadPdfJs();
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      let allText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pageText = content.items.map((item: any) => item.str || '').join('\n');
+        allText += pageText + '\n';
+      }
+
+      // Parse names from Magister fotolijst
+      const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+      // Extract klas name
+      const klasLine = lines.find(l => /Klas\/groep:/i.test(l));
+      const klasNaam = klasLine ? klasLine.replace(/Klas\/groep:\s*/i, '').trim() : '';
+
+      // Skip header/footer patterns
+      const skipPatterns = [
+        /^Fotolijst$/i, /^Klas\/groep:/i, /^Lesperiode:/i, /^Gebruiker:/i,
+        /^\d+\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)/i,
+        /^\d+ van \d+$/, /^\d+$/, /^Lesperiode/i,
+      ];
+
+      const names: { voornaam: string; achternaam: string }[] = [];
+      for (const line of lines) {
+        if (skipPatterns.some(p => p.test(line))) continue;
+        if (!/^[A-Za-zÀ-ÿ\s\-'\.ë]+$/.test(line)) continue;
+        const parts = line.split(/\s+/);
+        if (parts.length < 2) continue;
+        const voornaam = parts[0];
+        const achternaam = parts.slice(1).join(' ');
+        if (voornaam && achternaam && voornaam.length > 1) {
+          names.push({ voornaam, achternaam });
+        }
+      }
+
+      if (names.length === 0) {
+        setImportMsg('Geen namen gevonden. Controleer of het een Magister fotolijst is.');
+        setImportLoading(false);
+        return;
+      }
+
+      // Check duplicates
+      const dupes: typeof importDuplicates = [];
+      const newOnes: typeof importPreview = [];
+      for (const imp of names) {
+        const match = leerlingen.find(l =>
+          l.voornaam.toLowerCase() === imp.voornaam.toLowerCase() &&
+          l.achternaam.toLowerCase() === imp.achternaam.toLowerCase()
+        );
+        if (match) {
+          dupes.push({ existing: match, imported: imp });
+        } else {
+          newOnes.push(imp);
+        }
+      }
+
+      setImportPreview(newOnes);
+      setImportDuplicates(dupes);
+      setImportMsg(`${names.length} leerlingen uit PDF: ${newOnes.length} nieuw, ${dupes.length} al bestaand${klasNaam ? ` (klas: ${klasNaam})` : ''}`);
+    } catch (err) {
+      console.error('PDF parse error:', err);
+      setImportMsg('Fout bij verwerken PDF. Controleer of het een geldig PDF-bestand is.');
+    }
+    setImportLoading(false);
+    e.target.value = '';
+  }
+
+  async function executeImport(includeUpdates: boolean) {
+    if (!selectedKlas) return;
+    setImportLoading(true);
+
+    // Insert new students
+    if (importPreview.length > 0) {
+      const rows = importPreview.map(s => ({ ...s, klas_id: selectedKlas }));
+      await fetch('/api/leerlingen', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rows),
+      });
+    }
+
+    // Update duplicates if requested
+    if (includeUpdates && importDuplicates.length > 0) {
+      const updates = importDuplicates.map(d => {
+        const update: Record<string, unknown> = { id: d.existing.id };
+        if (d.imported.email) update.email = d.imported.email;
+        if (d.imported.mentor) update.mentor = d.imported.mentor;
+        return update;
+      });
+      await fetch('/api/leerlingen', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+    }
+
+    setImportPreview([]);
+    setImportDuplicates([]);
+    setShowImport(false);
+    setImportMode(null);
+    setImportMsg('');
+    fetchLeerlingen(selectedKlas);
     fetchKlassen();
+    setSuccess(`Import voltooid! ${importPreview.length} leerlingen toegevoegd${includeUpdates ? `, ${importDuplicates.length} bijgewerkt` : ''}`);
+    setTimeout(() => setSuccess(''), 3000);
+    setImportLoading(false);
+  }
+
+  async function deleteGroepjesSet(id: number) {
+    if (!confirm('Groepjes verwijderen?')) return;
+    await fetch(`/api/groepjes?id=${id}`, { method: 'DELETE' });
+    if (selectedKlas) fetchGroepjes(selectedKlas);
   }
 
   const selectedKlasData = klassen.find(k => k.id === selectedKlas);
 
-  const cardStyle: React.CSSProperties = {
-    background: 'white', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-  };
-  const btnPrimary: React.CSSProperties = {
-    background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, padding: '0.5rem 1rem',
-    cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
-  };
-  const btnSecondary: React.CSSProperties = {
-    background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: 8, padding: '0.5rem 1rem',
-    cursor: 'pointer', fontSize: '0.9rem',
-  };
-  const btnDanger: React.CSSProperties = {
-    background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 8, padding: '0.4rem 0.8rem',
-    cursor: 'pointer', fontSize: '0.85rem',
-  };
-  const inputStyle: React.CSSProperties = {
-    border: '1px solid #d1d5db', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.9rem', width: '100%',
-  };
+  // Styles
+  const card: React.CSSProperties = { background: 'white', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' };
+  const btnP: React.CSSProperties = { background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' };
+  const btnS: React.CSSProperties = { background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: 8, padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.9rem' };
+  const btnD: React.CSSProperties = { background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 8, padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.85rem' };
+  const inp: React.CSSProperties = { border: '1px solid #d1d5db', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.9rem', width: '100%' };
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
-      <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#1e293b', marginBottom: '1.5rem' }}>
-        Klassen
-      </h1>
+      <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#1e293b', marginBottom: '1.5rem' }}>Klassen</h1>
+
+      {/* Messages */}
+      {error && (
+        <div style={{ padding: '0.75rem 1rem', background: '#fee2e2', color: '#dc2626', borderRadius: 8, marginBottom: '1rem', fontSize: '0.9rem' }}>
+          {error}<button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>×</button>
+        </div>
+      )}
+      {success && (
+        <div style={{ padding: '0.75rem 1rem', background: '#dcfce7', color: '#16a34a', borderRadius: 8, marginBottom: '1rem', fontSize: '0.9rem' }}>
+          {success}
+        </div>
+      )}
 
       {/* Klas selector */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         {klassen.map(k => (
-          <button
-            key={k.id}
-            onClick={() => setSelectedKlas(k.id)}
+          <button key={k.id} onClick={() => { setSelectedKlas(k.id); setActiveTab('leerlingen'); }}
             style={{
-              padding: '0.6rem 1.2rem',
-              borderRadius: 10,
+              padding: '0.6rem 1.2rem', borderRadius: 10,
               border: selectedKlas === k.id ? '2px solid #3b82f6' : '2px solid #e2e8f0',
               background: selectedKlas === k.id ? '#eff6ff' : 'white',
               color: selectedKlas === k.id ? '#1d4ed8' : '#475569',
-              cursor: 'pointer',
-              fontWeight: selectedKlas === k.id ? 700 : 500,
-              fontSize: '0.95rem',
-            }}
-          >
+              cursor: 'pointer', fontWeight: selectedKlas === k.id ? 700 : 500, fontSize: '0.95rem',
+            }}>
             {k.naam} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({k.aantal_leerlingen})</span>
           </button>
         ))}
-        <button onClick={() => setShowNewKlas(true)} style={btnPrimary}>+ Nieuwe klas</button>
+        <button onClick={() => setShowNewKlas(true)} style={btnP}>+ Nieuwe klas</button>
       </div>
 
       {/* New klas form */}
       {showNewKlas && (
-        <div style={{ ...cardStyle, marginBottom: '1.5rem', border: '2px solid #3b82f6' }}>
+        <div style={{ ...card, marginBottom: '1.5rem', border: '2px solid #3b82f6' }}>
           <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 600 }}>Nieuwe klas toevoegen</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-            <div>
-              <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Naam *</label>
-              <input style={inputStyle} placeholder="bijv. M3B" value={newKlas.naam} onChange={e => setNewKlas({ ...newKlas, naam: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Vak</label>
-              <input style={inputStyle} value={newKlas.vak} onChange={e => setNewKlas({ ...newKlas, vak: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Lokaal</label>
-              <input style={inputStyle} placeholder="bijv. 214" value={newKlas.lokaal} onChange={e => setNewKlas({ ...newKlas, lokaal: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Jaarlaag</label>
-              <input style={inputStyle} placeholder="bijv. 3 mavo" value={newKlas.jaarlaag} onChange={e => setNewKlas({ ...newKlas, jaarlaag: e.target.value })} />
-            </div>
+            <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Naam *</label><input style={inp} placeholder="bijv. M3B" value={newKlas.naam} onChange={e => setNewKlas({ ...newKlas, naam: e.target.value })} /></div>
+            <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Vak</label><input style={inp} value={newKlas.vak} onChange={e => setNewKlas({ ...newKlas, vak: e.target.value })} /></div>
+            <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Lokaal</label><input style={inp} placeholder="bijv. 214" value={newKlas.lokaal} onChange={e => setNewKlas({ ...newKlas, lokaal: e.target.value })} /></div>
+            <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Jaarlaag</label><input style={inp} placeholder="bijv. 3 mavo" value={newKlas.jaarlaag} onChange={e => setNewKlas({ ...newKlas, jaarlaag: e.target.value })} /></div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={createKlas} style={btnPrimary}>Opslaan</button>
-            <button onClick={() => setShowNewKlas(false)} style={btnSecondary}>Annuleren</button>
+            <button onClick={createKlas} style={btnP}>Opslaan</button>
+            <button onClick={() => setShowNewKlas(false)} style={btnS}>Annuleren</button>
           </div>
         </div>
       )}
 
-      {/* Selected klas info + leerlingen */}
+      {/* Selected klas */}
       {selectedKlasData && (
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div style={card}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: '#1e293b' }}>
-                {selectedKlasData.naam}
-              </h2>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: '#1e293b' }}>{selectedKlasData.naam}</h2>
               <p style={{ margin: '0.25rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
                 {selectedKlasData.vak} · {selectedKlasData.jaarlaag} · Lokaal {selectedKlasData.lokaal} · {selectedKlasData.aantal_leerlingen} leerlingen
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={() => setShowNewLeerling(true)} style={btnPrimary}>+ Leerling toevoegen</button>
-              <Link href={`/klassen/plattegrond?klas_id=${selectedKlasData.id}`} style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                🪑 Plattegrond
-              </Link>
-              <Link href={`/klassen/groepjes?klas_id=${selectedKlasData.id}`} style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                👥 Groepjes
-              </Link>
-              <button onClick={() => deleteKlas(selectedKlasData.id)} style={btnDanger}>Klas verwijderen</button>
-            </div>
+            <button onClick={() => { setDeleteConfirm(selectedKlasData.id); setDeleteConfirmText(''); }}
+              style={{ ...btnD, fontSize: '0.8rem' }}>Klas verwijderen</button>
           </div>
 
-          {/* New leerling form */}
-          {showNewLeerling && (
-            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1.2rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 }}>Nieuwe leerling</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Voornaam *</label>
-                  <input style={inputStyle} value={newLeerling.voornaam} onChange={e => setNewLeerling({ ...newLeerling, voornaam: e.target.value })} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Achternaam *</label>
-                  <input style={inputStyle} value={newLeerling.achternaam} onChange={e => setNewLeerling({ ...newLeerling, achternaam: e.target.value })} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Boek</label>
-                  <input style={inputStyle} placeholder="optioneel" value={newLeerling.boek_titel} onChange={e => setNewLeerling({ ...newLeerling, boek_titel: e.target.value })} />
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button onClick={createLeerling} style={btnPrimary}>Toevoegen</button>
-                  <button onClick={() => setShowNewLeerling(false)} style={btnSecondary}>×</button>
-                </div>
+          {/* Delete confirmation dialog */}
+          {deleteConfirm === selectedKlasData.id && (
+            <div style={{ padding: '1rem', background: '#fef2f2', border: '2px solid #fca5a5', borderRadius: 10, marginBottom: '1rem' }}>
+              <p style={{ margin: '0 0 0.5rem', fontWeight: 600, color: '#dc2626', fontSize: '0.9rem' }}>
+                Weet je het zeker? Alle leerlingen, opstellingen en groepjes worden verwijderd.
+              </p>
+              <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: '#7f1d1d' }}>
+                Typ <strong>&quot;{selectedKlasData.naam}&quot;</strong> om te bevestigen:
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input style={{ ...inp, width: 200, borderColor: '#fca5a5' }} value={deleteConfirmText}
+                  onChange={e => setDeleteConfirmText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') deleteKlas(selectedKlasData.id); }}
+                  placeholder={selectedKlasData.naam} autoFocus />
+                <button onClick={() => deleteKlas(selectedKlasData.id)}
+                  disabled={deleteConfirmText !== selectedKlasData.naam}
+                  style={{ ...btnD, opacity: deleteConfirmText === selectedKlasData.naam ? 1 : 0.4, padding: '0.5rem 1rem' }}>
+                  Definitief verwijderen
+                </button>
+                <button onClick={() => setDeleteConfirm(null)} style={btnS}>Annuleren</button>
               </div>
             </div>
           )}
 
-          {/* Leerlingen table */}
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>#</th>
-                <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Naam</th>
-                <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Leesboek</th>
-                <th style={{ textAlign: 'right', padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Acties</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leerlingen.map((l, idx) => (
-                <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '0.6rem 0.75rem', color: '#94a3b8', fontSize: '0.9rem' }}>{idx + 1}</td>
-                  <td style={{ padding: '0.6rem 0.75rem' }}>
-                    {editLeerling?.id === l.id ? (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input style={{ ...inputStyle, width: 120 }} value={editLeerling.voornaam}
-                          onChange={e => setEditLeerling({ ...editLeerling, voornaam: e.target.value })} />
-                        <input style={{ ...inputStyle, width: 150 }} value={editLeerling.achternaam}
-                          onChange={e => setEditLeerling({ ...editLeerling, achternaam: e.target.value })} />
-                      </div>
-                    ) : (
-                      <span style={{ fontWeight: 500, color: '#1e293b' }}>{l.voornaam} {l.achternaam}</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '0.6rem 0.75rem' }}>
-                    {editLeerling?.id === l.id ? (
-                      <input style={inputStyle} value={editLeerling.boek_titel}
-                        onChange={e => setEditLeerling({ ...editLeerling, boek_titel: e.target.value })} />
-                    ) : (
-                      <span style={{ color: '#475569', fontSize: '0.9rem' }}>
-                        {l.boek_titel && (
-                          <span style={{
-                            display: 'inline-block', width: 12, height: 16, borderRadius: 2,
-                            background: l.boek_kleur || '#ccc', marginRight: 8, verticalAlign: 'middle',
-                          }} />
-                        )}
-                        {l.boek_titel || '–'}
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>
-                    {editLeerling?.id === l.id ? (
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button onClick={updateLeerling} style={btnPrimary}>Opslaan</button>
-                        <button onClick={() => setEditLeerling(null)} style={btnSecondary}>Annuleren</button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button onClick={() => setEditLeerling({ ...l })} style={btnSecondary}>Bewerken</button>
-                        <button onClick={() => deleteLeerling(l.id)} style={btnDanger}>Verwijderen</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {leerlingen.length === 0 && (
-            <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', fontSize: '0.95rem' }}>
-              Nog geen leerlingen in deze klas. Voeg er een toe!
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Opgeslagen groepjes */}
-      {selectedKlasData && groepjesSets.length > 0 && (
-        <div style={{ background: 'white', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginTop: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>
-              Opgeslagen groepjes
-            </h2>
-            <Link href={`/klassen/groepjes?klas_id=${selectedKlasData.id}`} style={{ ...btnPrimary, textDecoration: 'none', fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>
-              + Nieuwe groepjes
-            </Link>
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem', borderBottom: '2px solid #e2e8f0', paddingBottom: 0 }}>
+            {([
+              { key: 'leerlingen' as KlasTab, label: `Leerlingen (${leerlingen.length})` },
+              { key: 'plattegrond' as KlasTab, label: 'Plattegrond' },
+              { key: 'groepjes' as KlasTab, label: `Groepjes${groepjesSets.length ? ` (${groepjesSets.length})` : ''}` },
+            ]).map(tab => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '0.6rem 1.2rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
+                  background: activeTab === tab.key ? 'white' : 'transparent',
+                  color: activeTab === tab.key ? '#3b82f6' : '#64748b',
+                  borderBottom: activeTab === tab.key ? '3px solid #3b82f6' : '3px solid transparent',
+                  borderRadius: '8px 8px 0 0',
+                  marginBottom: '-2px',
+                }}>
+                {tab.label}
+              </button>
+            ))}
           </div>
-          {groepjesSets.map((set) => (
-            <div key={set.id} style={{ marginBottom: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <div>
-                  <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{set.naam}</span>
-                  <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
-                    ({set.groepjes_data.length} groepen, {set.groepjes_data.flat().length} leerlingen)
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <Link href={`/klassen/plattegrond?klas_id=${selectedKlasData.id}&groepjes_id=${set.id}`}
-                    style={{ ...btnSecondary, textDecoration: 'none', fontSize: '0.8rem', padding: '0.3rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                    🪑 Op plattegrond
-                  </Link>
-                  <button onClick={() => deleteGroepjesSet(set.id)} style={{ ...btnDanger, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
-                </div>
+
+          {/* === TAB: LEERLINGEN === */}
+          {activeTab === 'leerlingen' && (
+            <>
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <button onClick={() => { setShowNewLeerling(true); setShowImport(false); }} style={btnP}>+ Leerling toevoegen</button>
+                <button onClick={() => { setShowImport(!showImport); setShowNewLeerling(false); setImportMode(null); setImportPreview([]); setImportDuplicates([]); setImportMsg(''); }}
+                  style={{ ...btnS, background: showImport ? '#dbeafe' : '#e2e8f0' }}>
+                  Importeren
+                </button>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {set.groepjes_data.map((group, gi) => (
-                  <div key={gi} style={{ background: 'white', borderRadius: 8, padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', minWidth: 120 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: GROUP_COLORS[gi % GROUP_COLORS.length], marginBottom: '0.3rem' }}>
-                      Groep {gi + 1}
+
+              {/* Import section */}
+              {showImport && (
+                <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1.2rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 }}>Leerlingen importeren</h3>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <button onClick={() => { setImportMode('excel'); setImportPreview([]); setImportDuplicates([]); setImportMsg(''); }}
+                      style={{ padding: '1rem 1.5rem', borderRadius: 10, cursor: 'pointer', fontWeight: 600,
+                        border: importMode === 'excel' ? '2px solid #3b82f6' : '2px solid #e2e8f0',
+                        background: importMode === 'excel' ? '#eff6ff' : 'white',
+                        color: importMode === 'excel' ? '#1d4ed8' : '#475569', textAlign: 'center',
+                      }}>
+                      <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>📊</div>
+                      <div>Excel / CSV</div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 400, marginTop: '0.2rem' }}>
+                        Email, mentor, etc.
+                      </div>
+                    </button>
+                    <button onClick={() => { setImportMode('pdf'); setImportPreview([]); setImportDuplicates([]); setImportMsg(''); }}
+                      style={{ padding: '1rem 1.5rem', borderRadius: 10, cursor: 'pointer', fontWeight: 600,
+                        border: importMode === 'pdf' ? '2px solid #3b82f6' : '2px solid #e2e8f0',
+                        background: importMode === 'pdf' ? '#eff6ff' : 'white',
+                        color: importMode === 'pdf' ? '#1d4ed8' : '#475569', textAlign: 'center',
+                      }}>
+                      <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>📸</div>
+                      <div>Magister PDF</div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 400, marginTop: '0.2rem' }}>
+                        Namen + foto&apos;s
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Excel import */}
+                  {importMode === 'excel' && (
+                    <div>
+                      <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                        Upload een Excel of CSV bestand met kolommen: <strong>voornaam</strong>, <strong>achternaam</strong>, en optioneel <strong>email</strong> en <strong>mentor</strong>.
+                      </p>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <button onClick={downloadExcelTemplate} style={{ ...btnS, fontSize: '0.85rem' }}>
+                          Sjabloon downloaden
+                        </button>
+                        <button onClick={() => fileInputRef.current?.click()} style={{ ...btnP, fontSize: '0.85rem' }}>
+                          Bestand kiezen
+                        </button>
+                        <input ref={fileInputRef} type="file" accept=".csv,.tsv,.xls,.xlsx,.txt" style={{ display: 'none' }} onChange={handleExcelUpload} />
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.5 }}>
-                      {group.map((id) => {
-                        const ll = leerlingen.find((l) => l.id === id);
-                        return ll ? <div key={id}>{ll.voornaam} {ll.achternaam}</div> : null;
-                      })}
+                  )}
+
+                  {/* PDF import */}
+                  {importMode === 'pdf' && (
+                    <div>
+                      <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                        Upload de <strong>Fotolijst PDF</strong> uit Magister. Namen worden automatisch herkend. Foto&apos;s worden later gekoppeld.
+                      </p>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <button onClick={() => pdfInputRef.current?.click()} disabled={importLoading}
+                          style={{ ...btnP, fontSize: '0.85rem', opacity: importLoading ? 0.5 : 1 }}>
+                          {importLoading ? 'Verwerken...' : 'PDF kiezen'}
+                        </button>
+                        <input ref={pdfInputRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Import message */}
+                  {importMsg && (
+                    <div style={{ padding: '0.5rem 0.75rem', background: '#dbeafe', color: '#1e40af', borderRadius: 8, fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                      {importMsg}
+                    </div>
+                  )}
+
+                  {/* Preview new students */}
+                  {importPreview.length > 0 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.5rem', color: '#16a34a' }}>
+                        Nieuw ({importPreview.length}):
+                      </h4>
+                      <div style={{ maxHeight: 200, overflow: 'auto', fontSize: '0.85rem', color: '#475569' }}>
+                        {importPreview.map((s, i) => (
+                          <div key={i} style={{ padding: '0.2rem 0' }}>
+                            {s.voornaam} {s.achternaam}{s.email ? ` · ${s.email}` : ''}{s.mentor ? ` · mentor: ${s.mentor}` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Duplicate students */}
+                  {importDuplicates.length > 0 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.5rem', color: '#f59e0b' }}>
+                        Al bestaand ({importDuplicates.length}):
+                      </h4>
+                      <div style={{ maxHeight: 150, overflow: 'auto', fontSize: '0.85rem', color: '#475569' }}>
+                        {importDuplicates.map((d, i) => (
+                          <div key={i} style={{ padding: '0.2rem 0' }}>
+                            {d.existing.voornaam} {d.existing.achternaam}
+                            {d.imported.email ? ` → email: ${d.imported.email}` : ''}
+                            {d.imported.mentor ? ` → mentor: ${d.imported.mentor}` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Import action buttons */}
+                  {(importPreview.length > 0 || importDuplicates.length > 0) && (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => executeImport(false)} disabled={importLoading && importPreview.length === 0}
+                        style={{ ...btnP, fontSize: '0.85rem', opacity: importPreview.length === 0 ? 0.4 : 1 }}>
+                        {importPreview.length} nieuwe toevoegen
+                      </button>
+                      {importDuplicates.length > 0 && importDuplicates.some(d => d.imported.email || d.imported.mentor) && (
+                        <button onClick={() => executeImport(true)} disabled={importLoading}
+                          style={{ ...btnP, fontSize: '0.85rem', background: '#f59e0b' }}>
+                          Toevoegen + {importDuplicates.length} bijwerken
+                        </button>
+                      )}
+                      <button onClick={() => { setImportPreview([]); setImportDuplicates([]); setImportMsg(''); }} style={{ ...btnS, fontSize: '0.85rem' }}>
+                        Annuleren
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* New leerling form */}
+              {showNewLeerling && (
+                <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1.2rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600 }}>Nieuwe leerling</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
+                    <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Voornaam *</label><input style={inp} value={newLeerling.voornaam} onChange={e => setNewLeerling({ ...newLeerling, voornaam: e.target.value })} /></div>
+                    <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Achternaam *</label><input style={inp} value={newLeerling.achternaam} onChange={e => setNewLeerling({ ...newLeerling, achternaam: e.target.value })} /></div>
+                    <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Email</label><input style={inp} placeholder="optioneel" value={newLeerling.email} onChange={e => setNewLeerling({ ...newLeerling, email: e.target.value })} /></div>
+                    <div><label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: 4 }}>Mentor</label><input style={inp} placeholder="optioneel" value={newLeerling.mentor} onChange={e => setNewLeerling({ ...newLeerling, mentor: e.target.value })} /></div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={createLeerling} style={btnP}>Toevoegen</button>
+                      <button onClick={() => setShowNewLeerling(false)} style={btnS}>×</button>
                     </div>
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Leerlingen table */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>#</th>
+                      <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Naam</th>
+                      <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Email</th>
+                      <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Mentor</th>
+                      <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Aandachtspunten</th>
+                      <th style={{ textAlign: 'right', padding: '0.75rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Acties</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leerlingen.map((l, idx) => (
+                      <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '0.5rem 0.75rem', color: '#94a3b8', fontSize: '0.85rem' }}>{idx + 1}</td>
+                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                          {editLeerling?.id === l.id ? (
+                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                              <input style={{ ...inp, width: 110 }} value={editLeerling.voornaam} onChange={e => setEditLeerling({ ...editLeerling, voornaam: e.target.value })} />
+                              <input style={{ ...inp, width: 140 }} value={editLeerling.achternaam} onChange={e => setEditLeerling({ ...editLeerling, achternaam: e.target.value })} />
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {(l.foto_url || l.foto_data) ? (
+                                <img src={l.foto_data || l.foto_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e2e8f0', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700 }}>
+                                  {l.voornaam.charAt(0)}{l.achternaam.charAt(0)}
+                                </div>
+                              )}
+                              <span style={{ fontWeight: 500, color: '#1e293b' }}>{l.voornaam} {l.achternaam}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', color: '#475569' }}>
+                          {editLeerling?.id === l.id ? (
+                            <input style={{ ...inp, width: 160 }} value={editLeerling.email || ''} onChange={e => setEditLeerling({ ...editLeerling, email: e.target.value })} />
+                          ) : (
+                            l.email || <span style={{ color: '#cbd5e1' }}>–</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', color: '#475569' }}>
+                          {editLeerling?.id === l.id ? (
+                            <input style={{ ...inp, width: 120 }} value={editLeerling.mentor || ''} onChange={e => setEditLeerling({ ...editLeerling, mentor: e.target.value })} />
+                          ) : (
+                            l.mentor || <span style={{ color: '#cbd5e1' }}>–</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                          <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {(l.ondersteuningsprofiel || []).map(tag => (
+                              <span key={tag} style={{ background: '#fef3c7', color: '#92400e', fontSize: '0.7rem', padding: '0.15rem 0.4rem', borderRadius: 6, fontWeight: 600 }}>
+                                {tag}
+                              </span>
+                            ))}
+                            <button onClick={() => setShowOndersteuning(showOndersteuning === l.id ? null : l.id)}
+                              style={{ background: 'none', border: '1px dashed #cbd5e1', borderRadius: 6, cursor: 'pointer', fontSize: '0.75rem', color: '#94a3b8', padding: '0.1rem 0.3rem' }}>
+                              {(l.ondersteuningsprofiel || []).length > 0 ? '...' : '+'}
+                            </button>
+                          </div>
+                          {/* Ondersteuning popup */}
+                          {showOndersteuning === l.id && (
+                            <div style={{ position: 'absolute', zIndex: 50, background: 'white', border: '1px solid #e2e8f0', borderRadius: 10, padding: '0.75rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: '0.3rem', maxWidth: 320 }}>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1e293b', marginBottom: '0.5rem' }}>
+                                Aandachtspunten - {l.voornaam}
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                {ONDERSTEUNING_OPTIES.map(opt => {
+                                  const active = (l.ondersteuningsprofiel || []).includes(opt);
+                                  return (
+                                    <button key={opt} onClick={() => toggleOndersteuning(l.id, opt)}
+                                      style={{
+                                        padding: '0.25rem 0.5rem', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+                                        border: active ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                                        background: active ? '#fef3c7' : 'white',
+                                        color: active ? '#92400e' : '#64748b',
+                                      }}>
+                                      {opt}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button onClick={() => setShowOndersteuning(null)} style={{ ...btnS, fontSize: '0.75rem', marginTop: '0.5rem', padding: '0.3rem 0.6rem' }}>Sluiten</button>
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>
+                          {editLeerling?.id === l.id ? (
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                              <button onClick={updateLeerling} style={{ ...btnP, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>Opslaan</button>
+                              <button onClick={() => setEditLeerling(null)} style={{ ...btnS, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                              <button onClick={() => setEditLeerling({ ...l })} style={{ ...btnS, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>Bewerken</button>
+                              <button onClick={() => deleteLeerling(l.id)} style={{ ...btnD, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+              {leerlingen.length === 0 && (
+                <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', fontSize: '0.95rem' }}>
+                  Nog geen leerlingen. Voeg er een toe of importeer ze via Excel of Magister PDF.
+                </p>
+              )}
+            </>
+          )}
+
+          {/* === TAB: PLATTEGROND === */}
+          {activeTab === 'plattegrond' && (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <p style={{ color: '#64748b', fontSize: '1rem', marginBottom: '1rem' }}>
+                Beheer de zitopstelling voor {selectedKlasData.naam}
+              </p>
+              <Link href={`/klassen/plattegrond?klas_id=${selectedKlasData.id}`}
+                style={{ ...btnP, textDecoration: 'none', display: 'inline-block', padding: '0.75rem 2rem', fontSize: '1rem' }}>
+                Open Plattegrond
+              </Link>
             </div>
-          ))}
+          )}
+
+          {/* === TAB: GROEPJES === */}
+          {activeTab === 'groepjes' && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                <Link href={`/klassen/groepjes?klas_id=${selectedKlasData.id}`}
+                  style={{ ...btnP, textDecoration: 'none', fontSize: '0.85rem' }}>
+                  + Nieuwe groepjes maken
+                </Link>
+              </div>
+              {groepjesSets.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', fontSize: '0.95rem' }}>
+                  Nog geen groepjes. Maak je eerste set aan.
+                </p>
+              ) : (
+                groepjesSets.map((set) => (
+                  <div key={set.id} style={{ marginBottom: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{set.naam}</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                          ({set.groepjes_data.length} groepen, {set.groepjes_data.flat().length} leerlingen)
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <Link href={`/klassen/plattegrond?klas_id=${selectedKlasData.id}&groepjes_id=${set.id}`}
+                          style={{ ...btnS, textDecoration: 'none', fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
+                          Op plattegrond
+                        </Link>
+                        <button onClick={() => deleteGroepjesSet(set.id)} style={{ ...btnD, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {set.groepjes_data.map((group, gi) => (
+                        <div key={gi} style={{ background: 'white', borderRadius: 8, padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', minWidth: 120 }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: GROUP_COLORS[gi % GROUP_COLORS.length], marginBottom: '0.3rem' }}>Groep {gi + 1}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.5 }}>
+                            {group.map((id) => { const ll = leerlingen.find((l) => l.id === id); return ll ? <div key={id}>{ll.voornaam} {ll.achternaam}</div> : null; })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
