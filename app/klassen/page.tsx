@@ -700,7 +700,7 @@ export default function KlassenPage() {
                   {importMode === 'pdf' && (
                     <div>
                       <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
-                        Upload de <strong>Fotolijst PDF</strong> uit Magister. Namen worden automatisch herkend. Foto&apos;s worden later gekoppeld.
+                        Upload de <strong>Fotolijst PDF</strong> uit Magister. Namen en foto&apos;s worden automatisch herkend.
                       </p>
                       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                         <button onClick={() => pdfInputRef.current?.click()} disabled={importLoading}
