@@ -215,7 +215,7 @@ export default function KlassenPage() {
 
     try {
       const XLSX = await loadSheetJS();
-      const data = await file.arrayBuffer();
+      const data = new Uint8Array(await file.arrayBuffer());
       const workbook = XLSX.read(data, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
