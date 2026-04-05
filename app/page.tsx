@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 // Types
 interface Klas { id: number; naam: string; vak: string; lokaal: string; jaarlaag: string; aantal_leerlingen: number; }
-interface Leerling { id: number; klas_id: number; voornaam: string; achternaam: string; foto_url: string | null; seat_row: number; seat_col: number; boek_titel: string; boek_kleur: string; }
+interface Leerling { id: number; klas_id: number; voornaam: string; achternaam: string; foto_url: string | null; foto_data: string | null; seat_row: number; seat_col: number; boek_titel: string; boek_kleur: string; }
 interface Les { id: number; klas_id: number; datum: string; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; }
 interface Layout { layout_data: (number | null)[][]; }
 
@@ -189,10 +189,14 @@ export default function Dashboard() {
         )}
 
         {/* Avatar */}
-        <div className={`relative w-10 h-10 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-xs ${warned ? 'ring-2 ring-red-300' : ''}`}>
-          {s.warnings > 0 && <span className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">{s.warnings}</span>}
-          {s.compliments > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">{s.compliments}</span>}
-          {getInitials(l)}
+        <div className={`relative w-10 h-10 rounded-full ${!(l.foto_data || l.foto_url) ? 'bg-[#2d6a9f]' : ''} text-white flex items-center justify-center font-bold text-xs ${warned ? 'ring-2 ring-red-300' : ''}`} style={{ overflow: 'hidden' }}>
+          {s.warnings > 0 && <span className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10">{s.warnings}</span>}
+          {s.compliments > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-10">{s.compliments}</span>}
+          {(l.foto_data || l.foto_url) ? (
+            <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam} className="w-full h-full object-cover" />
+          ) : (
+            getInitials(l)
+          )}
         </div>
         <div className="text-[10px] font-semibold mt-1 text-center truncate w-full">{l.voornaam} {l.achternaam}</div>
 
