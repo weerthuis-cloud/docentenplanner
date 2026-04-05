@@ -365,16 +365,18 @@ export default function Dashboard() {
 
       {/* === BINNENKOMST === */}
       {mode === 'binnenkomst' && (
-        <div className="flex-1 flex flex-col">
-          <div className="bg-[#f0f4f8] p-2 px-6" style={{ height: '25vh' }}>
+        <div className="flex-1 flex">
+          {/* Links: plattegrond volle hoogte */}
+          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0">
             {renderGrid()}
           </div>
-          <div className="flex-1 bg-[#1e3a5f] flex flex-col items-center justify-center p-8 gap-8">
+          {/* Rechts: klok + startopdracht */}
+          <div className="bg-[#1e3a5f] flex flex-col items-center justify-center p-8 gap-8" style={{ width: '40%', minWidth: 360 }}>
             <div className="text-center">
               <div className="text-7xl font-extrabold text-white tabular-nums tracking-tighter">{clock}</div>
               <div className="text-white/50 text-lg mt-1">{date}</div>
             </div>
-            <div className="bg-white/10 border-2 border-white/15 rounded-2xl p-7 w-full max-w-xl">
+            <div className="bg-white/10 border-2 border-white/15 rounded-2xl p-7 w-full">
               <span className="inline-block bg-blue-500 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider mb-3">Startopdracht</span>
               <div className="text-white/85 text-lg leading-relaxed">{les?.startopdracht || 'Geen startopdracht ingesteld'}</div>
             </div>
@@ -384,32 +386,49 @@ export default function Dashboard() {
 
       {/* === LES === */}
       {mode === 'les' && (
-        <div className="flex-1 flex flex-col">
-          <div className="bg-[#f0f4f8] p-2 px-6" style={{ height: '25vh' }}>
+        <div className="flex-1 flex">
+          {/* Links: plattegrond volle hoogte */}
+          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0">
             {renderGrid()}
           </div>
-          <div className="flex-1 grid grid-cols-4">
-            <div className="bg-[#f8fafc] p-5 border-r border-gray-200">
-              <h3 className="text-xs uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Terugkijken</h3>
-              <div className="text-base leading-relaxed whitespace-pre-line">{les?.terugkijken}</div>
-            </div>
-            <div className="bg-[#f0f7ff] p-5 border-r border-gray-200">
-              <h3 className="text-xs uppercase tracking-wide text-blue-500 mb-2 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Programma</h3>
-              <div className="text-base leading-relaxed whitespace-pre-line">{les?.programma}</div>
+          {/* Rechts: programma + timer */}
+          <div className="flex flex-col" style={{ width: '40%', minWidth: 360 }}>
+            {/* Programma */}
+            <div className="flex-1 bg-[#f0faf5] p-6 overflow-auto">
+              <h3 className="text-lg uppercase tracking-wide text-teal-700 font-bold mb-3">Programma</h3>
+              <div className="text-base leading-relaxed whitespace-pre-line">{les?.programma || 'Geen programma ingesteld'}</div>
               {les?.leerdoelen && (
-                <div className="mt-3 pt-2 border-t border-gray-200 text-sm text-gray-500">
-                  <strong className="text-[10px] uppercase tracking-wide text-blue-500">Leerdoelen</strong>
+                <div className="mt-4 pt-3 border-t border-teal-200 text-sm text-gray-600">
+                  <strong className="text-xs uppercase tracking-wide text-teal-600">Leerdoelen</strong>
                   <div className="whitespace-pre-line mt-1">{les.leerdoelen}</div>
                 </div>
               )}
+              {les?.huiswerk && (
+                <div className="mt-4 pt-3 border-t border-teal-200 text-sm text-gray-600">
+                  <strong className="text-xs uppercase tracking-wide text-orange-500">Huiswerk</strong>
+                  <div className="whitespace-pre-line mt-1">{les.huiswerk}</div>
+                </div>
+              )}
+              {les?.niet_vergeten && (
+                <div className="mt-4 pt-3 border-t border-teal-200 text-sm text-gray-600">
+                  <strong className="text-xs uppercase tracking-wide text-red-500">Niet vergeten</strong>
+                  <div className="whitespace-pre-line mt-1">{les.niet_vergeten}</div>
+                </div>
+              )}
             </div>
-            <div className="bg-[#fffcf0] p-5 border-r border-gray-200">
-              <h3 className="text-xs uppercase tracking-wide text-orange-500 mb-2 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500" /> Maak- en huiswerk</h3>
-              <div className="text-base leading-relaxed whitespace-pre-line">{les?.huiswerk}</div>
-            </div>
-            <div className="bg-[#fff5f5] p-5">
-              <h3 className="text-xs uppercase tracking-wide text-red-500 mb-2 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Niet vergeten</h3>
-              <div className="text-base leading-relaxed whitespace-pre-line">{les?.niet_vergeten}</div>
+            {/* Timer */}
+            <div className="bg-white border-t border-gray-200 p-6 flex items-center justify-center gap-6">
+              <div className="text-6xl font-black tabular-nums tracking-tighter text-[#1e3a5f]">{timerDisplay}</div>
+              <div className="flex flex-col gap-2">
+                <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl ${timerRunning ? 'bg-orange-500' : 'bg-green-500'}`}>
+                  {timerRunning ? '⏸' : '▶'}
+                </button>
+                <button onClick={resetTimer}
+                  className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-200 text-gray-600 text-xl">
+                  ⏹
+                </button>
+              </div>
             </div>
           </div>
         </div>
