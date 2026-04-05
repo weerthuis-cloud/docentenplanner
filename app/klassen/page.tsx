@@ -450,17 +450,9 @@ export default function KlassenPage() {
         console.error('Photo extraction error:', photoErr);
       }
 
-      // Names are sorted alphabetically (by how they appear in the PDF grid).
-      // Photos are in operator order which matches the visual grid order (alphabetical).
-      // Sort names alphabetically to match photo order.
-      const sortedNames = [...names].sort((a, b) => {
-        const an = (a.achternaam + ' ' + a.voornaam).toLowerCase();
-        const bn = (b.achternaam + ' ' + b.voornaam).toLowerCase();
-        return an.localeCompare(bn, 'nl');
-      });
-
-      // Merge photos with names
-      const namesWithPhotos = sortedNames.map((n, idx) => ({
+      // Names and photos are both extracted in visual reading order (top-to-bottom,
+      // left-to-right) from the PDF, so they already match by index.
+      const namesWithPhotos = names.map((n, idx) => ({
         ...n,
         foto_data: photos[idx] || undefined,
       }));
