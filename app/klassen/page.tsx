@@ -405,23 +405,45 @@ export default function KlassenPage() {
       setImportMsg(`${names.length} namen gevonden, foto's worden geëxtraheerd...`);
       const photos: string[] = [];
 
+      // Helper: get JPEG dimensions from SOF0/SOF2 marker
+      function getJpegDimensions(data: Uint8Array): { w: number; h: number } | null {
+        for (let i = 2; i < data.length - 9; i++) {
+          if (data[i] === 0xFF && (data[i + 1] === 0xC0 || data[i + 1] === 0xC2)) {
+            const h = (data[i + 5] << 8) | data[i + 6];
+            const w = (data[i + 7] << 8) | data[i + 8];
+            return { w, h };
+          }
+        }
+        return null;
+      }
+
       try {
         const pdfBytes = pdfBytesForPhotos;
         // Find all embedded JPEG images (marker: FF D8 FF ... FF D9)
+        const allJpegs: { data: Uint8Array; size: number }[] = [];
         for (let i = 0; i < pdfBytes.length - 2; i++) {
           if (pdfBytes[i] === 0xFF && pdfBytes[i + 1] === 0xD8 && pdfBytes[i + 2] === 0xFF) {
             for (let j = i + 3; j < pdfBytes.length - 1; j++) {
               if (pdfBytes[j] === 0xFF && pdfBytes[j + 1] === 0xD9) {
-                const jpegSlice = pdfBytes.slice(i, j + 2);
-                let binary = '';
-                for (let k = 0; k < jpegSlice.length; k++) {
-                  binary += String.fromCharCode(jpegSlice[k]);
-                }
-                photos.push('data:image/jpeg;base64,' + btoa(binary));
+                allJpegs.push({ data: pdfBytes.slice(i, j + 2), size: j + 2 - i });
                 i = j + 1;
                 break;
               }
             }
+          }
+        }
+
+        // Filter: only keep student passport photos (square, roughly 100-300px)
+        // Magister uses 192x192 but other sizes are possible
+        for (const jpeg of allJpegs) {
+          const dims = getJpegDimensions(jpeg.data);
+          if (dims && dims.w >= 80 && dims.w <= 400 && dims.h >= 80 && dims.h <= 400
+              && Math.abs(dims.w - dims.h) < 50) {
+            let binary = '';
+            for (let k = 0; k < jpeg.data.length; k++) {
+              binary += String.fromCharCode(jpeg.data[k]);
+            }
+            photos.push('data:image/jpeg;base64,' + btoa(binary));
           }
         }
       } catch (photoErr) {
@@ -750,10 +772,17 @@ export default function KlassenPage() {
                       </h4>
                       <div style={{ maxHeight: 150, overflow: 'auto', fontSize: '0.85rem', color: '#475569' }}>
                         {importDuplicates.map((d, i) => (
-                          <div key={i} style={{ padding: '0.2rem 0' }}>
-                            {d.existing.voornaam} {d.existing.achternaam}
+                          <div key={i} style={{ padding: '0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {d.imported.foto_data ? (
+                              <img src={d.imported.foto_data} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: '#94a3b8' }}>
+                                {d.existing.voornaam[0]}{d.existing.achternaam[0]}
+                              </div>
+                            )}
+                            <span>{d.existing.voornaam} {d.existing.achternaam}
                             {d.imported.email ? ` → email: ${d.imported.email}` : ''}
-                            {d.imported.mentor ? ` → mentor: ${d.imported.mentor}` : ''}
+                            {d.imported.mentor ? ` → mentor: ${d.imported.mentor}` : ''}</span>
                           </div>
                         ))}
                       </div>
@@ -767,7 +796,7 @@ export default function KlassenPage() {
                         style={{ ...btnP, fontSize: '0.85rem', opacity: importPreview.length === 0 ? 0.4 : 1 }}>
                         {importPreview.length} nieuwe toevoegen
                       </button>
-                      {importDuplicates.length > 0 && importDuplicates.some(d => d.imported.email || d.imported.mentor) && (
+                      {importDuplicates.length > 0 && importDuplicates.some(d => d.imported.email || d.imported.mentor || d.imported.foto_data) && (
                         <button onClick={() => executeImport(true)} disabled={importLoading}
                           style={{ ...btnP, fontSize: '0.85rem', background: '#f59e0b' }}>
                           Toevoegen + {importDuplicates.length} bijwerken
