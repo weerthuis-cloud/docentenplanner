@@ -320,17 +320,15 @@ export default function KlassenPage() {
       const pdfjsLib = await loadPdfJs();
 
       const arrayBuffer = await file.arrayBuffer();
-      const pdfBytesForPhotos = new Uint8Array(arrayBuffer.slice(0));
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       type PdfItem = { str: string; transform: number[]; width: number };
       const OPS = pdfjsLib.OPS;
 
       let klasNaam = '';
-      const namesWithPos: { voornaam: string; achternaam: string; x: number; y: number }[] = [];
-      // Image positions from operator list (with original index for sorting)
-      const imagePositions: { x: number; y: number; pageNum: number; opIdx: number }[] = [];
+      const namesWithPos: { voornaam: string; achternaam: string; x: number; y: number; pageNum: number }[] = [];
+      const allPhotos: { dataUrl: string; x: number; y: number; pageNum: number }[] = [];
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -385,10 +383,10 @@ export default function KlassenPage() {
             const parts = seg.text.split(/\s+/);
             if (parts.length >= 2) {
               if (pendingSingle) { pendingSingle = ''; }
-              namesWithPos.push({ voornaam: parts[0], achternaam: parts.slice(1).join(' '), x: seg.x, y });
+              namesWithPos.push({ voornaam: parts[0], achternaam: parts.slice(1).join(' '), x: seg.x, y, pageNum: i });
             } else if (parts[0].length > 1) {
               if (pendingSingle) {
-                namesWithPos.push({ voornaam: pendingSingle, achternaam: parts[0], x: seg.x, y });
+                namesWithPos.push({ voornaam: pendingSingle, achternaam: parts[0], x: seg.x, y, pageNum: i });
                 pendingSingle = '';
               } else {
                 pendingSingle = parts[0];
@@ -397,29 +395,57 @@ export default function KlassenPage() {
           }
         }
 
-        // Get image POSITIONS from operator list (no image data needed)
+        // Render page to canvas and crop photos at operator list positions
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const ops = await (page as any).getOperatorList();
-          const mStack: number[][] = [];
-          let cm = [1, 0, 0, 1, 0, 0];
-          for (let j = 0; j < ops.fnArray.length; j++) {
-            const fn = ops.fnArray[j];
-            const a = ops.argsArray[j];
-            if (fn === OPS.save) { mStack.push([...cm]); }
-            else if (fn === OPS.restore) { cm = mStack.pop() || [1,0,0,1,0,0]; }
-            else if (fn === OPS.transform) {
-              const [ta,tb,tc,td,te,tf] = a;
-              cm = [cm[0]*ta+cm[2]*tb, cm[1]*ta+cm[3]*tb, cm[0]*tc+cm[2]*td, cm[1]*tc+cm[3]*td, cm[0]*te+cm[2]*tf+cm[4], cm[1]*te+cm[3]*tf+cm[5]];
-            }
-            else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
-              const w = Math.abs(cm[0]), h = Math.abs(cm[3]);
-              if (w >= 80 && w <= 400 && h >= 80 && h <= 400 && Math.abs(w-h) < 50) {
-                imagePositions.push({ x: cm[4], y: cm[5], pageNum: i, opIdx: j });
+          const renderScale = 2;
+          const viewport = page.getViewport({ scale: renderScale });
+          const pageH = page.getViewport({ scale: 1 }).height;
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            await page.render({ canvasContext: ctx, viewport }).promise;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ops = await (page as any).getOperatorList();
+            const mStack: number[][] = [];
+            let cm = [1, 0, 0, 1, 0, 0];
+            for (let j = 0; j < ops.fnArray.length; j++) {
+              const fn = ops.fnArray[j];
+              const a = ops.argsArray[j];
+              if (fn === OPS.save) { mStack.push([...cm]); }
+              else if (fn === OPS.restore) { cm = mStack.pop() || [1,0,0,1,0,0]; }
+              else if (fn === OPS.transform) {
+                const [ta,tb,tc,td,te,tf] = a;
+                cm = [cm[0]*ta+cm[2]*tb, cm[1]*ta+cm[3]*tb, cm[0]*tc+cm[2]*td, cm[1]*tc+cm[3]*td, cm[0]*te+cm[2]*tf+cm[4], cm[1]*te+cm[3]*tf+cm[5]];
+              }
+              else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
+                const w = Math.abs(cm[0]), h = Math.abs(cm[3]);
+                if (w >= 60 && w <= 400 && h >= 60 && h <= 400 && Math.abs(w-h) < 80) {
+                  // Convert PDF coords to canvas coords
+                  const pdfTopY = cm[3] > 0 ? cm[5] + cm[3] : cm[5];
+                  const cx = cm[4] * renderScale;
+                  const cy = (pageH - pdfTopY) * renderScale;
+                  const cw = w * renderScale;
+                  const ch = h * renderScale;
+
+                  if (cw > 20 && ch > 20 && cx >= 0 && cy >= 0 && cx + cw <= canvas.width && cy + ch <= canvas.height) {
+                    const crop = document.createElement('canvas');
+                    crop.width = Math.round(cw);
+                    crop.height = Math.round(ch);
+                    const cropCtx = crop.getContext('2d');
+                    if (cropCtx) {
+                      cropCtx.drawImage(canvas, Math.round(cx), Math.round(cy), Math.round(cw), Math.round(ch), 0, 0, Math.round(cw), Math.round(ch));
+                      const dataUrl = crop.toDataURL('image/jpeg', 0.85);
+                      allPhotos.push({ dataUrl, x: cm[4], y: pdfTopY, pageNum: i });
+                    }
+                  }
+                }
               }
             }
           }
-        } catch (opsErr) { console.error('Operator list error:', opsErr); }
+        } catch (renderErr) { console.error('Page render/crop error:', renderErr); }
       }
 
       if (namesWithPos.length === 0) {
@@ -428,64 +454,32 @@ export default function KlassenPage() {
         return;
       }
 
-      // Extract JPEG data from binary (fast and reliable)
-      setImportMsg(`${namesWithPos.length} namen gevonden, foto's worden geëxtraheerd...`);
-      const photoDataUrls: string[] = [];
-      function getJpegDims(d: Uint8Array) {
-        for (let i = 2; i < d.length - 9; i++) {
-          if (d[i]===0xFF && (d[i+1]===0xC0||d[i+1]===0xC2)) return { w:(d[i+7]<<8)|d[i+8], h:(d[i+5]<<8)|d[i+6] };
-        }
-        return null;
-      }
-      try {
-        const pdfBytes = pdfBytesForPhotos;
-        for (let i = 0; i < pdfBytes.length - 2; i++) {
-          if (pdfBytes[i]===0xFF && pdfBytes[i+1]===0xD8 && pdfBytes[i+2]===0xFF) {
-            for (let j = i+3; j < pdfBytes.length-1; j++) {
-              if (pdfBytes[j]===0xFF && pdfBytes[j+1]===0xD9) {
-                const jpeg = pdfBytes.slice(i, j+2);
-                const dims = getJpegDims(jpeg);
-                if (dims && dims.w>=80 && dims.w<=400 && dims.h>=80 && dims.h<=400 && Math.abs(dims.w-dims.h)<50) {
-                  let bin = '';
-                  for (let k=0; k<jpeg.length; k++) bin += String.fromCharCode(jpeg[k]);
-                  photoDataUrls.push('data:image/jpeg;base64,' + btoa(bin));
-                }
-                i = j+1;
-                break;
-              }
-            }
-          }
-        }
-      } catch (photoErr) { console.error('Photo extraction error:', photoErr); }
+      setImportMsg(`${namesWithPos.length} namen gevonden, foto's worden gekoppeld...`);
 
-      // Sort image positions by reading order (top-to-bottom, left-to-right)
-      // In PDF coords: higher y = higher on page, so sort descending y, then ascending x
-      const sortedImageIndices = imagePositions
-        .map((pos, idx) => ({ ...pos, origIdx: idx }))
-        .sort((a, b) => {
-          if (a.pageNum !== b.pageNum) return a.pageNum - b.pageNum;
-          // Group by row: images within ~30pt vertical distance are same row
-          const rowA = Math.round(a.y / 30);
-          const rowB = Math.round(b.y / 30);
-          if (rowA !== rowB) return rowB - rowA; // higher y = top of page = first
-          return a.x - b.x; // left to right
-        });
-
-      // photoDataUrls are in byte order = content stream order = operator list order
-      // sortedImageIndices gives us the reading-order permutation
-      // namesWithPos are already in reading order (top-to-bottom, left-to-right)
-      // So: namesWithPos[i] matches sortedImageIndices[i].origIdx -> photoDataUrls[origIdx]
-      console.log(`PDF matching: ${namesWithPos.length} names, ${imagePositions.length} image positions, ${photoDataUrls.length} photos`);
-      const namesWithPhotos = namesWithPos.map((name, i) => {
-        let foto_data: string | undefined;
-        if (i < sortedImageIndices.length) {
-          const photoIdx = sortedImageIndices[i].origIdx;
-          if (photoIdx < photoDataUrls.length) {
-            foto_data = photoDataUrls[photoIdx];
-          }
-        }
-        return { voornaam: name.voornaam, achternaam: name.achternaam, foto_data };
+      // Sort photos by reading order: page → row (high y first) → column (left to right)
+      allPhotos.sort((a, b) => {
+        if (a.pageNum !== b.pageNum) return a.pageNum - b.pageNum;
+        const rowA = Math.round(a.y / 30), rowB = Math.round(b.y / 30);
+        if (rowA !== rowB) return rowB - rowA;
+        return a.x - b.x;
       });
+
+      // Sort names by same reading order
+      namesWithPos.sort((a, b) => {
+        if (a.pageNum !== b.pageNum) return a.pageNum - b.pageNum;
+        const rowA = Math.round(a.y / 30), rowB = Math.round(b.y / 30);
+        if (rowA !== rowB) return rowB - rowA;
+        return a.x - b.x;
+      });
+
+      console.log(`PDF: ${namesWithPos.length} names, ${allPhotos.length} photos cropped from canvas`);
+
+      // Match by index: both sorted in same reading order
+      const namesWithPhotos = namesWithPos.map((name, idx) => ({
+        voornaam: name.voornaam,
+        achternaam: name.achternaam,
+        foto_data: idx < allPhotos.length ? allPhotos[idx].dataUrl : undefined,
+      }));
 
       // Check duplicates
       const dupes: typeof importDuplicates = [];
@@ -504,7 +498,7 @@ export default function KlassenPage() {
 
       setImportPreview(newOnes);
       setImportDuplicates(dupes);
-      const photoCount = photoDataUrls.length;
+      const photoCount = allPhotos.length;
       setImportMsg(`${namesWithPos.length} leerlingen uit PDF${photoCount > 0 ? ` met ${photoCount} foto's` : ''}: ${newOnes.length} nieuw, ${dupes.length} al bestaand${klasNaam ? ` (klas: ${klasNaam})` : ''}`);
     } catch (err) {
       console.error('PDF parse error:', err);
