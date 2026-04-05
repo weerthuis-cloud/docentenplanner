@@ -71,7 +71,7 @@ export default function KlassenPage() {
   const [showImport, setShowImport] = useState(false);
   const [importMode, setImportMode] = useState<'excel' | 'pdf' | null>(null);
   const [importPreview, setImportPreview] = useState<{ voornaam: string; achternaam: string; email?: string; mentor?: string; foto_data?: string }[]>([]);
-  const [importDuplicates, setImportDuplicates] = useState<{ existing: Leerling; imported: { voornaam: string; achternaam: string; email?: string; mentor?: string } }[]>([]);
+  const [importDuplicates, setImportDuplicates] = useState<{ existing: Leerling; imported: { voornaam: string; achternaam: string; email?: string; mentor?: string; foto_data?: string } }[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [importMsg, setImportMsg] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -982,4 +982,3 @@ export default function KlassenPage() {
     </div>
   );
 }
-// force rebuild
