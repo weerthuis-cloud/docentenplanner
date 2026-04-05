@@ -360,17 +360,16 @@ export default function Dashboard() {
 
       {/* === BINNENKOMST === */}
       {mode === 'binnenkomst' && (
-        <div className="flex-1 grid grid-cols-[1fr_380px]">
-          <div className="bg-[#f0f4f8] p-4 flex flex-col">
-            <div className="bg-[#1e3a5f] text-white text-center py-1.5 rounded-lg text-xs font-semibold mb-3">PLATTEGROND</div>
+        <div className="flex-1 flex flex-col">
+          <div className="bg-[#f0f4f8] p-3 px-6" style={{ maxHeight: '25vh', overflow: 'auto' }}>
             {renderGrid('grid-cols-[1fr_1fr_30px_1fr_1fr_30px_1fr_1fr]')}
           </div>
-          <div className="bg-[#1e3a5f] flex flex-col items-center justify-center p-8 gap-8">
+          <div className="flex-1 bg-[#1e3a5f] flex flex-col items-center justify-center p-8 gap-8">
             <div className="text-center">
               <div className="text-7xl font-extrabold text-white tabular-nums tracking-tighter">{clock}</div>
               <div className="text-white/50 text-lg mt-1">{date}</div>
             </div>
-            <div className="bg-white/10 border-2 border-white/15 rounded-2xl p-7 w-full">
+            <div className="bg-white/10 border-2 border-white/15 rounded-2xl p-7 w-full max-w-xl">
               <span className="inline-block bg-blue-500 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider mb-3">Startopdracht</span>
               <div className="text-white/85 text-lg leading-relaxed">{les?.startopdracht || 'Geen startopdracht ingesteld'}</div>
             </div>
@@ -381,9 +380,8 @@ export default function Dashboard() {
       {/* === LES === */}
       {mode === 'les' && (
         <div className="flex-1 flex flex-col">
-          <div className="flex-[6] bg-[#f0f4f8] p-3 px-6 flex flex-col">
-            <div className="bg-[#1e3a5f] text-white text-center py-1 rounded text-xs font-semibold mb-2">PLATTEGROND</div>
-            <div className="px-10 flex-1 flex">{renderGrid('grid-cols-[1fr_1fr_30px_1fr_1fr_30px_1fr_1fr]')}</div>
+          <div className="bg-[#f0f4f8] p-3 px-6" style={{ maxHeight: '25vh', overflow: 'auto' }}>
+            {renderGrid('grid-cols-[1fr_1fr_30px_1fr_1fr_30px_1fr_1fr]')}
           </div>
           <div className="flex-[4] grid grid-cols-4">
             <div className="bg-[#f8fafc] p-5 border-r border-gray-200">
