@@ -381,45 +381,43 @@ function PlattegrondContent() {
     setLayoutData(newData);
   };
 
-  // Place groepjes on grid: creates tables and assigns students in clusters
+  // Place groepjes on existing tables: fills empty tables with students grouped together
   const placeGroepjesOnGrid = () => {
     if (!activeGroepjes) return;
     const groups = activeGroepjes.groepjes_data;
+    const newData = layoutData.map((r) => [...r]);
 
-    // Calculate how many columns per group
-    const maxGroupSize = Math.max(...groups.map((g) => g.length));
-    // Each group gets a block: rows = ceil(groupSize / groupCols), where groupCols depends on grid width
-    const groupsPerRow = Math.min(groups.length, Math.floor(cols / 2)); // at least 2 cols per group
-    const groupCols = Math.max(1, Math.floor(cols / groupsPerRow));
-    const groupRows = Math.ceil(maxGroupSize / groupCols);
+    // First clear all students from grid (keep tables as 0)
+    for (let r = 0; r < newData.length; r++) {
+      for (let c = 0; c < newData[r].length; c++) {
+        if (typeof newData[r][c] === 'number' && newData[r][c]! > 0) {
+          newData[r][c] = 0; // reset to empty table
+        }
+      }
+    }
 
-    // Calculate needed rows
-    const groupRowSets = Math.ceil(groups.length / groupsPerRow);
-    const neededRows = groupRowSets * (groupRows + 1); // +1 for spacing
-    const newRows = Math.max(rows, neededRows);
-    const newCols = Math.max(cols, groupsPerRow * groupCols);
+    // Collect all empty table positions (value === 0)
+    const emptyTables: { row: number; col: number }[] = [];
+    for (let r = 0; r < newData.length; r++) {
+      for (let c = 0; c < newData[r].length; c++) {
+        if (newData[r][c] === 0) {
+          emptyTables.push({ row: r, col: c });
+        }
+      }
+    }
 
-    // Create empty grid
-    const newData: LayoutData = Array(newRows).fill(null).map(() => Array(newCols).fill(null));
-
-    // Place each group
-    groups.forEach((group, gi) => {
-      const groupRow = Math.floor(gi / groupsPerRow);
-      const groupCol = gi % groupsPerRow;
-      const startR = groupRow * (groupRows + 1);
-      const startC = groupCol * groupCols;
-
-      group.forEach((studentId, si) => {
-        const r = startR + Math.floor(si / groupCols);
-        const c = startC + (si % groupCols);
-        if (r < newRows && c < newCols) {
-          newData[r][c] = studentId;
+    // Place students group by group onto empty tables
+    let tableIndex = 0;
+    groups.forEach((group) => {
+      group.forEach((studentId) => {
+        if (tableIndex < emptyTables.length) {
+          const pos = emptyTables[tableIndex];
+          newData[pos.row][pos.col] = studentId;
+          tableIndex++;
         }
       });
     });
 
-    setRows(newRows);
-    setCols(newCols);
     setLayoutData(newData);
     setEditMode('students');
   };
@@ -491,6 +489,11 @@ function PlattegrondContent() {
     setLayoutData(newData);
     setDragGroup(null);
   };
+
+  // Check if any tables are placed on the grid
+  const hasTables = layoutData.some((row) =>
+    row.some((cell) => cell === 0 || (typeof cell === 'number' && cell > 0))
+  );
 
   const selectedKlasData = klassen.find((k) => String(k.id) === selectedKlas);
   const unplacedStudents = getUnplacedStudents();
@@ -593,8 +596,8 @@ function PlattegrondContent() {
             </div>
           )}
 
-          {/* Groepjes overlay */}
-          {(layoutName || selectedLayout) && groepjesSets.length > 0 && (
+          {/* Groepjes overlay - only when tables exist */}
+          {(layoutName || selectedLayout) && groepjesSets.length > 0 && hasTables && (
             <div style={{ minWidth: 160 }}>
               <label style={{ fontSize: '0.8rem', color: '#64748b', display: 'block', marginBottom: 4, fontWeight: 600 }}>Groepjes</label>
               <select
@@ -692,8 +695,23 @@ function PlattegrondContent() {
               </button>
             )}
           </div>
-          {/* Mode toggle */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {/* Step indicators + mode toggle */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginRight: '0.5rem' }}>
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.75rem', fontWeight: 700,
+                background: editMode === 'tables' ? '#4f46e5' : (hasTables ? '#22c55e' : '#e2e8f0'),
+                color: editMode === 'tables' ? 'white' : (hasTables ? 'white' : '#94a3b8'),
+              }}>1</div>
+              <div style={{ width: 20, height: 2, background: hasTables ? '#22c55e' : '#d1d5db' }} />
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.75rem', fontWeight: 700,
+                background: editMode === 'students' ? '#4f46e5' : (hasTables ? '#e2e8f0' : '#f1f5f9'),
+                color: editMode === 'students' ? 'white' : (hasTables ? '#475569' : '#cbd5e1'),
+              }}>2</div>
+            </div>
             <button
               onClick={() => setEditMode('tables')}
               style={{
@@ -702,18 +720,26 @@ function PlattegrondContent() {
                 color: editMode === 'tables' ? 'white' : '#475569',
               }}
             >
-              Tafels plaatsen
+              Stap 1: Tafels plaatsen
             </button>
             <button
-              onClick={() => setEditMode('students')}
+              onClick={() => { if (hasTables) setEditMode('students'); }}
+              title={!hasTables ? 'Plaats eerst tafels op het grid' : ''}
               style={{
-                padding: '0.5rem 1.2rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
-                background: editMode === 'students' ? '#4f46e5' : '#e2e8f0',
-                color: editMode === 'students' ? 'white' : '#475569',
+                padding: '0.5rem 1.2rem', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: '0.9rem',
+                cursor: hasTables ? 'pointer' : 'not-allowed',
+                background: editMode === 'students' ? '#4f46e5' : (hasTables ? '#e2e8f0' : '#f1f5f9'),
+                color: editMode === 'students' ? 'white' : (hasTables ? '#475569' : '#cbd5e1'),
+                opacity: hasTables ? 1 : 0.6,
               }}
             >
-              Leerlingen plaatsen
+              Stap 2: Leerlingen plaatsen
             </button>
+            {!hasTables && editMode === 'tables' && (
+              <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontStyle: 'italic' }}>
+                Klik op cellen om tafels neer te zetten
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -773,10 +799,10 @@ function PlattegrondContent() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: editMode === 'tables' ? 'pointer' : (typeof cell === 'number' && cell > 0 ? 'grab' : 'default'),
                         background: isTable
-                          ? (groupColor ? groupColor : (student ? '#334155' : '#64748b'))
+                          ? (groupColor ? groupColor : (student ? '#334155' : (editMode === 'students' ? '#c8d6e5' : '#64748b')))
                           : (editMode === 'tables' ? '#ffffff' : 'transparent'),
                         border: isTable
-                          ? (groupColor ? `3px solid ${groupColor}` : 'none')
+                          ? (groupColor ? `3px solid ${groupColor}` : (student ? 'none' : (editMode === 'students' ? '2px dashed #94a3b8' : 'none')))
                           : (editMode === 'tables' ? '2px dashed #cbd5e1' : '1px solid transparent'),
                         boxShadow: isTable ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
                         position: 'relative', overflow: 'hidden',
@@ -818,8 +844,8 @@ function PlattegrondContent() {
                         </div>
                       )}
                       {isTable && !student && (
-                        <div style={{ color: '#94a3b8', fontSize: '0.65rem', textAlign: 'center' }}>
-                          {editMode === 'students' ? 'sleep hier' : ''}
+                        <div style={{ color: editMode === 'students' ? '#64748b' : '#cbd5e1', fontSize: '0.65rem', textAlign: 'center', fontWeight: editMode === 'students' ? 600 : 400 }}>
+                          {editMode === 'students' ? 'leeg' : ''}
                         </div>
                       )}
                     </div>
@@ -830,8 +856,10 @@ function PlattegrondContent() {
 
             <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#64748b' }}>
               {editMode === 'tables'
-                ? 'Klik op cellen om tafels toe te voegen of te verwijderen'
-                : 'Sleep leerlingen van rechts naar een tafel'}
+                ? (hasTables
+                    ? 'Klik op cellen om tafels toe te voegen of te verwijderen. Klaar? Ga naar stap 2.'
+                    : 'Klik op cellen om tafels neer te zetten')
+                : 'Sleep leerlingen van rechts naar een tafel. Lege tafels zijn lichtgrijs.'}
             </p>
 
             {/* Groepjes legenda */}
