@@ -157,9 +157,11 @@ export default function KlassenPage() {
     if (selectedKlas) fetchLeerlingen(selectedKlas);
   }
 
+  const [deleteLeerlingConfirm, setDeleteLeerlingConfirm] = useState<number | null>(null);
+
   async function deleteLeerling(id: number) {
-    if (!confirm('Leerling verwijderen?')) return;
     await fetch(`/api/leerlingen?id=${id}`, { method: 'DELETE' });
+    setDeleteLeerlingConfirm(null);
     if (selectedKlas) fetchLeerlingen(selectedKlas);
     fetchKlassen();
   }
@@ -178,63 +180,99 @@ export default function KlassenPage() {
     if (selectedKlas) fetchLeerlingen(selectedKlas);
   }
 
-  // === IMPORT: EXCEL ===
+  // === IMPORT: EXCEL (supports .xlsx, .csv, .tsv) ===
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function loadSheetJS(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = window as any;
+      if (w.XLSX) { resolve(w.XLSX); return; }
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.onload = () => { resolve(w.XLSX); };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
   function downloadExcelTemplate() {
-    const header = 'voornaam\tachternaam\temail\tmentor';
-    const example = 'Jan\tJansen\tjan@school.nl\tMevr. De Vries';
-    const tsv = header + '\n' + example + '\n';
+    const header = 'Roepnaam\tTussenvoegsel\tAchternaam\tEmail\tMentor';
+    const ex1 = 'Jan\tvan\tJansen\tjan@school.nl\tMevr. De Vries';
+    const ex2 = 'Fatima\t\tEl Amrani\tfatima@school.nl\tDhr. Bakker';
+    const tsv = header + '\n' + ex1 + '\n' + ex2 + '\n';
     const blob = new Blob(['\ufeff' + tsv], { type: 'text/tab-separated-values;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'leerlingen_template.xls';
-    a.click();
+    a.href = url; a.download = 'leerlingen_template.xls'; a.click();
     URL.revokeObjectURL(url);
   }
 
-  function handleExcelUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleExcelUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportLoading(true);
-    setImportMsg('');
+    setImportMsg('Bestand wordt verwerkt...');
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length < 2) {
-        setImportMsg('Bestand is leeg of bevat alleen een header');
+    try {
+      const XLSX = await loadSheetJS();
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows: any[][] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+
+      // Find the header row (contains "Roepnaam" or "Achternaam" or "voornaam")
+      let headerIdx = -1;
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        const row = rows[i].map((c: unknown) => String(c || '').toLowerCase());
+        if (row.some((c: string) => c.includes('roepnaam') || c.includes('voornaam') || c.includes('achternaam'))) {
+          headerIdx = i;
+          break;
+        }
+      }
+
+      if (headerIdx === -1) {
+        setImportMsg('Geen herkenbare header gevonden (verwacht: Roepnaam/Voornaam, Achternaam)');
         setImportLoading(false);
         return;
       }
 
-      // Detect separator (tab or semicolon or comma)
-      const header = lines[0];
-      const sep = header.includes('\t') ? '\t' : header.includes(';') ? ';' : ',';
-      const cols = header.split(sep).map(c => c.trim().toLowerCase());
+      const cols = rows[headerIdx].map((c: unknown) => String(c || '').toLowerCase().trim());
 
-      const vnIdx = cols.findIndex(c => c.includes('voornaam') || c === 'first name' || c === 'first_name');
-      const anIdx = cols.findIndex(c => c.includes('achternaam') || c === 'last name' || c === 'last_name' || c === 'naam');
-      const emIdx = cols.findIndex(c => c.includes('email') || c.includes('e-mail'));
-      const meIdx = cols.findIndex(c => c.includes('mentor'));
+      // Magister format: Roepnaam, Tussenvoegsel, Achternaam, Klas, Email, Persoonlijke mentor 1
+      const vnIdx = cols.findIndex((c: string) => c.includes('roepnaam') || c.includes('voornaam'));
+      const tvIdx = cols.findIndex((c: string) => c.includes('tussenvoegsel'));
+      const anIdx = cols.findIndex((c: string) => c.includes('achternaam'));
+      const emIdx = cols.findIndex((c: string) => c.includes('email') || c.includes('e-mail'));
+      const meIdx = cols.findIndex((c: string) => c.includes('mentor'));
+      const klasIdx = cols.findIndex((c: string) => c === 'klas');
 
       if (vnIdx === -1 || anIdx === -1) {
-        setImportMsg('Kolommen "voornaam" en "achternaam" niet gevonden. Controleer de header.');
+        setImportMsg('Kolommen "Roepnaam"/"Voornaam" en "Achternaam" niet gevonden.');
         setImportLoading(false);
         return;
       }
 
+      let detectedKlas = '';
       const parsed = [];
-      for (let i = 1; i < lines.length; i++) {
-        const vals = lines[i].split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
-        const voornaam = vals[vnIdx] || '';
-        const achternaam = vals[anIdx] || '';
-        if (!voornaam || !achternaam) continue;
+      for (let i = headerIdx + 1; i < rows.length; i++) {
+        const row = rows[i];
+        const voornaam = String(row[vnIdx] || '').trim();
+        const achternaamRaw = String(row[anIdx] || '').trim();
+        if (!voornaam || !achternaamRaw) continue;
+        if (voornaam.toLowerCase() === 'totaal') continue; // Skip Magister totaal row
+
+        // Combine tussenvoegsel + achternaam
+        const tv = tvIdx >= 0 ? String(row[tvIdx] || '').trim() : '';
+        const achternaam = tv ? `${tv} ${achternaamRaw}` : achternaamRaw;
+
+        if (klasIdx >= 0 && !detectedKlas) detectedKlas = String(row[klasIdx] || '').trim();
+
         parsed.push({
           voornaam,
           achternaam,
-          email: emIdx >= 0 ? vals[emIdx] || '' : '',
-          mentor: meIdx >= 0 ? vals[meIdx] || '' : '',
+          email: emIdx >= 0 ? String(row[emIdx] || '').trim() : '',
+          mentor: meIdx >= 0 ? String(row[meIdx] || '').trim() : '',
         });
       }
 
@@ -244,7 +282,7 @@ export default function KlassenPage() {
         return;
       }
 
-      // Check for duplicates with existing students
+      // Check duplicates
       const dupes: typeof importDuplicates = [];
       const newOnes: typeof importPreview = [];
       for (const imp of parsed) {
@@ -261,10 +299,12 @@ export default function KlassenPage() {
 
       setImportPreview(newOnes);
       setImportDuplicates(dupes);
-      setImportLoading(false);
-      setImportMsg(`${parsed.length} leerlingen gevonden: ${newOnes.length} nieuw, ${dupes.length} al bestaand`);
-    };
-    reader.readAsText(file);
+      setImportMsg(`${parsed.length} leerlingen gevonden${detectedKlas ? ` (klas: ${detectedKlas})` : ''}: ${newOnes.length} nieuw, ${dupes.length} al bestaand`);
+    } catch (err) {
+      console.error('Excel parse error:', err);
+      setImportMsg('Fout bij verwerken bestand. Controleer het formaat.');
+    }
+    setImportLoading(false);
     e.target.value = '';
   }
 
@@ -561,7 +601,7 @@ export default function KlassenPage() {
                   {importMode === 'excel' && (
                     <div>
                       <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
-                        Upload een Excel of CSV bestand met kolommen: <strong>voornaam</strong>, <strong>achternaam</strong>, en optioneel <strong>email</strong> en <strong>mentor</strong>.
+                        Upload het <strong>Magister leerlingenexport</strong> (.xlsx) of een CSV met kolommen: <strong>Roepnaam</strong>, <strong>Tussenvoegsel</strong>, <strong>Achternaam</strong>, en optioneel <strong>Email</strong> en <strong>Mentor</strong>.
                       </p>
                       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                         <button onClick={downloadExcelTemplate} style={{ ...btnS, fontSize: '0.85rem' }}>
@@ -764,10 +804,16 @@ export default function KlassenPage() {
                               <button onClick={updateLeerling} style={{ ...btnP, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>Opslaan</button>
                               <button onClick={() => setEditLeerling(null)} style={{ ...btnS, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
                             </div>
+                          ) : deleteLeerlingConfirm === l.id ? (
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{l.voornaam} verwijderen?</span>
+                              <button onClick={() => deleteLeerling(l.id)} style={{ ...btnD, fontSize: '0.75rem', padding: '0.25rem 0.5rem', background: '#dc2626', color: 'white' }}>Ja</button>
+                              <button onClick={() => setDeleteLeerlingConfirm(null)} style={{ ...btnS, fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>Nee</button>
+                            </div>
                           ) : (
                             <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                               <button onClick={() => setEditLeerling({ ...l })} style={{ ...btnS, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>Bewerken</button>
-                              <button onClick={() => deleteLeerling(l.id)} style={{ ...btnD, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
+                              <button onClick={() => setDeleteLeerlingConfirm(l.id)} style={{ ...btnD, fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>×</button>
                             </div>
                           )}
                         </td>
