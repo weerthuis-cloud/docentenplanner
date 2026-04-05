@@ -162,10 +162,10 @@ export default function Dashboard() {
 
   // Render seat
   const renderSeat = (leerlingId: number | null) => {
-    if (leerlingId === null) return <div key={Math.random()} className="rounded-lg bg-gray-200" style={{ aspectRatio: '1' }} />;
+    if (leerlingId === null) return <div key={Math.random()} className="rounded-lg bg-gray-200 h-full min-h-0" />;
 
     const l = leerlingen.find(x => x.id === leerlingId);
-    if (!l) return <div key={Math.random()} className="rounded-lg bg-gray-200" style={{ aspectRatio: '1' }} />;
+    if (!l) return <div key={Math.random()} className="rounded-lg bg-gray-200 h-full min-h-0" />;
 
     const s = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [] };
     const warned = s.warnings >= 3;
@@ -175,9 +175,8 @@ export default function Dashboard() {
 
     return (
       <div key={l.id}
-        className={`relative border-2 rounded-lg transition-all cursor-pointer
+        className={`relative border-2 rounded-lg transition-all cursor-pointer h-full min-h-0
           ${warned ? 'bg-red-50 border-red-200' : isSelected ? 'border-blue-400 shadow-md bg-blue-50' : 'border-gray-200 bg-white'}`}
-        style={{ aspectRatio: '1' }}
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
         {/* Full photo background */}
@@ -211,11 +210,11 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-1.5">
-            <div className={`w-10 h-10 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-xs ${warned ? 'ring-2 ring-red-300' : ''}`}>
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-1">
+            <div className={`w-8 h-8 rounded-full bg-[#2d6a9f] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${warned ? 'ring-2 ring-red-300' : ''}`}>
               {getInitials(l)}
             </div>
-            <div className="text-[10px] font-semibold mt-1 text-center truncate w-full">{l.voornaam} {l.achternaam}</div>
+            <div className="text-[8px] font-semibold mt-0.5 text-center truncate w-full">{l.voornaam}</div>
           </div>
         )}
 
@@ -257,14 +256,20 @@ export default function Dashboard() {
   };
 
   // Render grid
-  const renderGrid = (gridClass: string) => {
+  const renderGrid = () => {
     if (!layout || !layout.layout_data) return <div className="text-gray-400 text-center">Geen plattegrond beschikbaar</div>;
 
     let rows = layout.layout_data;
     if (mirrorV) rows = [...rows].reverse();
+    const numRows = rows.length;
 
     return (
-      <div ref={gridRef} className={`grid gap-2 flex-1 content-center ${gridClass}`} style={{ direction: mirrorH ? 'rtl' : 'ltr' }}>
+      <div ref={gridRef} className="grid gap-1 h-full"
+        style={{
+          direction: mirrorH ? 'rtl' : 'ltr',
+          gridTemplateColumns: '1fr 1fr 12px 1fr 1fr 12px 1fr 1fr',
+          gridTemplateRows: `repeat(${numRows}, 1fr)`,
+        }}>
         {rows.flat().map((cell, idx) => {
           const colInRow = idx % 8;
           if (colInRow === 2 || colInRow === 5) return <div key={`aisle-${idx}`} style={{ direction: 'ltr' }} />;
@@ -361,8 +366,8 @@ export default function Dashboard() {
       {/* === BINNENKOMST === */}
       {mode === 'binnenkomst' && (
         <div className="flex-1 flex flex-col">
-          <div className="bg-[#f0f4f8] p-3 px-6" style={{ maxHeight: '25vh', overflow: 'auto' }}>
-            {renderGrid('grid-cols-[1fr_1fr_30px_1fr_1fr_30px_1fr_1fr]')}
+          <div className="bg-[#f0f4f8] p-2 px-6" style={{ height: '25vh' }}>
+            {renderGrid()}
           </div>
           <div className="flex-1 bg-[#1e3a5f] flex flex-col items-center justify-center p-8 gap-8">
             <div className="text-center">
@@ -380,10 +385,10 @@ export default function Dashboard() {
       {/* === LES === */}
       {mode === 'les' && (
         <div className="flex-1 flex flex-col">
-          <div className="bg-[#f0f4f8] p-3 px-6" style={{ maxHeight: '25vh', overflow: 'auto' }}>
-            {renderGrid('grid-cols-[1fr_1fr_30px_1fr_1fr_30px_1fr_1fr]')}
+          <div className="bg-[#f0f4f8] p-2 px-6" style={{ height: '25vh' }}>
+            {renderGrid()}
           </div>
-          <div className="flex-[4] grid grid-cols-4">
+          <div className="flex-1 grid grid-cols-4">
             <div className="bg-[#f8fafc] p-5 border-r border-gray-200">
               <h3 className="text-xs uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Terugkijken</h3>
               <div className="text-base leading-relaxed whitespace-pre-line">{les?.terugkijken}</div>
