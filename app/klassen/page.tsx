@@ -320,14 +320,17 @@ export default function KlassenPage() {
       const pdfjsLib = await loadPdfJs();
 
       const arrayBuffer = await file.arrayBuffer();
-      const pdfBytesForPhotos = new Uint8Array(arrayBuffer.slice(0)); // keep copy for photo extraction
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       type PdfItem = { str: string; transform: number[]; width: number };
+      const OPS = pdfjsLib.OPS;
 
       let klasNaam = '';
-      const names: { voornaam: string; achternaam: string }[] = [];
+      // Names with their x,y position for spatial matching
+      const namesWithPos: { voornaam: string; achternaam: string; x: number; y: number }[] = [];
+      // Photos with their x,y position
+      const photosWithPos: { x: number; y: number; dataUrl: string }[] = [];
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -356,36 +359,39 @@ export default function KlassenPage() {
           rowItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
           // Build name segments: wide spaces (>15px) separate different students
-          const segments: string[] = [];
+          const segments: { text: string; x: number }[] = [];
           let current = '';
+          let currentX = rowItems[0]?.transform[4] || 0;
           for (const item of rowItems) {
             if (item.str.trim() === '' && item.width > 15) {
-              if (current.trim()) segments.push(current.trim());
+              if (current.trim()) segments.push({ text: current.trim(), x: currentX });
               current = '';
+              currentX = item.transform[4] + item.width;
             } else {
+              if (!current) currentX = item.transform[4];
               current += item.str;
             }
           }
-          if (current.trim()) segments.push(current.trim());
+          if (current.trim()) segments.push({ text: current.trim(), x: currentX });
 
           // Filter name segments: remove headers/footers, keep only letter-based text
-          const nameSegs: string[] = [];
+          const nameSegs: { text: string; x: number }[] = [];
           for (const seg of segments) {
-            if (/^Fotolijst$|Lesperiode|Gebruiker|groep:|^Klas\//i.test(seg)) continue;
-            if (/\d/.test(seg)) continue;
-            if (/^P\.\s/i.test(seg)) continue;
-            if (!/^[\p{L}\s\-'\.]+$/u.test(seg)) continue;
+            if (/^Fotolijst$|Lesperiode|Gebruiker|groep:|^Klas\//i.test(seg.text)) continue;
+            if (/\d/.test(seg.text)) continue;
+            if (/^P\.\s/i.test(seg.text)) continue;
+            if (!/^[\p{L}\s\-'\.]+$/u.test(seg.text)) continue;
             nameSegs.push(seg);
           }
           // Parse: multi-word segments are "Voornaam Achternaam", single words get paired
           for (const seg of nameSegs) {
-            const parts = seg.split(/\s+/);
+            const parts = seg.text.split(/\s+/);
             if (parts.length >= 2) {
               if (pendingSingle) { pendingSingle = ''; }
-              names.push({ voornaam: parts[0], achternaam: parts.slice(1).join(' ') });
+              namesWithPos.push({ voornaam: parts[0], achternaam: parts.slice(1).join(' '), x: seg.x, y });
             } else if (parts[0].length > 1) {
               if (pendingSingle) {
-                names.push({ voornaam: pendingSingle, achternaam: parts[0] });
+                namesWithPos.push({ voornaam: pendingSingle, achternaam: parts[0], x: seg.x, y });
                 pendingSingle = '';
               } else {
                 pendingSingle = parts[0];
@@ -393,69 +399,81 @@ export default function KlassenPage() {
             }
           }
         }
+
+        // === Extract photos with positions using operator list ===
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ops = await (page as any).getOperatorList();
+        const mStack: number[][] = [];
+        let cm = [1, 0, 0, 1, 0, 0];
+
+        for (let j = 0; j < ops.fnArray.length; j++) {
+          const fn = ops.fnArray[j];
+          const args = ops.argsArray[j];
+
+          if (fn === OPS.save) {
+            mStack.push([...cm]);
+          } else if (fn === OPS.restore) {
+            cm = mStack.pop() || [1, 0, 0, 1, 0, 0];
+          } else if (fn === OPS.transform) {
+            const [ta, tb, tc, td, te, tf] = args;
+            cm = [
+              cm[0]*ta + cm[2]*tb, cm[1]*ta + cm[3]*tb,
+              cm[0]*tc + cm[2]*td, cm[1]*tc + cm[3]*td,
+              cm[0]*te + cm[2]*tf + cm[4], cm[1]*te + cm[3]*tf + cm[5],
+            ];
+          } else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
+            const imgW = Math.abs(cm[0]);
+            const imgH = Math.abs(cm[3]);
+            // Filter for student passport photos (square, 80-400px)
+            if (imgW >= 80 && imgW <= 400 && imgH >= 80 && imgH <= 400 && Math.abs(imgW - imgH) < 50) {
+              const imgX = cm[4];
+              const imgY = cm[5];
+              const imgName = args[0];
+              try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const imgObj: any = await new Promise((resolve) => {
+                  page.objs.get(imgName, resolve);
+                });
+                // Render small image to canvas for base64
+                const canvas = document.createElement('canvas');
+                canvas.width = imgObj.width;
+                canvas.height = imgObj.height;
+                const ctx = canvas.getContext('2d')!;
+                const imageData = ctx.createImageData(imgObj.width, imgObj.height);
+                imageData.data.set(imgObj.data);
+                ctx.putImageData(imageData, 0, 0);
+                photosWithPos.push({ x: imgX, y: imgY, dataUrl: canvas.toDataURL('image/jpeg', 0.85) });
+              } catch { /* skip if image data unavailable */ }
+            }
+          }
+        }
       }
 
-      if (names.length === 0) {
+      if (namesWithPos.length === 0) {
         setImportMsg('Geen namen gevonden. Controleer of het een Magister fotolijst is.');
         setImportLoading(false);
         return;
       }
 
-      // Extract photos directly from PDF binary (much faster than page rendering)
-      setImportMsg(`${names.length} namen gevonden, foto's worden geëxtraheerd...`);
-      const photos: string[] = [];
-
-      // Helper: get JPEG dimensions from SOF0/SOF2 marker
-      function getJpegDimensions(data: Uint8Array): { w: number; h: number } | null {
-        for (let i = 2; i < data.length - 9; i++) {
-          if (data[i] === 0xFF && (data[i + 1] === 0xC0 || data[i + 1] === 0xC2)) {
-            const h = (data[i + 5] << 8) | data[i + 6];
-            const w = (data[i + 7] << 8) | data[i + 8];
-            return { w, h };
-          }
-        }
-        return null;
-      }
-
-      try {
-        const pdfBytes = pdfBytesForPhotos;
-        // Find all embedded JPEG images (marker: FF D8 FF ... FF D9)
-        const allJpegs: { data: Uint8Array; size: number }[] = [];
-        for (let i = 0; i < pdfBytes.length - 2; i++) {
-          if (pdfBytes[i] === 0xFF && pdfBytes[i + 1] === 0xD8 && pdfBytes[i + 2] === 0xFF) {
-            for (let j = i + 3; j < pdfBytes.length - 1; j++) {
-              if (pdfBytes[j] === 0xFF && pdfBytes[j + 1] === 0xD9) {
-                allJpegs.push({ data: pdfBytes.slice(i, j + 2), size: j + 2 - i });
-                i = j + 1;
-                break;
-              }
+      // Match each name to the closest photo ABOVE it (photo y > name y, similar x)
+      setImportMsg(`${namesWithPos.length} namen gevonden, foto's worden gekoppeld...`);
+      const namesWithPhotos = namesWithPos.map(name => {
+        let bestPhoto: string | undefined;
+        let bestDist = Infinity;
+        for (const photo of photosWithPos) {
+          // Photo should be above the name (higher y in PDF coords) and close in x
+          const dx = Math.abs(photo.x - name.x);
+          const dy = photo.y - name.y; // positive = photo is above name
+          if (dy > 0 && dx < 150) {
+            const dist = dx + dy;
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestPhoto = photo.dataUrl;
             }
           }
         }
-
-        // Filter: only keep student passport photos (square, roughly 100-300px)
-        // Magister uses 192x192 but other sizes are possible
-        for (const jpeg of allJpegs) {
-          const dims = getJpegDimensions(jpeg.data);
-          if (dims && dims.w >= 80 && dims.w <= 400 && dims.h >= 80 && dims.h <= 400
-              && Math.abs(dims.w - dims.h) < 50) {
-            let binary = '';
-            for (let k = 0; k < jpeg.data.length; k++) {
-              binary += String.fromCharCode(jpeg.data[k]);
-            }
-            photos.push('data:image/jpeg;base64,' + btoa(binary));
-          }
-        }
-      } catch (photoErr) {
-        console.error('Photo extraction error:', photoErr);
-      }
-
-      // Names and photos are both extracted in visual reading order (top-to-bottom,
-      // left-to-right) from the PDF, so they already match by index.
-      const namesWithPhotos = names.map((n, idx) => ({
-        ...n,
-        foto_data: photos[idx] || undefined,
-      }));
+        return { voornaam: name.voornaam, achternaam: name.achternaam, foto_data: bestPhoto };
+      });
 
       // Check duplicates
       const dupes: typeof importDuplicates = [];
