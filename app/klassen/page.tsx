@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface Klas {
   id: number; naam: string; vak: string; lokaal: string; jaarlaag: string; schooljaar: string; aantal_leerlingen: number;
@@ -181,6 +182,9 @@ export default function KlassenPage() {
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button onClick={() => setShowNewLeerling(true)} style={btnPrimary}>+ Leerling toevoegen</button>
+              <Link href="/klassen/plattegrond" style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                🪑 Plattegrond
+              </Link>
               <button onClick={() => deleteKlas(selectedKlasData.id)} style={btnDanger}>Klas verwijderen</button>
             </div>
           </div>
