@@ -413,13 +413,13 @@ export default function Dashboard() {
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => setNotitieModal(null)}>
             <div className="bg-white rounded-xl shadow-2xl p-5 w-[360px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-[#D97706] mb-3">Notitie — {nl?.voornaam} {nl?.achternaam}</h3>
+              <h3 className="text-base font-bold text-[#1a7a2e] mb-3">Notitie — {nl?.voornaam} {nl?.achternaam}</h3>
               <textarea
                 autoFocus
                 value={notitieText}
                 onChange={e => setNotitieText(e.target.value)}
                 placeholder="Schrijf een notitie..."
-                className="w-full h-32 border border-gray-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full h-32 border border-gray-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <div className="flex justify-end gap-2 mt-3">
                 <button onClick={() => setNotitieModal(null)} className="px-4 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100">Annuleer</button>
@@ -427,6 +427,7 @@ export default function Dashboard() {
                   setLState(prev => ({ ...prev, [notitieModal]: { ...prev[notitieModal], notitie: notitieText } }));
                   setNotitieModal(null);
                 }} className="px-4 py-1.5 rounded-lg text-sm bg-[#D97706] text-white font-semibold hover:bg-[#b45309]">Opslaan</button>
+
               </div>
             </div>
           </div>
@@ -450,7 +451,7 @@ export default function Dashboard() {
       )}
 
       {/* TOP BAR - strak en minimaal */}
-      <div className="text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40" style={{ background: 'linear-gradient(135deg, #D97706 0%, #b45309 100%)' }}>
+      <div className="text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40" style={{ background: 'linear-gradient(135deg, #1a7a2e 0%, #145f23 100%)' }}>
         <div className="flex items-center gap-3">
           {/* Hamburger menu */}
           <div className="relative">
@@ -464,8 +465,8 @@ export default function Dashboard() {
                 {NAV_ITEMS.map(item => (
                   <button key={item.label}
                     onClick={() => { router.push(item.href); setMenuOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-orange-50 hover:text-[#D97706] transition-colors
-                      ${item.href === '/' ? 'bg-orange-50 text-[#D97706] font-semibold' : ''}`}>
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-green-50 hover:text-[#1a7a2e] transition-colors
+                      ${item.href === '/' ? 'bg-green-50 text-[#1a7a2e] font-semibold' : ''}`}>
                     {item.label}
                   </button>
                 ))}
@@ -498,7 +499,7 @@ export default function Dashboard() {
           {/* Mode switch - altijd op dezelfde plek */}
           <div className="flex bg-white/10 rounded p-0.5">
             {(['binnenkomst','les','lezen'] as Mode[]).map(m => (
-              <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded text-xs font-semibold transition-all ${mode === m ? 'bg-white text-[#D97706]' : 'text-white/70'}`}>
+              <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded text-xs font-semibold transition-all ${mode === m ? 'bg-white text-[#1a7a2e]' : 'text-white/70'}`}>
                 {m.charAt(0).toUpperCase() + m.slice(1)}
               </button>
             ))}
@@ -510,17 +511,17 @@ export default function Dashboard() {
       {mode === 'binnenkomst' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond volle hoogte */}
-          <div className="bg-[#faf6f1] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+          <div className="bg-[#f5f9f5] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
             <div style={{ width: 'fit-content' }}>
-              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#D97706', fontSize: '1.6rem' }}>Ga zitten volgens plattegrond</div>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1a7a2e', fontSize: '1.6rem' }}>Ga zitten volgens plattegrond</div>
               {renderGrid()}
             </div>
           </div>
           {/* Rechts: twee tekstvlakken */}
-          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#faf6f1' }}>
+          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
             {/* Welkom blok */}
-            <div style={{ background: '#fff8f0', border: '1.5px solid #f5d5a8', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h2 className="font-black uppercase tracking-wide" style={{ color: '#D97706', fontSize: '1.6rem', marginBottom: 12 }}>
+            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h2 className="font-black uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.6rem', marginBottom: 12 }}>
                 Welkom bij {activeKlasObj?.vak || 'de les'}
               </h2>
               {editingWelkom ? (
@@ -530,7 +531,7 @@ export default function Dashboard() {
                   onChange={e => setWelkomTekst(e.target.value)}
                   onBlur={() => setEditingWelkom(false)}
                   onKeyDown={e => { if (e.key === 'Escape') setEditingWelkom(false); }}
-                  className="text-lg leading-relaxed text-gray-700 bg-white border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="text-lg leading-relaxed text-gray-700 bg-white border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
                   style={{ minHeight: 60 }}
                 />
               ) : (
@@ -545,8 +546,8 @@ export default function Dashboard() {
             </div>
 
             {/* Startopdracht blok */}
-            <div style={{ background: '#fff8f0', border: '1.5px solid #f5d5a8', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#D97706', fontSize: '1.1rem', marginBottom: 12 }}>
+            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 12 }}>
                 Startopdracht
               </h3>
               <div className="text-lg leading-relaxed text-gray-700">
@@ -561,39 +562,39 @@ export default function Dashboard() {
       {mode === 'les' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond */}
-          <div className="bg-[#faf6f1] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+          <div className="bg-[#f5f9f5] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
             <div style={{ width: 'fit-content' }}>
-              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#D97706', fontSize: '1.6rem' }}>{activeKlasObj?.vak || 'Les'}</div>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1a7a2e', fontSize: '1.6rem' }}>{activeKlasObj?.vak || 'Les'}</div>
               {renderGrid()}
             </div>
           </div>
           {/* Rechts: drie tekstvlakken */}
-          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#faf6f1' }}>
+          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
             {/* Terugkijken */}
-            <div style={{ background: '#fff8f0', border: '1.5px solid #f5d5a8', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#D97706', fontSize: '1.1rem', marginBottom: 10 }}>Terugkijken</h3>
+            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>Terugkijken</h3>
               <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
                 {les?.terugkijken || <span className="text-gray-400 italic">Wat hebben we vorige les gedaan?</span>}
               </div>
             </div>
 
             {/* Programma + Leerdoelen */}
-            <div style={{ background: '#fff8f0', border: '1.5px solid #f5d5a8', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#D97706', fontSize: '1.1rem', marginBottom: 10 }}>Programma</h3>
+            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>Programma</h3>
               <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
                 {les?.programma || <span className="text-gray-400 italic">Wat gaan we deze les doen?</span>}
               </div>
               {les?.leerdoelen && (
                 <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #c5cdd6' }}>
-                  <h4 className="font-bold uppercase tracking-wide" style={{ color: '#D97706', fontSize: '0.85rem', marginBottom: 6 }}>Leerdoelen</h4>
+                  <h4 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '0.85rem', marginBottom: 6 }}>Leerdoelen</h4>
                   <div className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{les.leerdoelen}</div>
                 </div>
               )}
             </div>
 
             {/* Maak-/huiswerk */}
-            <div style={{ background: '#fff8f0', border: '1.5px solid #f5d5a8', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#D97706', fontSize: '1.1rem', marginBottom: 10 }}>Maak-/huiswerk</h3>
+            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>Maak-/huiswerk</h3>
               <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
                 {les?.huiswerk || <span className="text-gray-400 italic">Wat moeten leerlingen thuis doen?</span>}
               </div>
@@ -606,16 +607,16 @@ export default function Dashboard() {
       {mode === 'lezen' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond met boektitels */}
-          <div className="bg-[#faf6f1] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+          <div className="bg-[#f5f9f5] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
             <div style={{ width: 'fit-content' }}>
-              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#D97706', fontSize: '1.6rem' }}>Leestijd</div>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1a7a2e', fontSize: '1.6rem' }}>Leestijd</div>
               {renderGridLezen()}
             </div>
           </div>
           {/* Rechts: timer */}
-          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#faf6f1' }}>
+          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
             {/* Timer blok */}
-            <div style={{ background: '#fff8f0', border: '1.5px solid #f5d5a8', borderRadius: 16, padding: '40px 32px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '40px 32px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
               <div className="text-white/40 uppercase tracking-[4px] font-bold text-sm" style={{ color: '#94a3b8' }}>Leestijd</div>
               <div className={`font-black tabular-nums tracking-tighter leading-none ${timerSec <= 0 && !timerRunning ? 'text-red-500 animate-pulse' : ''}`} style={{ fontSize: '6rem', color: '#1e3a5f' }}>{timerDisplay}</div>
               <div className="flex items-center gap-3 mt-2">
@@ -627,7 +628,7 @@ export default function Dashboard() {
                   placeholder="mm:ss"
                   disabled={timerRunning}
                   className="w-20 text-center p-2 border rounded-lg font-bold text-lg tabular-nums"
-                  style={{ borderColor: '#f5d5a8', color: '#1e3a5f' }}
+                  style={{ borderColor: '#b8d8be', color: '#1e3a5f' }}
                 />
               </div>
               <div className="flex gap-3">
@@ -635,7 +636,7 @@ export default function Dashboard() {
                   className={`px-6 py-2.5 rounded-xl font-bold text-base ${timerRunning ? 'bg-orange-500 text-white' : 'bg-green-500 text-white'}`}>
                   {timerRunning ? 'Pauze' : 'Start'}
                 </button>
-                <button onClick={resetTimer} className="px-6 py-2.5 rounded-xl font-bold text-base border" style={{ borderColor: '#f5d5a8', color: '#64748b' }}>Reset</button>
+                <button onClick={resetTimer} className="px-6 py-2.5 rounded-xl font-bold text-base border" style={{ borderColor: '#b8d8be', color: '#64748b' }}>Reset</button>
               </div>
             </div>
           </div>

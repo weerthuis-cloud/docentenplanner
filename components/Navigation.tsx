@@ -30,7 +30,7 @@ export default function Navigation() {
         <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
       )}
 
-      <div className="text-white px-4 py-2 flex items-center gap-3 text-sm relative z-50" style={{ flexShrink: 0, background: 'linear-gradient(135deg, #D97706 0%, #b45309 100%)' }}>
+      <div className="text-white px-4 py-2 flex items-center gap-3 text-sm relative z-50" style={{ flexShrink: 0, background: 'linear-gradient(135deg, #1a7a2e 0%, #145f23 100%)' }}>
         <div className="relative">
           <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
             <span className="block w-5 h-0.5 bg-white" />
@@ -43,8 +43,8 @@ export default function Navigation() {
                 const isActive = pathname === item.href;
                 return (
                   <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-orange-50 hover:text-[#D97706] transition-colors no-underline
-                      ${isActive ? 'bg-orange-50 text-[#D97706] font-semibold' : 'text-gray-700'}`}>
+                    className={`flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-green-50 hover:text-[#1a7a2e] transition-colors no-underline
+                      ${isActive ? 'bg-green-50 text-[#1a7a2e] font-semibold' : 'text-gray-700'}`}>
                     <span>{item.icon}</span>
                     {item.label}
                   </Link>
