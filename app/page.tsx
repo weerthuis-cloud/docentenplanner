@@ -290,6 +290,63 @@ export default function Dashboard() {
     );
   };
 
+  // Render seat for lezen mode (no action buttons, book title top, name bottom)
+  const renderSeatLezen = (leerlingId: number | null) => {
+    const CELL = 116;
+    if (leerlingId === null) return <div key={Math.random()} style={{ width: CELL, height: CELL, borderRadius: 6, background: '#e2e8f0', border: '1px solid #d1d5db' }} />;
+
+    const l = leerlingen.find(x => x.id === leerlingId);
+    if (!l) return <div key={Math.random()} style={{ width: CELL, height: CELL, borderRadius: 6, background: '#e2e8f0', border: '1px solid #d1d5db' }} />;
+
+    const hasFoto = !!(l.foto_data || l.foto_url);
+
+    return (
+      <div key={l.id} style={{ width: CELL, height: CELL, borderRadius: 6, position: 'relative', background: '#334155', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 6, overflow: 'hidden' }}>
+          {hasFoto && <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        </div>
+        {/* Boektitel bovenin */}
+        {l.boek_titel && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, background: 'linear-gradient(rgba(0,0,0,0.7), transparent)', borderRadius: '6px 6px 0 0', padding: '4px 6px', textAlign: 'center' }}>
+            <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.6rem', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>&#128214; {l.boek_titel}</div>
+          </div>
+        )}
+        {/* Naam onderin */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', borderRadius: '0 0 6px 6px', padding: '12px 4px 3px', textAlign: 'center' }}>
+          <div style={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', lineHeight: 1.2, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{l.voornaam}</div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render grid for lezen mode
+  const renderGridLezen = () => {
+    if (!layout || !layout.layout_data) return <div className="text-gray-400 text-center">Geen plattegrond beschikbaar</div>;
+
+    let rows = layout.layout_data;
+    if (mirrorV) rows = [...rows].reverse();
+    const numRows = rows.length;
+    const CELL = 116;
+    const numCols = rows[0]?.length || 8;
+
+    return (
+      <div style={{
+        display: 'grid',
+        direction: mirrorH ? 'rtl' : 'ltr',
+        gridTemplateColumns: Array.from({ length: numCols }, (_, i) => (i === 2 || i === 5) ? '12px' : `${CELL}px`).join(' '),
+        gridTemplateRows: `repeat(${numRows}, ${CELL}px)`,
+        gap: '6px',
+        width: 'fit-content',
+      }}>
+        {rows.flat().map((cell, idx) => {
+          const colInRow = idx % numCols;
+          if (colInRow === 2 || colInRow === 5) return <div key={`aisle-${idx}`} style={{ direction: 'ltr' }} />;
+          return <div key={idx} style={{ direction: 'ltr' }}>{renderSeatLezen(cell)}</div>;
+        })}
+      </div>
+    );
+  };
+
   // Render grid
   const renderGrid = () => {
     if (!layout || !layout.layout_data) return <div className="text-gray-400 text-center">Geen plattegrond beschikbaar</div>;
@@ -556,53 +613,44 @@ export default function Dashboard() {
 
       {/* === LEZEN === */}
       {mode === 'lezen' && (
-        <div className="flex-1 grid grid-cols-[340px_1fr]">
-          <div className="bg-[#1e3a5f] flex flex-col items-center justify-center p-10 gap-3">
-            <div className="text-5xl opacity-30">&#128214;</div>
-            <div className="text-white/40 uppercase tracking-[4px] font-bold text-sm">Leestijd</div>
-            <div className={`text-[7rem] font-black text-white tabular-nums tracking-tighter leading-none ${timerSec <= 0 && !timerRunning ? 'text-red-500 animate-pulse' : ''}`}>{timerDisplay}</div>
-            <div className="flex items-center gap-3 mt-4">
-              <input
-                type="text"
-                value={timerRunning ? timerDisplay : timerInput}
-                onChange={e => { if (!timerRunning) setTimerInput(e.target.value); }}
-                onKeyDown={e => { if (e.key === 'Enter' && !timerRunning) { setTimerSec(parseTimerInput(timerInput)); startTimer(); } }}
-                placeholder="mm:ss"
-                disabled={timerRunning}
-                className="w-20 text-center p-2 border border-white/20 rounded-lg bg-white/10 text-white font-bold text-lg tabular-nums"
-              />
+        <div className="flex-1 flex">
+          {/* Links: plattegrond met boektitels */}
+          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+            <div style={{ width: 'fit-content' }}>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1e3a5f', fontSize: '1.6rem' }}>Leestijd</div>
+              {renderGridLezen()}
             </div>
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
-                className={`px-6 py-2.5 rounded-xl font-bold text-base ${timerRunning ? 'bg-orange-500 text-white' : 'bg-green-500 text-white'}`}>
-                {timerRunning ? 'Pauze' : 'Start'}
-              </button>
-              <button onClick={resetTimer} className="px-6 py-2.5 rounded-xl font-bold text-base bg-white/10 text-white/70 border border-white/20">Reset</button>
-            </div>
-            <div className="text-white/30 text-lg mt-6 tabular-nums">{clock}</div>
           </div>
-          <div className="bg-[#f0f4f8] p-5 overflow-y-auto">
-            <div className="flex items-baseline gap-2 mb-4">
+          {/* Rechts: timer */}
+          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
+            <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black tabular-nums" style={{ color: '#1e3a5f' }}>{clock}</span>
               <span className="text-sm text-gray-400">|</span>
               <span className="text-sm font-medium" style={{ color: '#64748b' }}>{date}</span>
             </div>
-            <h2 className="text-sm font-bold text-[#1e3a5f] mb-4 flex items-center gap-2">
-              &#128218; Wat leest de klas?
-              <span className="text-[10px] bg-[#1e3a5f] text-white px-2.5 py-0.5 rounded-full">{activeKlasObj?.naam}</span>
-            </h2>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
-              {leerlingen.map(l => (
-                <div key={l.id} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
-                  <div className="aspect-[2/3] flex items-center justify-center text-white text-xs font-bold text-center p-2.5 relative" style={{ background: l.boek_kleur || '#2E4057' }}>
-                    <span className="text-3xl absolute opacity-20">&#128214;</span>
-                    <span className="relative z-10 leading-tight">{l.boek_titel}</span>
-                  </div>
-                  <div className="px-2 py-2 text-center">
-                    <div className="text-[11px] font-semibold truncate">{l.voornaam} {l.achternaam}</div>
-                  </div>
-                </div>
-              ))}
+            {/* Timer blok */}
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '40px 32px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+              <div className="text-white/40 uppercase tracking-[4px] font-bold text-sm" style={{ color: '#94a3b8' }}>Leestijd</div>
+              <div className={`font-black tabular-nums tracking-tighter leading-none ${timerSec <= 0 && !timerRunning ? 'text-red-500 animate-pulse' : ''}`} style={{ fontSize: '6rem', color: '#1e3a5f' }}>{timerDisplay}</div>
+              <div className="flex items-center gap-3 mt-2">
+                <input
+                  type="text"
+                  value={timerRunning ? timerDisplay : timerInput}
+                  onChange={e => { if (!timerRunning) setTimerInput(e.target.value); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && !timerRunning) { setTimerSec(parseTimerInput(timerInput)); startTimer(); } }}
+                  placeholder="mm:ss"
+                  disabled={timerRunning}
+                  className="w-20 text-center p-2 border rounded-lg font-bold text-lg tabular-nums"
+                  style={{ borderColor: '#c5cdd6', color: '#1e3a5f' }}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
+                  className={`px-6 py-2.5 rounded-xl font-bold text-base ${timerRunning ? 'bg-orange-500 text-white' : 'bg-green-500 text-white'}`}>
+                  {timerRunning ? 'Pauze' : 'Start'}
+                </button>
+                <button onClick={resetTimer} className="px-6 py-2.5 rounded-xl font-bold text-base border" style={{ borderColor: '#c5cdd6', color: '#64748b' }}>Reset</button>
+              </div>
             </div>
           </div>
         </div>
