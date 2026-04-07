@@ -375,6 +375,22 @@ export default function Dashboard() {
         );
       })()}
 
+      {/* NIET VERGETEN floating banner */}
+      {les?.niet_vergeten && (
+        <div className="fixed bottom-6 right-6 z-[80] animate-pulse" style={{ maxWidth: 340 }}>
+          <div style={{
+            background: '#ef4444',
+            borderRadius: 14,
+            padding: '16px 22px',
+            boxShadow: '0 8px 30px rgba(239,68,68,0.4)',
+            border: '2px solid #fca5a5',
+          }}>
+            <div style={{ color: 'white', fontWeight: 900, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Niet vergeten</div>
+            <div style={{ color: 'white', fontSize: '1rem', lineHeight: 1.5, whiteSpace: 'pre-line' }}>{les.niet_vergeten}</div>
+          </div>
+        </div>
+      )}
+
       {/* TOP BAR - strak en minimaal */}
       <div className="bg-[#1e3a5f] text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40">
         <div className="flex items-center gap-3">
