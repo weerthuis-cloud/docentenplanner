@@ -367,7 +367,7 @@ export default function PlannerPage() {
                 <div key={f.key} style={{ marginBottom: '0.6rem' }}>
                   <label style={{ display: 'block', fontWeight: 600, fontSize: '0.82rem', color: '#374151', marginBottom: 3 }}>{f.label}</label>
                   <textarea
-                    value={(editingLes as Record<string, unknown>)[f.key] as string || ''}
+                    value={(editingLes[f.key as keyof Les] as string) || ''}
                     onChange={e => setEditingLes({ ...editingLes, [f.key]: e.target.value })}
                     placeholder={f.placeholder} rows={f.rows}
                     style={{ width: '100%', border: `1.5px solid ${kleur}30`, borderRadius: 8, padding: '0.45rem 0.7rem', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', background: '#fafffe', outline: 'none', boxSizing: 'border-box' }}
