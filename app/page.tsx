@@ -181,6 +181,7 @@ export default function Dashboard() {
           border: isSelected ? '3px solid #3b82f6' : 'none',
           boxShadow: isSelected ? '0 0 0 2px #93c5fd' : '0 1px 3px rgba(0,0,0,0.2)',
           transition: 'all 0.15s',
+          zIndex: isSelected ? 50 : 1,
         }}
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
@@ -221,7 +222,7 @@ export default function Dashboard() {
 
         {/* Actieknoppen bij selectie */}
         {isSelected && (
-          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-lg z-20">
+          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-lg" style={{ zIndex: 60 }}>
             <button className="w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold"
               onClick={e => { e.stopPropagation(); addWarning(l.id); }}>!</button>
             <button className="w-7 h-7 rounded-full bg-green-500 text-white text-xs flex items-center justify-center"
@@ -233,7 +234,7 @@ export default function Dashboard() {
 
         {/* Status dropdown */}
         {openDD === l.id && (
-          <div className="absolute top-full mt-8 right-0 bg-white border border-gray-200 rounded-lg p-2 z-30 shadow-lg min-w-[180px] text-sm" onClick={e => e.stopPropagation()}>
+          <div className="absolute top-full mt-8 right-0 bg-white border border-gray-200 rounded-lg p-2 shadow-lg min-w-[180px] text-sm" style={{ zIndex: 70 }} onClick={e => e.stopPropagation()}>
             {['telaat','absent','huiswerk','materiaal','verwijderd'].map(st => (
               <label key={st} className="flex items-center gap-2 px-1 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
                 <input type="checkbox" checked={s.statuses.includes(st)} onChange={() => toggleStatus(l.id, st)} className="accent-blue-600 w-4 h-4" />
