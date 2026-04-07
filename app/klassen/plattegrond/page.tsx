@@ -382,40 +382,95 @@ function PlattegrondContent() {
   };
 
   // Place groepjes on existing tables: fills empty tables with students grouped together
+  // Groups are placed in clusters (pairs of columns separated by aisles)
   const placeGroepjesOnGrid = () => {
     if (!activeGroepjes) return;
     const groups = activeGroepjes.groepjes_data;
     const newData = layoutData.map((r) => [...r]);
+    const numCols = newData[0]?.length || 8;
+    const numRows = newData.length;
 
     // First clear all students from grid (keep tables as 0)
-    for (let r = 0; r < newData.length; r++) {
-      for (let c = 0; c < newData[r].length; c++) {
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols; c++) {
         if (typeof newData[r][c] === 'number' && newData[r][c]! > 0) {
-          newData[r][c] = 0; // reset to empty table
+          newData[r][c] = 0;
         }
       }
     }
 
-    // Collect all empty table positions (value === 0)
-    const emptyTables: { row: number; col: number }[] = [];
-    for (let r = 0; r < newData.length; r++) {
-      for (let c = 0; c < newData[r].length; c++) {
-        if (newData[r][c] === 0) {
-          emptyTables.push({ row: r, col: c });
-        }
+    // Identify clusters: groups of adjacent non-aisle columns
+    // Aisles are columns where all values are null (col 2, 5 typically)
+    const aisles = new Set<number>();
+    for (let c = 0; c < numCols; c++) {
+      let isAisle = true;
+      for (let r = 0; r < numRows; r++) {
+        if (newData[r][c] !== null) { isAisle = false; break; }
       }
+      if (isAisle) aisles.add(c);
     }
 
-    // Place students group by group onto empty tables
-    let tableIndex = 0;
+    // Build cluster definitions: each cluster is a set of adjacent non-aisle columns
+    const clusters: number[][] = [];
+    let currentCluster: number[] = [];
+    for (let c = 0; c < numCols; c++) {
+      if (aisles.has(c)) {
+        if (currentCluster.length > 0) { clusters.push(currentCluster); currentCluster = []; }
+      } else {
+        currentCluster.push(c);
+      }
+    }
+    if (currentCluster.length > 0) clusters.push(currentCluster);
+
+    // For each cluster, collect available seats row by row (contiguous block)
+    // A "seat block" is all empty seats in one cluster, row by row
+    interface SeatBlock { positions: { row: number; col: number }[]; }
+    const seatBlocks: SeatBlock[] = [];
+
+    for (const clusterCols of clusters) {
+      const block: SeatBlock = { positions: [] };
+      for (let r = 0; r < numRows; r++) {
+        for (const c of clusterCols) {
+          if (newData[r][c] === 0) {
+            block.positions.push({ row: r, col: c });
+          }
+        }
+      }
+      if (block.positions.length > 0) seatBlocks.push(block);
+    }
+
+    // Place groups into clusters: try to fit each group entirely within one cluster
+    const usedPositions = new Set<string>();
+
     groups.forEach((group) => {
-      group.forEach((studentId) => {
-        if (tableIndex < emptyTables.length) {
-          const pos = emptyTables[tableIndex];
-          newData[pos.row][pos.col] = studentId;
-          tableIndex++;
+      let placed = false;
+      // Try to find a cluster with enough contiguous seats
+      for (const block of seatBlocks) {
+        const available = block.positions.filter(p => !usedPositions.has(`${p.row},${p.col}`));
+        if (available.length >= group.length) {
+          // Place the group here
+          for (let i = 0; i < group.length; i++) {
+            const pos = available[i];
+            newData[pos.row][pos.col] = group[i];
+            usedPositions.add(`${pos.row},${pos.col}`);
+          }
+          placed = true;
+          break;
         }
-      });
+      }
+      // Fallback: place wherever there's space
+      if (!placed) {
+        for (const block of seatBlocks) {
+          for (const pos of block.positions) {
+            if (!usedPositions.has(`${pos.row},${pos.col}`) && group.length > 0) {
+              const studentId = group.shift()!;
+              newData[pos.row][pos.col] = studentId;
+              usedPositions.add(`${pos.row},${pos.col}`);
+            }
+          }
+          if (group.length === 0) break;
+        }
+      }
     });
 
     setLayoutData(newData);
