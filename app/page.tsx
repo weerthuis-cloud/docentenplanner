@@ -309,7 +309,7 @@ export default function Dashboard() {
         </div>
         {/* Boektitel + auteur bovenin */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, padding: '6px 6px 0', textAlign: 'center' }}>
-          {l.boek_titel && <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.6rem', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>&#128214; {l.boek_titel}</div>}
+          {l.boek_titel && <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.6rem', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>{l.boek_titel}</div>}
           {l.boek_auteur && <div style={{ color: '#e2e8f0', fontWeight: 400, fontSize: '0.55rem', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>{l.boek_auteur}</div>}
         </div>
         {/* Naam onderin */}
