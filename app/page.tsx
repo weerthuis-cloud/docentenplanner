@@ -484,47 +484,42 @@ export default function Dashboard() {
       {/* === LES === */}
       {mode === 'les' && (
         <div className="flex-1 flex">
-          {/* Links: plattegrond volle hoogte */}
-          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0 flex items-center justify-center overflow-auto">
-            {renderGrid()}
+          {/* Links: plattegrond */}
+          <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+            <div style={{ width: 'fit-content' }}>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1e3a5f', fontSize: '1.6rem' }}>{activeKlasObj?.vak || 'Les'}</div>
+              {renderGrid()}
+            </div>
           </div>
-          {/* Rechts: programma + timer */}
-          <div className="flex flex-col" style={{ width: '40%', minWidth: 360 }}>
-            {/* Programma */}
-            <div className="flex-1 bg-[#f0faf5] p-6 overflow-auto">
-              <h3 className="text-lg uppercase tracking-wide text-teal-700 font-bold mb-3">Programma</h3>
-              <div className="text-base leading-relaxed whitespace-pre-line">{les?.programma || 'Geen programma ingesteld'}</div>
+          {/* Rechts: drie tekstvlakken */}
+          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
+            {/* Terugkijken */}
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>Terugkijken</h3>
+              <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
+                {les?.terugkijken || <span className="text-gray-400 italic">Wat hebben we vorige les gedaan?</span>}
+              </div>
+            </div>
+
+            {/* Programma + Leerdoelen */}
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>Programma</h3>
+              <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
+                {les?.programma || <span className="text-gray-400 italic">Wat gaan we deze les doen?</span>}
+              </div>
               {les?.leerdoelen && (
-                <div className="mt-4 pt-3 border-t border-teal-200 text-sm text-gray-600">
-                  <strong className="text-xs uppercase tracking-wide text-teal-600">Leerdoelen</strong>
-                  <div className="whitespace-pre-line mt-1">{les.leerdoelen}</div>
-                </div>
-              )}
-              {les?.huiswerk && (
-                <div className="mt-4 pt-3 border-t border-teal-200 text-sm text-gray-600">
-                  <strong className="text-xs uppercase tracking-wide text-orange-500">Huiswerk</strong>
-                  <div className="whitespace-pre-line mt-1">{les.huiswerk}</div>
-                </div>
-              )}
-              {les?.niet_vergeten && (
-                <div className="mt-4 pt-3 border-t border-teal-200 text-sm text-gray-600">
-                  <strong className="text-xs uppercase tracking-wide text-red-500">Niet vergeten</strong>
-                  <div className="whitespace-pre-line mt-1">{les.niet_vergeten}</div>
+                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #c5cdd6' }}>
+                  <h4 className="font-bold uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '0.85rem', marginBottom: 6 }}>Leerdoelen</h4>
+                  <div className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{les.leerdoelen}</div>
                 </div>
               )}
             </div>
-            {/* Timer */}
-            <div className="bg-white border-t border-gray-200 p-6 flex items-center justify-center gap-6">
-              <div className="text-6xl font-black tabular-nums tracking-tighter text-[#1e3a5f]">{timerDisplay}</div>
-              <div className="flex flex-col gap-2">
-                <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl ${timerRunning ? 'bg-orange-500' : 'bg-green-500'}`}>
-                  {timerRunning ? '⏸' : '▶'}
-                </button>
-                <button onClick={resetTimer}
-                  className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-200 text-gray-600 text-xl">
-                  ⏹
-                </button>
+
+            {/* Maak-/huiswerk */}
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>Maak-/huiswerk</h3>
+              <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
+                {les?.huiswerk || <span className="text-gray-400 italic">Wat moeten leerlingen thuis doen?</span>}
               </div>
             </div>
           </div>
