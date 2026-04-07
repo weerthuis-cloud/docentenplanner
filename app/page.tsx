@@ -160,6 +160,14 @@ export default function Dashboard() {
       body: JSON.stringify({ leerling_id: id, type: 'compliment' }) });
   };
 
+  const resetWarnings = (id: number) => {
+    setLState(prev => ({ ...prev, [id]: { ...prev[id], warnings: 0 } }));
+  };
+
+  const resetCompliments = (id: number) => {
+    setLState(prev => ({ ...prev, [id]: { ...prev[id], compliments: 0 } }));
+  };
+
   // Render seat
   const renderSeat = (leerlingId: number | null) => {
     const CELL = 116;
@@ -224,9 +232,11 @@ export default function Dashboard() {
         {isSelected && (
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-lg" style={{ zIndex: 60 }}>
             <button className="w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold"
-              onClick={e => { e.stopPropagation(); addWarning(l.id); }}>!</button>
+              onClick={e => { e.stopPropagation(); addWarning(l.id); }}
+              onContextMenu={e => { e.preventDefault(); e.stopPropagation(); resetWarnings(l.id); }}>!</button>
             <button className="w-7 h-7 rounded-full bg-green-500 text-white text-xs flex items-center justify-center"
-              onClick={e => { e.stopPropagation(); addCompliment(l.id); }}>&#10003;</button>
+              onClick={e => { e.stopPropagation(); addCompliment(l.id); }}
+              onContextMenu={e => { e.preventDefault(); e.stopPropagation(); resetCompliments(l.id); }}>&#10003;</button>
             <button className="w-7 h-7 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center"
               onClick={e => { e.stopPropagation(); setOpenDD(openDD === l.id ? null : l.id); }}>&#9662;</button>
           </div>
@@ -235,22 +245,28 @@ export default function Dashboard() {
         {/* Status dropdown */}
         {openDD === l.id && (
           <div className="absolute top-full mt-8 right-0 bg-white border border-gray-200 rounded-lg p-2 shadow-lg min-w-[180px] text-sm" style={{ zIndex: 70 }} onClick={e => e.stopPropagation()}>
-            {['telaat','absent','huiswerk','materiaal','verwijderd'].map(st => (
+            {['telaat','absent','huiswerk','verwijderd'].map(st => (
               <label key={st} className="flex items-center gap-2 px-1 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
                 <input type="checkbox" checked={s.statuses.includes(st)} onChange={() => toggleStatus(l.id, st)} className="accent-blue-600 w-4 h-4" />
-                {{ telaat: 'Te laat', absent: 'Absent', huiswerk: 'Huiswerk vergeten', materiaal: 'Materiaal vergeten', verwijderd: 'Verwijderd' }[st]}
+                {{ telaat: 'Te laat', absent: 'Absent', huiswerk: 'Huiswerk vergeten', verwijderd: 'Verwijderd' }[st]}
               </label>
             ))}
-            {s.statuses.includes('materiaal') && (
-              <div className="ml-5 text-xs text-gray-500">
-                {['laptop','schoolboeken','schrijfmateriaal','schrijfgerei'].map(m => (
-                  <label key={m} className="flex items-center gap-1.5 py-0.5 cursor-pointer">
-                    <input type="checkbox" checked={s.materiaal.includes(m)} onChange={() => toggleMateriaal(l.id, m)} className="accent-blue-600" />
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </label>
-                ))}
-              </div>
-            )}
+            <div className="border-t border-gray-100 mt-1 pt-1">
+              <label className="flex items-center gap-2 px-1 py-1.5 hover:bg-gray-50 rounded cursor-pointer font-medium">
+                <input type="checkbox" checked={s.statuses.includes('materiaal')} onChange={() => toggleStatus(l.id, 'materiaal')} className="accent-blue-600 w-4 h-4" />
+                Materiaal vergeten
+              </label>
+              {s.statuses.includes('materiaal') && (
+                <div className="ml-7 text-xs text-gray-500">
+                  {['laptop','schoolboeken','schrijfmateriaal','schrijfgerei'].map(m => (
+                    <label key={m} className="flex items-center gap-1.5 py-0.5 cursor-pointer">
+                      <input type="checkbox" checked={s.materiaal.includes(m)} onChange={() => toggleMateriaal(l.id, m)} className="accent-blue-600" />
+                      {m.charAt(0).toUpperCase() + m.slice(1)}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
