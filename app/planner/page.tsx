@@ -10,7 +10,7 @@ interface Toets { id: number; klas_id: number; naam: string; type: string; datum
 interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; }
 
 const dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
-const dagNamenKort = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
+const klasKleuren = ['#1a7a2e', '#2563EB', '#9333EA', '#DC2626', '#D97706', '#0891B2', '#BE185D', '#4338CA'];
 const toetsKleuren: Record<string, string> = {
   PW: '#DC2626', SO: '#D97706', PO: '#7C3AED', MO: '#059669', SE: '#2563EB', overig: '#6B7280',
 };
@@ -25,18 +25,15 @@ function getMonday(d: Date): Date {
   monday.setDate(d.getDate() + diff);
   return monday;
 }
-
 function formatDate(d: string) {
   return new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
 }
-
 function getWeekNumber(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
   const week1 = new Date(d.getFullYear(), 0, 4);
   return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
 }
-
 function getDaysOfWeek(weekStart: string): string[] {
   const days: string[] = [];
   const start = new Date(weekStart + 'T12:00:00');
@@ -47,37 +44,30 @@ function getDaysOfWeek(weekStart: string): string[] {
   }
   return days;
 }
-
 function isInVakantie(datum: string, vakanties: Vakantie[]): Vakantie | null {
   for (const v of vakanties) {
     if (datum >= v.start_datum && datum <= v.eind_datum) return v;
   }
   return null;
 }
-
 const emptyLes = (klas_id: number, datum: string, uur: number | null): Les => ({
   klas_id, datum, uur, startopdracht: '', terugkijken: '', programma: '', leerdoelen: '', huiswerk: '', niet_vergeten: '', notities: '',
 });
 
 /* ───── Component ───── */
 export default function PlannerPage() {
-  // Data state
   const [klassen, setKlassen] = useState<Klas[]>([]);
-  const [rooster, setRooster] = useState<RoosterSlot[]>([]);
+  const [allRooster, setAllRooster] = useState<RoosterSlot[]>([]);
   const [lessen, setLessen] = useState<Les[]>([]);
   const [toetsen, setToetsen] = useState<Toets[]>([]);
   const [vakanties, setVakanties] = useState<Vakantie[]>([]);
 
-  // UI state
-  const [selectedKlas, setSelectedKlas] = useState<number | null>(null);
-  const [weekStart, setWeekStart] = useState(() => {
-    const m = getMonday(new Date());
-    return m.toISOString().split('T')[0];
-  });
+  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
   const [showRoosterSetup, setShowRoosterSetup] = useState(false);
+  const [roosterPaintKlas, setRoosterPaintKlas] = useState<number | null>(null);
   const [editingLes, setEditingLes] = useState<Les | null>(null);
-  const [editingToets, setEditingToets] = useState<{ klas_id: number; datum: string; uur: number | null } | null>(null);
-  const [newToets, setNewToets] = useState({ naam: '', type: 'SO' as string });
+  const [editingToets, setEditingToets] = useState<{ klas_id: number; datum: string } | null>(null);
+  const [newToets, setNewToets] = useState({ naam: '', type: 'SO' });
   const [copySource, setCopySource] = useState<Les | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -85,76 +75,64 @@ export default function PlannerPage() {
   const weekEnd = days[4];
   const today = new Date().toISOString().split('T')[0];
 
-  /* ───── Data fetching ───── */
+  // Kleuren map per klas
+  const klasKleurMap: Record<number, string> = {};
+  klassen.forEach((k, i) => { klasKleurMap[k.id] = klasKleuren[i % klasKleuren.length]; });
+
+  /* ───── Fetching ───── */
   useEffect(() => {
-    fetch('/api/klassen').then(r => r.json()).then((data: Klas[]) => {
-      setKlassen(data);
-      if (data.length > 0 && !selectedKlas) setSelectedKlas(data[0].id);
-    });
+    fetch('/api/klassen').then(r => r.json()).then(setKlassen);
     fetch('/api/vakanties').then(r => r.json()).then(setVakanties);
   }, []);
 
-  const fetchRooster = useCallback(() => {
-    if (!selectedKlas) return;
-    fetch(`/api/roosters?klas_id=${selectedKlas}`).then(r => r.json()).then(setRooster);
-  }, [selectedKlas]);
+  const fetchAllRooster = useCallback(() => {
+    fetch('/api/roosters').then(r => r.json()).then(setAllRooster);
+  }, []);
 
   const fetchLessen = useCallback(() => {
-    if (!selectedKlas) return;
-    fetch(`/api/lessen?klas_id=${selectedKlas}&week_start=${weekStart}&week_end=${weekEnd}`)
-      .then(r => r.json()).then((data: Les[] | null) => setLessen(Array.isArray(data) ? data : []));
-  }, [selectedKlas, weekStart, weekEnd]);
+    // Fetch lessen for all klassen at once
+    Promise.all(
+      klassen.map(k =>
+        fetch(`/api/lessen?klas_id=${k.id}&week_start=${weekStart}&week_end=${weekEnd}`)
+          .then(r => r.json())
+          .then((data: Les[] | Les | null) => Array.isArray(data) ? data : data ? [data] : [])
+      )
+    ).then(results => setLessen(results.flat()));
+  }, [klassen, weekStart, weekEnd]);
 
   const fetchToetsen = useCallback(() => {
-    if (!selectedKlas) return;
-    fetch(`/api/toetsen?klas_id=${selectedKlas}`).then(r => r.json()).then(setToetsen);
-  }, [selectedKlas]);
+    Promise.all(
+      klassen.map(k => fetch(`/api/toetsen?klas_id=${k.id}`).then(r => r.json()))
+    ).then(results => setToetsen(results.flat()));
+  }, [klassen]);
 
-  useEffect(() => { fetchRooster(); }, [fetchRooster]);
-  useEffect(() => { fetchLessen(); }, [fetchLessen]);
-  useEffect(() => { fetchToetsen(); }, [fetchToetsen]);
+  useEffect(() => { fetchAllRooster(); }, [fetchAllRooster]);
+  useEffect(() => { if (klassen.length > 0) fetchLessen(); }, [fetchLessen, klassen]);
+  useEffect(() => { if (klassen.length > 0) fetchToetsen(); }, [fetchToetsen, klassen]);
 
   /* ───── Helpers ───── */
-  const currentKlas = klassen.find(k => k.id === selectedKlas);
+  const getSlot = (dag: number, uur: number): RoosterSlot | undefined =>
+    allRooster.find(r => r.dag === dag && r.uur === uur);
 
-  // Get rooster slots for this class for a specific day (1-5)
-  const getRoosterForDay = (dag: number): RoosterSlot[] => {
-    return rooster.filter(r => r.dag === dag).sort((a, b) => a.uur - b.uur);
-  };
+  const getLes = (klas_id: number, datum: string, uur: number): Les | undefined =>
+    lessen.find(l => l.klas_id === klas_id && l.datum === datum && l.uur === uur);
 
-  // Get unique uren from the rooster
-  const getUren = (): number[] => {
+  const getToetsenForDateKlas = (datum: string, klas_id: number): Toets[] =>
+    toetsen.filter(t => t.datum === datum && t.klas_id === klas_id);
+
+  // Which uren are used in the rooster?
+  const usedUren = (): number[] => {
     const uren = new Set<number>();
-    rooster.forEach(r => uren.add(r.uur));
+    allRooster.forEach(r => uren.add(r.uur));
     if (uren.size === 0) return [1, 2, 3, 4, 5, 6, 7, 8, 9];
     return Array.from(uren).sort((a, b) => a - b);
   };
 
-  // Find lesson for a specific date + uur
-  const getLes = (datum: string, uur: number): Les | undefined => {
-    return lessen.find(l => l.datum === datum && l.uur === uur);
-  };
-
-  // Find toetsen for a specific date
-  const getToetsenForDate = (datum: string): Toets[] => {
-    return toetsen.filter(t => t.datum === datum);
-  };
-
-  // Check if a specific uur on a specific dag has a rooster entry
-  const hasRoosterSlot = (dag: number, uur: number): RoosterSlot | undefined => {
-    return rooster.find(r => r.dag === dag && r.uur === uur);
-  };
-
-  /* ───── Week navigation ───── */
+  /* ───── Week nav ───── */
   function changeWeek(delta: number) {
     const d = new Date(weekStart + 'T12:00:00');
     d.setDate(d.getDate() + delta * 7);
     setWeekStart(d.toISOString().split('T')[0]);
-  }
-
-  function goToThisWeek() {
-    const m = getMonday(new Date());
-    setWeekStart(m.toISOString().split('T')[0]);
   }
 
   /* ───── Save lesson ───── */
@@ -169,15 +147,36 @@ export default function PlannerPage() {
     fetchLessen();
   }
 
-  /* ───── Copy les ───── */
-  async function pasteLes(datum: string, uur: number) {
-    if (!copySource || !selectedKlas) return;
-    const newLes = { ...copySource, klas_id: selectedKlas, datum, uur, id: undefined };
-    await saveLes(newLes);
-    setCopySource(null);
+  /* ───── Rooster toggle ───── */
+  async function toggleRoosterSlot(dag: number, uur: number) {
+    if (!roosterPaintKlas) return;
+    const existing = getSlot(dag, uur);
+
+    if (existing && existing.klas_id === roosterPaintKlas) {
+      // Remove
+      if (existing.id) await fetch(`/api/roosters?id=${existing.id}`, { method: 'DELETE' });
+    } else if (existing) {
+      // Replace with different klas
+      if (existing.id) await fetch(`/api/roosters?id=${existing.id}`, { method: 'DELETE' });
+      const klas = klassen.find(k => k.id === roosterPaintKlas);
+      await fetch('/api/roosters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ klas_id: roosterPaintKlas, dag, uur, vak: klas?.vak || '', lokaal: klas?.lokaal || '', is_blokuur: false }),
+      });
+    } else {
+      // Add new
+      const klas = klassen.find(k => k.id === roosterPaintKlas);
+      await fetch('/api/roosters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ klas_id: roosterPaintKlas, dag, uur, vak: klas?.vak || '', lokaal: klas?.lokaal || '', is_blokuur: false }),
+      });
+    }
+    fetchAllRooster();
   }
 
-  /* ───── Add toets ───── */
+  /* ───── Toets ───── */
   async function addToets() {
     if (!editingToets || !newToets.naam.trim()) return;
     setSaving(true);
@@ -185,11 +184,8 @@ export default function PlannerPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        klas_id: editingToets.klas_id,
-        naam: newToets.naam,
-        type: newToets.type,
-        datum: editingToets.datum,
-        kleur: toetsKleuren[newToets.type] || '#6B7280',
+        klas_id: editingToets.klas_id, naam: newToets.naam, type: newToets.type,
+        datum: editingToets.datum, kleur: toetsKleuren[newToets.type] || '#6B7280',
       }),
     });
     setSaving(false);
@@ -198,133 +194,69 @@ export default function PlannerPage() {
     fetchToetsen();
   }
 
-  /* ───── Delete toets ───── */
   async function deleteToets(id: number) {
     await fetch(`/api/toetsen?id=${id}`, { method: 'DELETE' });
     fetchToetsen();
   }
 
-  /* ───── Rooster setup ───── */
-  const [roosterEdit, setRoosterEdit] = useState<Record<string, { vak: string; lokaal: string }>>({});
-
-  function initRoosterEdit() {
-    const edit: Record<string, { vak: string; lokaal: string }> = {};
-    for (let dag = 1; dag <= 5; dag++) {
-      for (let uur = 1; uur <= 9; uur++) {
-        const slot = hasRoosterSlot(dag, uur);
-        edit[`${dag}-${uur}`] = { vak: slot?.vak || '', lokaal: slot?.lokaal || '' };
-      }
-    }
-    setRoosterEdit(edit);
-  }
-
-  async function saveRooster() {
-    if (!selectedKlas) return;
-    setSaving(true);
-    const slots: RoosterSlot[] = [];
-    for (let dag = 1; dag <= 5; dag++) {
-      for (let uur = 1; uur <= 9; uur++) {
-        const e = roosterEdit[`${dag}-${uur}`];
-        if (e && e.vak.trim()) {
-          slots.push({ klas_id: selectedKlas, dag, uur, vak: e.vak, lokaal: e.lokaal, is_blokuur: false });
-        }
-      }
-    }
-    // Delete existing and re-insert
-    await fetch(`/api/roosters?klas_id=${selectedKlas}`, { method: 'DELETE' });
-    if (slots.length > 0) {
-      await fetch('/api/roosters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(slots),
-      });
-    }
-    setSaving(false);
-    setShowRoosterSetup(false);
-    fetchRooster();
-  }
-
-  /* ───── Shift lessen ───── */
-  async function shiftLessen(direction: 'forward' | 'backward') {
-    if (!selectedKlas) return;
-    const delta = direction === 'forward' ? 7 : -7;
-    setSaving(true);
-
-    for (const les of lessen) {
-      if (!les.id) continue;
-      const d = new Date(les.datum + 'T12:00:00');
-      d.setDate(d.getDate() + delta);
-      const newDatum = d.toISOString().split('T')[0];
-      await saveLes({ ...les, datum: newDatum, id: undefined });
-    }
-
-    setSaving(false);
-    changeWeek(direction === 'forward' ? 1 : -1);
+  /* ───── Copy/paste ───── */
+  async function pasteLes(klas_id: number, datum: string, uur: number) {
+    if (!copySource) return;
+    await saveLes({ ...copySource, klas_id, datum, uur, id: undefined });
+    setCopySource(null);
   }
 
   /* ───── Render ───── */
-  const uren = getUren();
+  const uren = usedUren();
 
   return (
     <div style={{ padding: '1rem 1.5rem', maxWidth: 1600, margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* ── Topbar ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexShrink: 0, flexWrap: 'wrap', gap: '0.5rem' }}>
-        {/* Klas selector */}
+      {/* Topbar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {klassen.map(k => (
-            <button key={k.id} onClick={() => setSelectedKlas(k.id)} style={{
-              padding: '0.5rem 1rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
-              background: selectedKlas === k.id ? '#1a7a2e' : '#e8f5e9',
-              color: selectedKlas === k.id ? 'white' : '#1a7a2e',
-              transition: 'all 0.15s',
-            }}>{k.naam}</button>
+          <h1 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700, color: '#1a7a2e' }}>Weekplanner</h1>
+          {klassen.map((k, i) => (
+            <span key={k.id} style={{
+              padding: '0.25rem 0.6rem', borderRadius: 6, fontSize: '0.78rem', fontWeight: 600,
+              background: klasKleuren[i % klasKleuren.length] + '18',
+              color: klasKleuren[i % klasKleuren.length],
+              border: `1px solid ${klasKleuren[i % klasKleuren.length]}30`,
+            }}>{k.naam}</span>
           ))}
         </div>
 
-        {/* Week navigation */}
-        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-          <button onClick={() => changeWeek(-1)} style={navBtnStyle}>&#9664;</button>
-          <span style={{ fontWeight: 700, color: '#1a7a2e', minWidth: 90, textAlign: 'center', fontSize: '0.95rem' }}>
-            Week {getWeekNumber(weekStart)}
-          </span>
-          <button onClick={() => changeWeek(1)} style={navBtnStyle}>&#9654;</button>
-          <button onClick={goToThisWeek} style={{ ...navBtnStyle, background: '#1a7a2e', color: 'white', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-            Vandaag
-          </button>
-        </div>
-
-        {/* Actions */}
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
           {copySource && (
-            <span style={{ fontSize: '0.8rem', color: '#D97706', fontWeight: 600, padding: '0.3rem 0.6rem', background: '#FEF3C7', borderRadius: 6 }}>
-              Les gekopieerd - klik op een cel om te plakken
+            <span style={{ fontSize: '0.78rem', color: '#D97706', fontWeight: 600, padding: '0.25rem 0.5rem', background: '#FEF3C7', borderRadius: 6 }}>
+              Les gekopieerd. Klik een cel om te plakken.
+              <button onClick={() => setCopySource(null)} style={{ background: 'none', border: 'none', color: '#D97706', cursor: 'pointer', fontWeight: 700, marginLeft: 4 }}>✕</button>
             </span>
           )}
-          <button onClick={() => { setShowRoosterSetup(true); initRoosterEdit(); }} style={{ ...navBtnStyle, fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-            ⚙ Rooster
-          </button>
-          <button onClick={() => shiftLessen('forward')} title="Schuif alle lessen 1 week vooruit" style={{ ...navBtnStyle, fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}>
-            ⤵ +1 wk
-          </button>
-          <button onClick={() => shiftLessen('backward')} title="Schuif alle lessen 1 week terug" style={{ ...navBtnStyle, fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}>
-            ⤴ -1 wk
-          </button>
+          <button onClick={() => changeWeek(-1)} style={navBtn}>&#9664;</button>
+          <span style={{ fontWeight: 700, color: '#1a7a2e', minWidth: 80, textAlign: 'center', fontSize: '0.9rem' }}>
+            Wk {getWeekNumber(weekStart)}
+          </span>
+          <button onClick={() => changeWeek(1)} style={navBtn}>&#9654;</button>
+          <button onClick={() => setWeekStart(getMonday(new Date()).toISOString().split('T')[0])}
+            style={{ ...navBtn, background: '#1a7a2e', color: 'white', padding: '0.35rem 0.7rem' }}>Vandaag</button>
+          <button onClick={() => { setShowRoosterSetup(true); setRoosterPaintKlas(klassen[0]?.id || null); }}
+            style={{ ...navBtn, padding: '0.35rem 0.7rem' }}>Rooster</button>
         </div>
       </div>
 
-      {/* ── Week Grid ── */}
-      <div style={{ flex: 1, overflow: 'auto', borderRadius: 12, border: '1px solid #d1d5db' }}>
+      {/* Week Grid */}
+      <div style={{ flex: 1, overflow: 'auto', borderRadius: 12, border: '1px solid #d4d4d4' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr>
-              <th style={{ ...thStyle, width: 50 }}>Uur</th>
+              <th style={{ ...th, width: 42 }}></th>
               {days.map((d, idx) => {
-                const vakantie = isInVakantie(d, vakanties);
+                const vak = isInVakantie(d, vakanties);
                 return (
-                  <th key={d} style={{ ...thStyle, background: d === today ? '#dcfce7' : vakantie ? '#fef2f2' : '#f0fdf4', color: d === today ? '#1a7a2e' : vakantie ? '#DC2626' : '#374151' }}>
-                    <div style={{ fontSize: '0.9rem' }}>{dagNamen[idx]}</div>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 400, opacity: 0.7 }}>{formatDate(d)}</div>
-                    {vakantie && <div style={{ fontSize: '0.7rem', color: '#DC2626', fontWeight: 600 }}>{vakantie.naam}</div>}
+                  <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f0fdf4', color: d === today ? '#1a7a2e' : vak ? '#b91c1c' : '#374151' }}>
+                    <div style={{ fontSize: '0.88rem' }}>{dagNamen[idx]}</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.65 }}>{formatDate(d)}</div>
+                    {vak && <div style={{ fontSize: '0.68rem', color: '#DC2626', fontWeight: 600 }}>{vak.naam}</div>}
                   </th>
                 );
               })}
@@ -333,103 +265,92 @@ export default function PlannerPage() {
           <tbody>
             {uren.map(uur => (
               <tr key={uur}>
-                <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, color: '#6B7280', fontSize: '0.9rem', background: '#f9fafb' }}>{uur}</td>
+                <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.85rem' }}>{uur}</td>
                 {days.map((d, idx) => {
                   const dag = idx + 1;
-                  const slot = hasRoosterSlot(dag, uur);
+                  const slot = getSlot(dag, uur);
                   const vakantie = isInVakantie(d, vakanties);
-                  const les = getLes(d, uur);
-                  const dayToetsen = getToetsenForDate(d);
-                  const isToday = d === today;
 
                   if (vakantie) {
-                    return (
-                      <td key={`${d}-${uur}`} style={{ ...tdStyle, background: '#fef2f2', color: '#fca5a5', textAlign: 'center', fontStyle: 'italic', fontSize: '0.75rem' }}>
-                        {uur === uren[0] ? vakantie.naam : ''}
-                      </td>
-                    );
+                    return <td key={`${d}-${uur}`} style={{ ...td, background: '#fef2f2' }}></td>;
                   }
 
                   if (!slot) {
                     return (
-                      <td key={`${d}-${uur}`} style={{ ...tdStyle, background: isToday ? '#f0fdf4' : '#fafafa', color: '#d1d5db' }}>
+                      <td key={`${d}-${uur}`} style={{ ...td, background: '#fafafa' }}>
                         {copySource && (
-                          <button onClick={() => pasteLes(d, uur)} style={{ fontSize: '0.7rem', color: '#D97706', cursor: 'pointer', background: 'none', border: 'none' }}>
-                            Plak hier
-                          </button>
+                          <div onClick={() => pasteLes(copySource.klas_id, d, uur)}
+                            style={{ color: '#D97706', fontSize: '0.7rem', cursor: 'pointer', textAlign: 'center' }}>+ plak</div>
                         )}
                       </td>
                     );
                   }
 
+                  const klas = klassen.find(k => k.id === slot.klas_id);
+                  const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
+                  const les = getLes(slot.klas_id, d, uur);
+                  const cellToetsen = getToetsenForDateKlas(d, slot.klas_id);
+                  const isToday = d === today;
+
                   return (
                     <td key={`${d}-${uur}`}
                       onClick={() => {
-                        if (copySource) { pasteLes(d, uur); return; }
-                        setEditingLes(les || emptyLes(selectedKlas!, d, uur));
+                        if (copySource) { pasteLes(slot.klas_id, d, uur); return; }
+                        setEditingLes(les || emptyLes(slot.klas_id, d, uur));
                       }}
                       style={{
-                        ...tdStyle,
-                        background: isToday ? '#f0fdf4' : les ? 'white' : '#fafffe',
-                        cursor: 'pointer',
-                        transition: 'background 0.15s',
-                        verticalAlign: 'top',
-                        position: 'relative',
+                        ...td,
+                        borderLeft: `3px solid ${kleur}`,
+                        background: isToday ? '#f0fdf4' : les?.programma ? 'white' : '#fcfcfc',
+                        cursor: 'pointer', position: 'relative',
                       }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ecfdf5'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isToday ? '#f0fdf4' : les ? 'white' : '#fafffe'; }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = kleur + '08'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isToday ? '#f0fdf4' : les?.programma ? 'white' : '#fcfcfc'; }}
                     >
-                      {/* Toetsen badges */}
-                      {dayToetsen.map(t => (
+                      {/* Klas label */}
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: kleur, marginBottom: 2 }}>
+                        {klas?.naam}
+                        {slot.lokaal && <span style={{ fontWeight: 400, color: '#9CA3AF', marginLeft: 4 }}>{slot.lokaal}</span>}
+                      </div>
+
+                      {/* Toetsen */}
+                      {cellToetsen.map(t => (
                         <div key={t.id} style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          background: (toetsKleuren[t.type] || '#6B7280') + '18',
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                          background: (toetsKleuren[t.type] || '#6B7280') + '15',
                           color: toetsKleuren[t.type] || '#6B7280',
-                          padding: '1px 6px', borderRadius: 4, fontSize: '0.7rem',
-                          fontWeight: 700, marginBottom: 3, marginRight: 3,
-                          border: `1px solid ${(toetsKleuren[t.type] || '#6B7280')}40`,
+                          padding: '0px 5px', borderRadius: 3, fontSize: '0.66rem',
+                          fontWeight: 700, marginBottom: 2, marginRight: 2,
                         }}>
-                          {t.type}
+                          {t.type}: {t.naam.length > 15 ? t.naam.slice(0, 15) + '...' : t.naam}
                           <button onClick={(e) => { e.stopPropagation(); deleteToets(t.id); }}
-                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.65rem', padding: 0, lineHeight: 1 }}>✕</button>
+                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.6rem', padding: 0 }}>✕</button>
                         </div>
                       ))}
 
                       {/* Les inhoud */}
-                      {les ? (
-                        <div style={{ fontSize: '0.76rem', lineHeight: 1.35 }}>
-                          {les.programma && (
-                            <div style={{ color: '#1e293b', fontWeight: 500 }}>
-                              {les.programma.split('\n').slice(0, 2).map((l, i) => (
-                                <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l}</div>
-                              ))}
-                            </div>
-                          )}
-                          {les.huiswerk && (
-                            <div style={{ color: '#D97706', fontWeight: 600, fontSize: '0.7rem', marginTop: 2 }}>
-                              HW: {les.huiswerk.split('\n')[0]}
-                            </div>
-                          )}
-                          {les.terugkijken && (
-                            <div style={{ color: '#6B7280', fontSize: '0.68rem', marginTop: 1, fontStyle: 'italic' }}>
-                              ↩ {les.terugkijken.split('\n')[0]}
-                            </div>
-                          )}
+                      {les?.programma ? (
+                        <div style={{ fontSize: '0.72rem', lineHeight: 1.3, color: '#334155' }}>
+                          {les.programma.split('\n').slice(0, 2).map((l, i) => (
+                            <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l}</div>
+                          ))}
                         </div>
                       ) : (
-                        <div style={{ color: '#c4d4c6', fontSize: '0.72rem', fontStyle: 'italic' }}>+</div>
+                        <div style={{ color: '#d4d4d4', fontSize: '0.7rem' }}>+</div>
+                      )}
+                      {les?.huiswerk && (
+                        <div style={{ color: '#D97706', fontWeight: 600, fontSize: '0.66rem', marginTop: 1 }}>
+                          HW: {les.huiswerk.split('\n')[0].slice(0, 30)}
+                        </div>
                       )}
 
-                      {/* Context actions - top right */}
+                      {/* Hover actions */}
                       {les && (
-                        <div style={{ position: 'absolute', top: 2, right: 2, display: 'flex', gap: 2, opacity: 0.5 }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '0.5'; }}
-                        >
+                        <div style={{ position: 'absolute', top: 1, right: 1, display: 'flex', gap: 1 }} className="cell-actions">
                           <button onClick={(e) => { e.stopPropagation(); setCopySource(les); }}
-                            title="Kopieer les" style={cellBtnStyle}>⧉</button>
-                          <button onClick={(e) => { e.stopPropagation(); setEditingToets({ klas_id: selectedKlas!, datum: d, uur }); }}
-                            title="Toets toevoegen" style={cellBtnStyle}>T</button>
+                            title="Kopieer" style={miniBtn}>&#9112;</button>
+                          <button onClick={(e) => { e.stopPropagation(); setEditingToets({ klas_id: slot.klas_id, datum: d }); }}
+                            title="Toets" style={miniBtn}>T</button>
                         </div>
                       )}
                     </td>
@@ -441,45 +362,95 @@ export default function PlannerPage() {
         </table>
       </div>
 
-      {/* ── Rooster Setup Modal ── */}
+      {/* ── Rooster Setup ── */}
       {showRoosterSetup && (
-        <div style={overlayStyle} onClick={() => setShowRoosterSetup(false)}>
-          <div style={{ ...modalStyle, maxWidth: 900, maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, color: '#1a7a2e', fontSize: '1.2rem' }}>Rooster instellen - {currentKlas?.naam}</h2>
-              <button onClick={() => setShowRoosterSetup(false)} style={closeBtnStyle}>✕</button>
+        <div style={overlay} onClick={() => setShowRoosterSetup(false)}>
+          <div style={{ ...modal, maxWidth: 850 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h2 style={{ margin: 0, color: '#1a7a2e', fontSize: '1.15rem' }}>Rooster instellen</h2>
+              <button onClick={() => setShowRoosterSetup(false)} style={closeBtn}>✕</button>
             </div>
-            <p style={{ color: '#6B7280', fontSize: '0.85rem', marginBottom: '1rem' }}>
-              Vul het vak in bij de uren dat {currentKlas?.naam} les heeft. Laat leeg als er geen les is.
-            </p>
+
+            {/* Klas paint selector */}
+            <div style={{ marginBottom: '1rem' }}>
+              <p style={{ color: '#6B7280', fontSize: '0.82rem', margin: '0 0 0.5rem' }}>
+                Selecteer een klas en klik op de uren in het rooster. Klik opnieuw om te verwijderen.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {klassen.map((k, i) => {
+                  const kleur = klasKleuren[i % klasKleuren.length];
+                  const selected = roosterPaintKlas === k.id;
+                  return (
+                    <button key={k.id} onClick={() => setRoosterPaintKlas(k.id)} style={{
+                      padding: '0.5rem 1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+                      border: selected ? `2px solid ${kleur}` : '2px solid transparent',
+                      background: selected ? kleur : kleur + '15',
+                      color: selected ? 'white' : kleur,
+                      transition: 'all 0.15s',
+                    }}>
+                      {k.naam}
+                      <span style={{ fontWeight: 400, fontSize: '0.75rem', marginLeft: 6, opacity: 0.8 }}>{k.vak} - {k.lokaal}</span>
+                    </button>
+                  );
+                })}
+                {/* Eraser */}
+                <button onClick={() => setRoosterPaintKlas(-1)} style={{
+                  padding: '0.5rem 1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+                  border: roosterPaintKlas === -1 ? '2px solid #DC2626' : '2px solid transparent',
+                  background: roosterPaintKlas === -1 ? '#DC2626' : '#fef2f2',
+                  color: roosterPaintKlas === -1 ? 'white' : '#DC2626',
+                }}>Wissen</button>
+              </div>
+            </div>
+
+            {/* Rooster grid */}
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ ...thStyle, width: 50 }}>Uur</th>
-                  {dagNamen.map((n, i) => <th key={i} style={thStyle}>{n}</th>)}
+                  <th style={{ ...th, width: 42 }}></th>
+                  {dagNamen.map((n, i) => <th key={i} style={th}>{n}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(uur => (
                   <tr key={uur}>
-                    <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, color: '#6B7280' }}>{uur}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa' }}>{uur}</td>
                     {[1, 2, 3, 4, 5].map(dag => {
-                      const key = `${dag}-${uur}`;
-                      const val = roosterEdit[key] || { vak: '', lokaal: '' };
+                      const slot = allRooster.find(r => r.dag === dag && r.uur === uur);
+                      const klas = slot ? klassen.find(k => k.id === slot.klas_id) : null;
+                      const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
+
                       return (
-                        <td key={dag} style={{ ...tdStyle, padding: '4px' }}>
-                          <input
-                            value={val.vak}
-                            onChange={e => setRoosterEdit(prev => ({ ...prev, [key]: { ...val, vak: e.target.value } }))}
-                            placeholder="Vak"
-                            style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 6px', fontSize: '0.8rem', marginBottom: 2 }}
-                          />
-                          <input
-                            value={val.lokaal}
-                            onChange={e => setRoosterEdit(prev => ({ ...prev, [key]: { ...val, lokaal: e.target.value } }))}
-                            placeholder="Lokaal"
-                            style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 4, padding: '3px 6px', fontSize: '0.72rem', color: '#6B7280' }}
-                          />
+                        <td key={dag}
+                          onClick={async () => {
+                            if (roosterPaintKlas === -1 && slot?.id) {
+                              await fetch(`/api/roosters?id=${slot.id}`, { method: 'DELETE' });
+                              fetchAllRooster();
+                            } else if (roosterPaintKlas && roosterPaintKlas > 0) {
+                              await toggleRoosterSlot(dag, uur);
+                            }
+                          }}
+                          style={{
+                            ...td,
+                            cursor: 'pointer',
+                            background: slot ? kleur + '12' : '#fefefe',
+                            borderLeft: slot ? `3px solid ${kleur}` : '3px solid transparent',
+                            textAlign: 'center',
+                            height: 44,
+                            transition: 'background 0.1s',
+                          }}
+                          onMouseEnter={e => {
+                            if (!slot) (e.currentTarget as HTMLElement).style.background = roosterPaintKlas === -1 ? '#fef2f2' :
+                              (roosterPaintKlas && roosterPaintKlas > 0 ? (klasKleurMap[roosterPaintKlas] || '#6B7280') + '15' : '#f5f5f5');
+                          }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = slot ? kleur + '12' : '#fefefe'; }}
+                        >
+                          {klas ? (
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: kleur }}>{klas.naam}</div>
+                              <div style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>{klas.lokaal}</div>
+                            </div>
+                          ) : null}
                         </td>
                       );
                     })}
@@ -487,137 +458,102 @@ export default function PlannerPage() {
                 ))}
               </tbody>
             </table>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowRoosterSetup(false)} style={{ ...btnStyle, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
-              <button onClick={saveRooster} disabled={saving} style={{ ...btnStyle, background: '#1a7a2e', color: 'white' }}>
-                {saving ? 'Opslaan...' : 'Rooster opslaan'}
-              </button>
+            <div style={{ marginTop: '1rem', textAlign: 'right' }}>
+              <button onClick={() => setShowRoosterSetup(false)} style={{ ...btn, background: '#1a7a2e', color: 'white' }}>Klaar</button>
             </div>
           </div>
         </div>
       )}
 
       {/* ── Les Planning Modal ── */}
-      {editingLes && (
-        <div style={overlayStyle} onClick={() => setEditingLes(null)}>
-          <div style={{ ...modalStyle, maxWidth: 700, maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div>
-                <h2 style={{ margin: 0, color: '#1a7a2e', fontSize: '1.1rem' }}>
-                  {currentKlas?.naam} - {dagNamen[new Date(editingLes.datum + 'T12:00:00').getDay() - 1]} {formatDate(editingLes.datum)}
-                  {editingLes.uur ? `, uur ${editingLes.uur}` : ''}
-                </h2>
+      {editingLes && (() => {
+        const klas = klassen.find(k => k.id === editingLes.klas_id);
+        const kleur = klasKleurMap[editingLes.klas_id] || '#1a7a2e';
+        const dagIdx = new Date(editingLes.datum + 'T12:00:00').getDay() - 1;
+        return (
+          <div style={overlay} onClick={() => setEditingLes(null)}>
+            <div style={{ ...modal, maxWidth: 680, maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ padding: '0.2rem 0.6rem', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', background: kleur + '15', color: kleur }}>{klas?.naam}</span>
+                  <span style={{ color: '#374151', fontWeight: 600, fontSize: '0.95rem' }}>
+                    {dagNamen[dagIdx]} {formatDate(editingLes.datum)}{editingLes.uur ? `, uur ${editingLes.uur}` : ''}
+                  </span>
+                </div>
+                <button onClick={() => setEditingLes(null)} style={closeBtn}>✕</button>
               </div>
-              <button onClick={() => setEditingLes(null)} style={closeBtnStyle}>✕</button>
-            </div>
 
-            {/* Terugkijken */}
-            <div style={fieldGroupStyle}>
-              <label style={labelStyle}>↩ Terugkijken</label>
-              <textarea value={editingLes.terugkijken || ''} onChange={e => setEditingLes({ ...editingLes, terugkijken: e.target.value })}
-                placeholder="Wat hebben we vorige les behandeld?" rows={2} style={textareaStyle} />
-            </div>
+              {[
+                { key: 'terugkijken', label: 'Terugkijken', placeholder: 'Wat hebben we vorige les behandeld?', rows: 2 },
+                { key: 'programma', label: 'Programma', placeholder: 'Wat gaan we doen deze les?', rows: 3 },
+                { key: 'leerdoelen', label: 'Leerdoelen', placeholder: 'Wat moeten leerlingen aan het einde kunnen?', rows: 2 },
+                { key: 'startopdracht', label: 'Startopdracht', placeholder: 'Opdracht bij binnenkomst', rows: 2 },
+                { key: 'huiswerk', label: 'Maak-/Huiswerk', placeholder: 'Op te geven huiswerk', rows: 2 },
+                { key: 'niet_vergeten', label: 'Niet vergeten', placeholder: 'Reminders voor jezelf', rows: 2 },
+                { key: 'notities', label: 'Notities', placeholder: 'Vrije notities', rows: 2 },
+              ].map(f => (
+                <div key={f.key} style={{ marginBottom: '0.6rem' }}>
+                  <label style={{ display: 'block', fontWeight: 600, fontSize: '0.82rem', color: '#374151', marginBottom: 3 }}>{f.label}</label>
+                  <textarea
+                    value={(editingLes as Record<string, unknown>)[f.key] as string || ''}
+                    onChange={e => setEditingLes({ ...editingLes, [f.key]: e.target.value })}
+                    placeholder={f.placeholder} rows={f.rows}
+                    style={{ width: '100%', border: `1.5px solid ${kleur}30`, borderRadius: 8, padding: '0.45rem 0.7rem', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', background: '#fafffe', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
 
-            {/* Programma */}
-            <div style={fieldGroupStyle}>
-              <label style={labelStyle}>📋 Programma</label>
-              <textarea value={editingLes.programma || ''} onChange={e => setEditingLes({ ...editingLes, programma: e.target.value })}
-                placeholder="Wat gaan we doen deze les?" rows={3} style={textareaStyle} />
-            </div>
-
-            {/* Leerdoelen */}
-            <div style={fieldGroupStyle}>
-              <label style={labelStyle}>🎯 Leerdoelen</label>
-              <textarea value={editingLes.leerdoelen || ''} onChange={e => setEditingLes({ ...editingLes, leerdoelen: e.target.value })}
-                placeholder="Wat moeten leerlingen aan het einde kunnen?" rows={2} style={textareaStyle} />
-            </div>
-
-            {/* Startopdracht */}
-            <div style={fieldGroupStyle}>
-              <label style={labelStyle}>🚀 Startopdracht</label>
-              <textarea value={editingLes.startopdracht || ''} onChange={e => setEditingLes({ ...editingLes, startopdracht: e.target.value })}
-                placeholder="Opdracht bij binnenkomst" rows={2} style={textareaStyle} />
-            </div>
-
-            {/* Huiswerk */}
-            <div style={fieldGroupStyle}>
-              <label style={labelStyle}>📚 Maak-/Huiswerk</label>
-              <textarea value={editingLes.huiswerk || ''} onChange={e => setEditingLes({ ...editingLes, huiswerk: e.target.value })}
-                placeholder="Op te geven huiswerk" rows={2} style={textareaStyle} />
-            </div>
-
-            {/* Niet vergeten */}
-            <div style={fieldGroupStyle}>
-              <label style={labelStyle}>⚠ Niet vergeten</label>
-              <textarea value={editingLes.niet_vergeten || ''} onChange={e => setEditingLes({ ...editingLes, niet_vergeten: e.target.value })}
-                placeholder="Reminders voor jezelf" rows={2} style={textareaStyle} />
-            </div>
-
-            {/* Notities */}
-            <div style={fieldGroupStyle}>
-              <label style={labelStyle}>📝 Notities</label>
-              <textarea value={editingLes.notities || ''} onChange={e => setEditingLes({ ...editingLes, notities: e.target.value })}
-                placeholder="Vrije notities" rows={2} style={textareaStyle} />
-            </div>
-
-            {/* Toets toevoegen */}
-            <div style={{ ...fieldGroupStyle, background: '#fafafa', padding: '0.75rem', borderRadius: 8 }}>
-              <label style={{ ...labelStyle, marginBottom: '0.4rem' }}>Toets toevoegen bij deze les</label>
-              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <select value={newToets.type} onChange={e => setNewToets({ ...newToets, type: e.target.value })}
-                  style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.8rem', fontWeight: 600, color: toetsKleuren[newToets.type] }}>
-                  {Object.entries(toetsLabels).map(([key, label]) => (
-                    <option key={key} value={key}>{key} - {label}</option>
-                  ))}
-                </select>
-                <input value={newToets.naam} onChange={e => setNewToets({ ...newToets, naam: e.target.value })}
-                  placeholder="Naam toets" style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.8rem' }} />
-                <button onClick={() => {
-                  if (!newToets.naam.trim()) return;
-                  addToetsFromModal();
-                }} style={{ ...btnStyle, background: toetsKleuren[newToets.type], color: 'white', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
-                  + Toets
-                </button>
+              {/* Toets quick-add */}
+              <div style={{ background: '#fafafa', padding: '0.6rem', borderRadius: 8, marginBottom: '0.75rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#374151', marginBottom: 4 }}>Toets toevoegen</div>
+                <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select value={newToets.type} onChange={e => setNewToets({ ...newToets, type: e.target.value })}
+                    style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem', fontSize: '0.78rem', fontWeight: 600, color: toetsKleuren[newToets.type] }}>
+                    {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                  <input value={newToets.naam} onChange={e => setNewToets({ ...newToets, naam: e.target.value })}
+                    placeholder="Naam" style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem' }} />
+                  <button onClick={async () => {
+                    if (!newToets.naam.trim()) return;
+                    setSaving(true);
+                    await fetch('/api/toetsen', {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ klas_id: editingLes.klas_id, naam: newToets.naam, type: newToets.type, datum: editingLes.datum, kleur: toetsKleuren[newToets.type] || '#6B7280' }),
+                    });
+                    setSaving(false); setNewToets({ naam: '', type: 'SO' }); fetchToetsen();
+                  }} style={{ ...btn, background: toetsKleuren[newToets.type], color: 'white', padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}>+</button>
+                </div>
               </div>
-            </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <button onClick={() => { setCopySource(editingLes); setEditingLes(null); }}
-                  style={{ ...btnStyle, background: '#FEF3C7', color: '#92400E', fontSize: '0.8rem' }}>⧉ Kopieer les</button>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button onClick={() => setEditingLes(null)} style={{ ...btnStyle, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
-                <button onClick={async () => {
-                  await saveLes(editingLes);
-                  setEditingLes(null);
-                }} disabled={saving} style={{ ...btnStyle, background: '#1a7a2e', color: 'white' }}>
-                  {saving ? 'Opslaan...' : 'Opslaan'}
-                </button>
+                  style={{ ...btn, background: '#FEF3C7', color: '#92400E', fontSize: '0.8rem' }}>Kopieer les</button>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button onClick={() => setEditingLes(null)} style={{ ...btn, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
+                  <button onClick={async () => { await saveLes(editingLes); setEditingLes(null); }} disabled={saving}
+                    style={{ ...btn, background: '#1a7a2e', color: 'white' }}>{saving ? 'Opslaan...' : 'Opslaan'}</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {/* ── Toets Quick-Add Modal ── */}
+      {/* ── Toets Quick-Add ── */}
       {editingToets && (
-        <div style={overlayStyle} onClick={() => setEditingToets(null)}>
-          <div style={{ ...modalStyle, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 1rem', color: '#1a7a2e' }}>Toets toevoegen</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={overlay} onClick={() => setEditingToets(null)}>
+          <div style={{ ...modal, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 0.75rem', color: '#1a7a2e', fontSize: '1rem' }}>Toets toevoegen</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <select value={newToets.type} onChange={e => setNewToets({ ...newToets, type: e.target.value })}
-                style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.5rem', fontSize: '0.85rem' }}>
-                {Object.entries(toetsLabels).map(([key, label]) => (
-                  <option key={key} value={key}>{key} - {label}</option>
-                ))}
+                style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.45rem', fontSize: '0.85rem' }}>
+                {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
               </select>
               <input value={newToets.naam} onChange={e => setNewToets({ ...newToets, naam: e.target.value })}
-                placeholder="Naam toets" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.5rem', fontSize: '0.85rem' }} />
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                <button onClick={() => setEditingToets(null)} style={{ ...btnStyle, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
-                <button onClick={addToets} style={{ ...btnStyle, background: toetsKleuren[newToets.type], color: 'white' }}>Toevoegen</button>
+                placeholder="Naam toets" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.45rem', fontSize: '0.85rem' }} />
+              <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', marginTop: '0.3rem' }}>
+                <button onClick={() => setEditingToets(null)} style={{ ...btn, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
+                <button onClick={addToets} style={{ ...btn, background: toetsKleuren[newToets.type], color: 'white' }}>Toevoegen</button>
               </div>
             </div>
           </div>
@@ -625,78 +561,14 @@ export default function PlannerPage() {
       )}
     </div>
   );
-
-  async function addToetsFromModal() {
-    if (!editingLes || !newToets.naam.trim() || !selectedKlas) return;
-    setSaving(true);
-    await fetch('/api/toetsen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        klas_id: selectedKlas,
-        naam: newToets.naam,
-        type: newToets.type,
-        datum: editingLes.datum,
-        kleur: toetsKleuren[newToets.type] || '#6B7280',
-      }),
-    });
-    setSaving(false);
-    setNewToets({ naam: '', type: 'SO' });
-    fetchToetsen();
-  }
 }
 
-/* ───── Shared Styles ───── */
-const thStyle: React.CSSProperties = {
-  padding: '0.6rem 0.5rem', background: '#f0fdf4', color: '#374151',
-  fontSize: '0.85rem', fontWeight: 600, borderBottom: '2px solid #d1d5db',
-  position: 'sticky', top: 0, zIndex: 10,
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.4rem 0.5rem', borderBottom: '1px solid #e5e7eb', borderRight: '1px solid #f0f0f0',
-  fontSize: '0.8rem', minHeight: 60, verticalAlign: 'top',
-};
-
-const navBtnStyle: React.CSSProperties = {
-  background: '#e8f5e9', border: 'none', borderRadius: 6, padding: '0.4rem 0.6rem',
-  cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#1a7a2e',
-};
-
-const btnStyle: React.CSSProperties = {
-  border: 'none', borderRadius: 8, padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-};
-
-const modalStyle: React.CSSProperties = {
-  background: 'white', borderRadius: 16, padding: '1.5rem', width: '90vw',
-  boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
-};
-
-const closeBtnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#6B7280', padding: '0.25rem',
-};
-
-const cellBtnStyle: React.CSSProperties = {
-  background: '#f0fdf4', border: '1px solid #d1fae5', borderRadius: 4, width: 20, height: 20,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  cursor: 'pointer', fontSize: '0.65rem', color: '#1a7a2e', fontWeight: 700,
-};
-
-const fieldGroupStyle: React.CSSProperties = {
-  marginBottom: '0.75rem',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontWeight: 600, fontSize: '0.85rem', color: '#374151', marginBottom: '0.25rem',
-};
-
-const textareaStyle: React.CSSProperties = {
-  width: '100%', border: '1.5px solid #d1fae5', borderRadius: 8, padding: '0.5rem 0.75rem',
-  fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', background: '#fafffe',
-  outline: 'none', boxSizing: 'border-box',
-};
+/* ───── Styles ───── */
+const th: React.CSSProperties = { padding: '0.5rem', background: '#f0fdf4', color: '#374151', fontSize: '0.82rem', fontWeight: 600, borderBottom: '2px solid #d4d4d4', position: 'sticky', top: 0, zIndex: 10 };
+const td: React.CSSProperties = { padding: '0.35rem 0.4rem', borderBottom: '1px solid #e5e7eb', borderRight: '1px solid #f0f0f0', fontSize: '0.78rem', verticalAlign: 'top' };
+const navBtn: React.CSSProperties = { background: '#e8f5e9', border: 'none', borderRadius: 6, padding: '0.35rem 0.55rem', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#1a7a2e' };
+const btn: React.CSSProperties = { border: 'none', borderRadius: 8, padding: '0.45rem 0.9rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' };
+const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+const modal: React.CSSProperties = { background: 'white', borderRadius: 16, padding: '1.25rem', width: '92vw', boxShadow: '0 25px 50px rgba(0,0,0,0.2)', maxHeight: '90vh', overflow: 'auto' };
+const closeBtn: React.CSSProperties = { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#6B7280' };
+const miniBtn: React.CSSProperties = { background: '#f0fdf4', border: '1px solid #d1fae5', borderRadius: 3, width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.6rem', color: '#1a7a2e', fontWeight: 700 };
