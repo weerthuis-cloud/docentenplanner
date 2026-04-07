@@ -517,11 +517,6 @@ export default function Dashboard() {
           </div>
           {/* Rechts: twee tekstvlakken */}
           <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black tabular-nums" style={{ color: '#1e3a5f' }}>{clock}</span>
-              <span className="text-sm text-gray-400">|</span>
-              <span className="text-sm font-medium" style={{ color: '#64748b' }}>{date}</span>
-            </div>
             {/* Welkom blok */}
             <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <h2 className="font-black uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.6rem', marginBottom: 12 }}>
@@ -573,11 +568,6 @@ export default function Dashboard() {
           </div>
           {/* Rechts: drie tekstvlakken */}
           <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black tabular-nums" style={{ color: '#1e3a5f' }}>{clock}</span>
-              <span className="text-sm text-gray-400">|</span>
-              <span className="text-sm font-medium" style={{ color: '#64748b' }}>{date}</span>
-            </div>
             {/* Terugkijken */}
             <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>Terugkijken</h3>
@@ -623,11 +613,6 @@ export default function Dashboard() {
           </div>
           {/* Rechts: timer */}
           <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black tabular-nums" style={{ color: '#1e3a5f' }}>{clock}</span>
-              <span className="text-sm text-gray-400">|</span>
-              <span className="text-sm font-medium" style={{ color: '#64748b' }}>{date}</span>
-            </div>
             {/* Timer blok */}
             <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '40px 32px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
               <div className="text-white/40 uppercase tracking-[4px] font-bold text-sm" style={{ color: '#94a3b8' }}>Leestijd</div>
