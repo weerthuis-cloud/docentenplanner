@@ -49,6 +49,8 @@ export default function Dashboard() {
   const [timerSec, setTimerSec] = useState(900);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerInput, setTimerInput] = useState('15:00');
+  const [welkomTekst, setWelkomTekst] = useState('Leg je spullen op de tafel');
+  const [editingWelkom, setEditingWelkom] = useState(false);
 
   // Parse timer input "mm:ss" or "m:ss" or just "mm"
   const parseTimerInput = (val: string): number => {
@@ -435,26 +437,43 @@ export default function Dashboard() {
           <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0 flex items-center justify-center overflow-auto">
             {renderGrid()}
           </div>
-          {/* Rechts: welkom + startopdracht + opdracht */}
-          <div className="bg-[#f0faf8] flex flex-col justify-center p-10 gap-6" style={{ width: '42%', minWidth: 360 }}>
-            <h2 className="text-3xl font-black uppercase tracking-wide" style={{ color: '#0d9488' }}>
-              Welkom bij {activeKlasObj?.vak || 'de les'}
-            </h2>
-            {les?.startopdracht && (
-              <div>
-                <h3 className="text-xl font-bold uppercase tracking-wide mb-2" style={{ color: '#0d9488' }}>Startopdracht</h3>
-                <div className="text-xl leading-relaxed text-gray-800">{les.startopdracht}</div>
+          {/* Rechts: twee tekstvlakken */}
+          <div className="flex flex-col justify-center p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
+            {/* Welkom blok */}
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <h2 className="font-black uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.6rem', marginBottom: 12 }}>
+                Welkom bij {activeKlasObj?.vak || 'de les'}
+              </h2>
+              {editingWelkom ? (
+                <textarea
+                  autoFocus
+                  value={welkomTekst}
+                  onChange={e => setWelkomTekst(e.target.value)}
+                  onBlur={() => setEditingWelkom(false)}
+                  onKeyDown={e => { if (e.key === 'Escape') setEditingWelkom(false); }}
+                  className="text-lg leading-relaxed text-gray-700 bg-white border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  style={{ minHeight: 60 }}
+                />
+              ) : (
+                <div
+                  onClick={() => setEditingWelkom(true)}
+                  className="text-lg leading-relaxed text-gray-700 cursor-pointer hover:bg-white/50 rounded-lg px-1 py-1 transition-colors"
+                  title="Klik om te bewerken"
+                >
+                  {welkomTekst || <span className="text-gray-400 italic">Klik om tekst toe te voegen...</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Startopdracht blok */}
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 12 }}>
+                Startopdracht
+              </h3>
+              <div className="text-lg leading-relaxed text-gray-700">
+                {les?.startopdracht || <span className="text-gray-400 italic">Stel een startopdracht in via de planner</span>}
               </div>
-            )}
-            {les?.terugkijken && (
-              <div>
-                <h3 className="text-xl font-bold uppercase tracking-wide mb-2" style={{ color: '#0d9488' }}>Opdracht</h3>
-                <div className="text-xl leading-relaxed text-gray-800">{les.terugkijken}</div>
-              </div>
-            )}
-            {!les?.startopdracht && !les?.terugkijken && (
-              <div className="text-lg text-gray-400">Geen opdrachten ingesteld voor deze les</div>
-            )}
+            </div>
           </div>
         </div>
       )}
