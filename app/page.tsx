@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 // Types
 interface Klas { id: number; naam: string; vak: string; lokaal: string; jaarlaag: string; aantal_leerlingen: number; }
-interface Leerling { id: number; klas_id: number; voornaam: string; achternaam: string; foto_url: string | null; foto_data: string | null; seat_row: number; seat_col: number; boek_titel: string; boek_kleur: string; }
+interface Leerling { id: number; klas_id: number; voornaam: string; achternaam: string; foto_url: string | null; foto_data: string | null; seat_row: number; seat_col: number; boek_titel: string; boek_auteur: string; boek_kleur: string; }
 interface Les { id: number; klas_id: number; datum: string; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; }
 interface Layout { layout_data: (number | null)[][]; }
 
@@ -304,15 +304,16 @@ export default function Dashboard() {
       <div key={l.id} style={{ width: CELL, height: CELL, borderRadius: 6, position: 'relative', background: '#334155', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
         <div style={{ position: 'absolute', inset: 0, borderRadius: 6, overflow: 'hidden' }}>
           {hasFoto && <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px)', transform: 'scale(1.1)' }} />}
+          {/* Donkere waas over de foto */}
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
         </div>
-        {/* Boektitel bovenin */}
-        {l.boek_titel && (
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, background: 'linear-gradient(rgba(0,0,0,0.7), transparent)', borderRadius: '6px 6px 0 0', padding: '4px 6px', textAlign: 'center' }}>
-            <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.6rem', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>&#128214; {l.boek_titel}</div>
-          </div>
-        )}
+        {/* Boektitel + auteur bovenin */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, padding: '6px 6px 0', textAlign: 'center' }}>
+          {l.boek_titel && <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.6rem', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>&#128214; {l.boek_titel}</div>}
+          {l.boek_auteur && <div style={{ color: '#e2e8f0', fontWeight: 400, fontSize: '0.55rem', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>{l.boek_auteur}</div>}
+        </div>
         {/* Naam onderin */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', borderRadius: '0 0 6px 6px', padding: '12px 4px 3px', textAlign: 'center' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, padding: '12px 4px 4px', textAlign: 'center' }}>
           <div style={{ color: 'white', fontWeight: 600, fontSize: '0.75rem', lineHeight: 1.2, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{l.voornaam}</div>
         </div>
       </div>

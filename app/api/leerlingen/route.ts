@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       foto_url: s.foto_url || null,
       foto_data: s.foto_data || null,
       boek_titel: s.boek_titel || '',
+      boek_auteur: s.boek_auteur || '',
       boek_kleur: s.boek_kleur || '#2E4057',
     }));
     const { error } = await supabase.from('leerlingen').insert(rows);
@@ -68,6 +69,7 @@ export async function PUT(req: Request) {
       if (s.foto_url !== undefined) updateData.foto_url = s.foto_url;
       if (s.foto_data !== undefined) updateData.foto_data = s.foto_data;
       if (s.boek_titel !== undefined) updateData.boek_titel = s.boek_titel;
+      if (s.boek_auteur !== undefined) updateData.boek_auteur = s.boek_auteur;
       if (s.boek_kleur !== undefined) updateData.boek_kleur = s.boek_kleur;
       const { error } = await supabase.from('leerlingen').update(updateData).eq('id', s.id);
       results.push({ id: s.id, error: error?.message || null });
