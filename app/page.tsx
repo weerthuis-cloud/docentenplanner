@@ -11,7 +11,7 @@ interface Layout { layout_data: (number | null)[][]; }
 
 type Mode = 'binnenkomst' | 'les' | 'lezen';
 
-interface LeerlingState { warnings: number; compliments: number; statuses: string[]; materiaal: string[]; }
+interface LeerlingState { warnings: number; compliments: number; statuses: string[]; materiaal: string[]; notitie: string; }
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/' },
@@ -42,6 +42,8 @@ export default function Dashboard() {
   const menuRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const ignoreNextClick = useRef(false);
+  const [notitieModal, setNotitieModal] = useState<number | null>(null);
+  const [notitieText, setNotitieText] = useState('');
 
   // Timer state
   const [timerSec, setTimerSec] = useState(900);
@@ -80,7 +82,7 @@ export default function Dashboard() {
 
     const newState: Record<number, LeerlingState> = {};
     lData.forEach((l: Leerling) => {
-      newState[l.id] = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [] };
+      newState[l.id] = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [], notitie: '' };
     });
     setLState(newState);
   }, [activeKlas]);
@@ -176,7 +178,7 @@ export default function Dashboard() {
     const l = leerlingen.find(x => x.id === leerlingId);
     if (!l) return <div key={Math.random()} style={{ width: CELL, height: CELL, borderRadius: 6, background: '#e2e8f0', border: '1px solid #d1d5db' }} />;
 
-    const s = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [] };
+    const s = lState[l.id] || { warnings: 0, compliments: 0, statuses: [], materiaal: [], notitie: '' };
     const warned = s.warnings >= 3;
     const isSelected = selectedSeat === l.id;
     const hasFoto = !!(l.foto_data || l.foto_url);
@@ -209,6 +211,12 @@ export default function Dashboard() {
             {s.statuses.includes('huiswerk') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#eab308', border: '1px solid white' }} />}
             {s.statuses.includes('materiaal') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', border: '1px solid white' }} />}
             {s.statuses.includes('verwijderd') && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7', border: '1px solid white' }} />}
+            {s.notitie && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', border: '1px solid white' }} />}
+          </div>
+        )}
+        {!s.statuses.length && s.notitie && (
+          <div style={{ position: 'absolute', top: 2, right: 2, zIndex: 10 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', border: '1px solid white', display: 'block' }} />
           </div>
         )}
 
@@ -266,6 +274,13 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
+            </div>
+            <div className="border-t border-gray-100 mt-1 pt-1">
+              <button className="flex items-center gap-2 px-1 py-1.5 hover:bg-gray-50 rounded cursor-pointer w-full text-left"
+                onClick={() => { setNotitieModal(l.id); setNotitieText(s.notitie || ''); setOpenDD(null); }}>
+                <span style={{ width: 16, textAlign: 'center' }}>&#9998;</span>
+                Notitie {s.notitie ? '(*)' : ''}
+              </button>
             </div>
           </div>
         )}
@@ -331,6 +346,32 @@ export default function Dashboard() {
       {(menuOpen || openDD !== null || selectedSeat !== null) && (
         <div className="fixed inset-0 z-30" onClick={() => { setMenuOpen(false); setOpenDD(null); setSelectedSeat(null); }} />
       )}
+
+      {/* Notitie modal */}
+      {notitieModal !== null && (() => {
+        const nl = leerlingen.find(x => x.id === notitieModal);
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => setNotitieModal(null)}>
+            <div className="bg-white rounded-xl shadow-2xl p-5 w-[360px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
+              <h3 className="text-base font-bold text-[#1e3a5f] mb-3">Notitie — {nl?.voornaam} {nl?.achternaam}</h3>
+              <textarea
+                autoFocus
+                value={notitieText}
+                onChange={e => setNotitieText(e.target.value)}
+                placeholder="Schrijf een notitie..."
+                className="w-full h-32 border border-gray-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <div className="flex justify-end gap-2 mt-3">
+                <button onClick={() => setNotitieModal(null)} className="px-4 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100">Annuleer</button>
+                <button onClick={() => {
+                  setLState(prev => ({ ...prev, [notitieModal]: { ...prev[notitieModal], notitie: notitieText } }));
+                  setNotitieModal(null);
+                }} className="px-4 py-1.5 rounded-lg text-sm bg-[#1e3a5f] text-white font-semibold hover:bg-[#2a4f7f]">Opslaan</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* TOP BAR - strak en minimaal */}
       <div className="bg-[#1e3a5f] text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40">
