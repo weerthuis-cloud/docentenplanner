@@ -415,6 +415,10 @@ export default function Dashboard() {
             )}
           </div>
           <h1 className="font-bold text-base">Docentenplanner</h1>
+          <span className="text-white/30 mx-1">|</span>
+          <span className="text-white/70 text-xs tabular-nums">{date}</span>
+          <span className="text-white/30 mx-1">|</span>
+          <span className="text-white/70 text-xs font-bold tabular-nums">{clock}</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -430,8 +434,6 @@ export default function Dashboard() {
 
           {/* Timer in topbar (altijd ruimte reserveren) */}
           <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1" style={{ visibility: mode === 'les' ? 'visible' : 'hidden' }}>
-            <span className="text-lg font-extrabold tabular-nums">{clock}</span>
-            <span className="text-white/30">|</span>
             <TimerCompact />
           </div>
 
