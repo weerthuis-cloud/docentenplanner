@@ -440,7 +440,7 @@ export default function Dashboard() {
           {/* Rechts: twee tekstvlakken */}
           <div className="flex flex-col justify-center p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
             {/* Welkom blok */}
-            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <h2 className="font-black uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.6rem', marginBottom: 12 }}>
                 Welkom bij {activeKlasObj?.vak || 'de les'}
               </h2>
@@ -466,7 +466,7 @@ export default function Dashboard() {
             </div>
 
             {/* Startopdracht blok */}
-            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ background: '#e8edf2', border: '1.5px solid #c5cdd6', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 12 }}>
                 Startopdracht
               </h3>
