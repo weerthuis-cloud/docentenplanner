@@ -303,7 +303,7 @@ export default function Dashboard() {
     return (
       <div key={l.id} style={{ width: CELL, height: CELL, borderRadius: 6, position: 'relative', background: '#334155', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
         <div style={{ position: 'absolute', inset: 0, borderRadius: 6, overflow: 'hidden' }}>
-          {hasFoto && <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+          {hasFoto && <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px)', transform: 'scale(1.1)' }} />}
         </div>
         {/* Boektitel bovenin */}
         {l.boek_titel && (
