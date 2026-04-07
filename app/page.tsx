@@ -176,7 +176,7 @@ export default function Dashboard() {
     return (
       <div key={l.id}
         style={{
-          width: CELL, height: CELL, borderRadius: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer',
+          width: CELL, height: CELL, borderRadius: 6, position: 'relative', cursor: 'pointer',
           background: warned ? '#fef2f2' : '#334155',
           border: isSelected ? '3px solid #3b82f6' : 'none',
           boxShadow: isSelected ? '0 0 0 2px #93c5fd' : '0 1px 3px rgba(0,0,0,0.2)',
@@ -185,10 +185,12 @@ export default function Dashboard() {
         onClick={() => { setSelectedSeat(isSelected ? null : l.id); setOpenDD(null); }}
       >
         {/* Photo or initials */}
-        {hasFoto ? (
-          <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, position: 'absolute', inset: 0 }} />
-        ) : null}
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 6, overflow: 'hidden' }}>
+          {hasFoto ? (
+            <img src={l.foto_data || l.foto_url || ''} alt={l.voornaam}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : null}
+        </div>
 
         {/* Status dots */}
         {s.statuses.length > 0 && (
