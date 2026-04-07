@@ -435,8 +435,10 @@ export default function Dashboard() {
         <div className="flex-1 flex">
           {/* Links: plattegrond volle hoogte */}
           <div className="bg-[#f0f4f8] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
-            <div className="font-bold uppercase tracking-wide text-sm mb-2" style={{ color: '#1e3a5f' }}>Ga zitten volgens plattegrond</div>
-            {renderGrid()}
+            <div style={{ width: 'fit-content' }}>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1e3a5f', fontSize: '1.6rem' }}>Ga zitten volgens plattegrond</div>
+              {renderGrid()}
+            </div>
           </div>
           {/* Rechts: twee tekstvlakken */}
           <div className="flex flex-col justify-center p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f0f4f8' }}>
