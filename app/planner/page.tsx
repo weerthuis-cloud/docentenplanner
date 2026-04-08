@@ -21,12 +21,12 @@ function stripHtml(html: string): string {
 
 const dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const dagNamenKort = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
-const klasKleuren = ['#1a7a2e', '#2563EB', '#9333EA', '#DC2626', '#D97706', '#0891B2', '#BE185D', '#4338CA'];
-const toetsKleuren: Record<string, string> = { PW: '#DC2626', SO: '#D97706', PO: '#7C3AED', MO: '#059669', SE: '#2563EB', overig: '#6B7280' };
+const klasKleuren = ['#2d8a4e', '#4a80d4', '#8b5ec0', '#c95555', '#c4892e', '#2ba0b0', '#b04e7a', '#6060c0'];
+const toetsKleuren: Record<string, string> = { PW: '#c95555', SO: '#c4892e', PO: '#8b5ec0', MO: '#2d8a4e', SE: '#4a80d4', overig: '#8b95a5' };
 const toetsLabels: Record<string, string> = { PW: 'Proefwerk', SO: 'Schriftelijke overhoring', PO: 'Praktische opdracht', MO: 'Mondeling', SE: 'Schoolexamen', overig: 'Overig' };
 
 const FONTS = ['14px', '16px', '18px', '20px', '24px'];
-const COLORS = ['#000000', '#1a7a2e', '#2563EB', '#DC2626', '#D97706', '#7C3AED', '#6B7280'];
+const COLORS = ['#000000', '#2d8a4e', '#2563EB', '#DC2626', '#D97706', '#7C3AED', '#6B7280'];
 const HIGHLIGHTS = ['transparent', '#FEF08A', '#BBF7D0', '#BFDBFE', '#FECACA', '#FDE68A'];
 
 function getMonday(d: Date): Date {
@@ -213,7 +213,7 @@ export default function PlannerPage() {
         {/* JP suggestie */}
         {jpSuggestion && !les.programma && (
           <div onClick={() => updateCell(cellKey, les, 'programma', `<p>${jpSuggestion}</p>`)}
-            style={{ padding: '2px 6px', fontSize: '0.62rem', color: '#1a7a2e', background: '#f0fdf4', borderBottom: '1px dashed #bbf7d0', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ padding: '2px 6px', fontSize: '0.62rem', color: '#2d8a4e', background: '#f0fdf4', borderBottom: '1px dashed #bbf7d0', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="Klik om jaarplanner suggestie over te nemen">
             📅 {jpSuggestion.slice(0, 60)}{jpSuggestion.length > 60 ? '...' : ''}
           </div>
@@ -243,15 +243,15 @@ export default function PlannerPage() {
 
   /* ═══════════════════════════════════════════════════════ */
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: '#f5f5f5' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: '#f7f8fa' }}>
 
       {/* ═══ TOP BAR ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', background: '#e8f5e9', borderRadius: 6, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', background: '#eef4f0', borderRadius: 8, overflow: 'hidden' }}>
           {(['week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
               padding: '0.35rem 0.7rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem',
-              background: view === v ? '#1a7a2e' : 'transparent', color: view === v ? 'white' : '#1a7a2e',
+              background: view === v ? '#2d8a4e' : 'transparent', color: view === v ? 'white' : '#2d8a4e',
             }}>{{ week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster' }[v]}</button>
           ))}
         </div>
@@ -263,24 +263,24 @@ export default function PlannerPage() {
 
         <div style={{ flex: 1 }} />
 
-        {saving && <span style={{ fontSize: '0.7rem', color: '#1a7a2e', fontWeight: 600 }}>💾 Opslaan...</span>}
+        {saving && <span style={{ fontSize: '0.7rem', color: '#2d8a4e', fontWeight: 600 }}>💾 Opslaan...</span>}
 
         {/* Week nav */}
         {view === 'week' && (<>
           <button onClick={() => changeWeek(-1)} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#1a7a2e', minWidth: 55, textAlign: 'center', fontSize: '0.88rem' }}>Wk {getWeekNumber(weekStart)}</span>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', minWidth: 55, textAlign: 'center', fontSize: '0.88rem' }}>Wk {getWeekNumber(weekStart)}</span>
           <button onClick={() => changeWeek(1)} style={navBtn}>▶</button>
-          <button onClick={() => setWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#1a7a2e', color: 'white', border: 'none' }}>Vandaag</button>
+          <button onClick={() => setWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
         {/* Dag nav */}
         {view === 'dag' && (<>
           <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.88rem' }}>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.88rem' }}>
             {dagNamen[new Date(selectedDate + 'T12:00:00').getDay() - 1] || 'Weekend'} {formatDate(selectedDate)}
           </span>
           <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
-          <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} style={{ ...navBtn, background: '#1a7a2e', color: 'white', border: 'none' }}>Vandaag</button>
+          <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
         {/* Klas nav */}
@@ -290,9 +290,9 @@ export default function PlannerPage() {
             {klassen.map((k, i) => <option key={k.id} value={k.id}>{k.naam}</option>)}
           </select>
           <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.85rem' }}>Wk {getWeekNumber(klasWeekStart)}–{getWeekNumber(klasWeekStart) + 1}</span>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(klasWeekStart)}–{getWeekNumber(klasWeekStart) + 1}</span>
           <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
-          <button onClick={() => setKlasWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#1a7a2e', color: 'white', border: 'none' }}>Vandaag</button>
+          <button onClick={() => setKlasWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
         {/* Jaarlaag nav */}
@@ -302,9 +302,9 @@ export default function PlannerPage() {
             {[...new Set(klassen.map(k => k.jaarlaag))].map(j => <option key={j} value={j}>{j}</option>)}
           </select>
           <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)}–{getWeekNumber(jaarlaagWeekStart) + 1}</span>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)}–{getWeekNumber(jaarlaagWeekStart) + 1}</span>
           <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
-          <button onClick={() => setJaarlaagWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#1a7a2e', color: 'white', border: 'none' }}>Vandaag</button>
+          <button onClick={() => setJaarlaagWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
         {view !== 'rooster' && (
@@ -433,7 +433,7 @@ export default function PlannerPage() {
               {days.map((d, idx) => {
                 const vak = isInVakantie(d, vakanties);
                 return (
-                  <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f9fafb', color: d === today ? '#1a7a2e' : vak ? '#b91c1c' : '#374151', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                  <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f9fafb', color: d === today ? '#2d8a4e' : vak ? '#b91c1c' : '#374151', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                     <div style={{ fontSize: '0.82rem' }}>{dagNamen[idx]}</div>
                     <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(d)}</div>
                     {vak && <div style={{ fontSize: '0.58rem', color: '#DC2626', fontWeight: 600 }}>{vak.naam}</div>}
@@ -502,36 +502,46 @@ export default function PlannerPage() {
           klasSlots.forEach(s => { if (!slotsByDay[s.dag]) slotsByDay[s.dag] = []; slotsByDay[s.dag].push(s.uur); });
 
           return (
-            <div style={{ display: 'flex', gap: 0 }}>
-              {weeks.map((week, wi) => (
-                <div key={wi} style={{ flex: 1, borderRight: wi === 0 ? '2px solid #d1d5db' : 'none' }}>
-                  {/* Week header */}
-                  <div style={{ padding: '0.4rem 0.6rem', background: week.startDate <= today && today <= week.days[4] ? '#1a7a2e' : '#374151', color: 'white', fontWeight: 700, fontSize: '0.9rem', textAlign: 'center' }}>
-                    Week {week.weekNum} — {formatDate(week.days[0])} t/m {formatDate(week.days[4])}
-                  </div>
-                  {/* Days */}
-                  {week.days.map((datum, di) => {
-                    const dag = di + 1;
-                    const uren = slotsByDay[dag];
-                    if (!uren || uren.length === 0) return null;
-                    const vakantie = isInVakantie(datum, vakanties);
-                    return (
-                      <div key={datum}>
-                        <div style={{ padding: '0.25rem 0.6rem', background: datum === today ? '#dcfce7' : vakantie ? '#fef2f2' : '#f0f0f0', borderBottom: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.82rem', background: kleur, padding: '0 0.35rem', borderRadius: 3, color: 'white', width: 28, textAlign: 'center' }}>{dagNamenKort[di]}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>{formatDate(datum)}</span>
-                          {vakantie && <span style={{ fontSize: '0.65rem', color: '#DC2626', fontWeight: 600 }}>{vakantie.naam}</span>}
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              {weeks.map((week, wi) => {
+                const isCurrentWeek = week.startDate <= today && today <= week.days[4];
+                return (
+                  <div key={wi} style={{ flex: 1, background: 'white', borderRadius: 10, boxShadow: isCurrentWeek ? `0 0 0 2px ${kleur}, 0 4px 14px ${kleur}18` : '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                    {/* Week header */}
+                    <div style={{ padding: '0.55rem 0.75rem', background: isCurrentWeek ? kleur : '#f8fafc', borderBottom: '1px solid #e8ecf0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.85rem', color: isCurrentWeek ? 'white' : '#334155' }}>
+                        Week {week.weekNum}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: isCurrentWeek ? 'rgba(255,255,255,0.75)' : '#94a3b8' }}>
+                        {formatDate(week.days[0])} – {formatDate(week.days[4])}
+                      </span>
+                      {isCurrentWeek && <span style={{ marginLeft: 'auto', fontSize: '0.6rem', background: 'rgba(255,255,255,0.22)', color: 'white', padding: '1px 8px', borderRadius: 99, fontWeight: 600 }}>nu</span>}
+                    </div>
+                    {/* Days */}
+                    {week.days.map((datum, di) => {
+                      const dag = di + 1;
+                      const uren = slotsByDay[dag];
+                      if (!uren || uren.length === 0) return null;
+                      const vakantie = isInVakantie(datum, vakanties);
+                      const isToday = datum === today;
+                      return (
+                        <div key={datum} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <div style={{ padding: '0.35rem 0.6rem', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : '#fafbfc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isToday ? kleur : '#475569', minWidth: 22 }}>{dagNamenKort[di]}</span>
+                            <span style={{ fontSize: '0.68rem', color: isToday ? kleur + 'aa' : '#94a3b8' }}>{formatDate(datum)}</span>
+                            {vakantie && <span style={{ fontSize: '0.62rem', color: '#ca8a04', fontWeight: 600, fontStyle: 'italic' }}>{vakantie.naam}</span>}
+                          </div>
+                          {!vakantie && uren.sort((a,b) => a - b).filter(u => !isBlokuurSecond(dag, u)).map(uur => {
+                            const slot = getSlot(dag, uur);
+                            if (!slot || slot.klas_id !== selectedKlasId) return null;
+                            return <div key={uur}>{renderCell(slot, datum, isBlokuurStart(dag, uur))}</div>;
+                          })}
                         </div>
-                        {!vakantie && uren.sort((a,b) => a - b).filter(u => !isBlokuurSecond(dag, u)).map(uur => {
-                          const slot = getSlot(dag, uur);
-                          if (!slot || slot.klas_id !== selectedKlasId) return null;
-                          return <div key={uur}>{renderCell(slot, datum, isBlokuurStart(dag, uur))}</div>;
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           );
         })()}
@@ -571,9 +581,9 @@ export default function PlannerPage() {
                 });
 
                 return (
-                  <div key={`wk-${wi}`} style={{ background: 'white', borderRadius: 10, boxShadow: isCurrentWeek ? '0 0 0 2px #1a7a2e, 0 4px 12px rgba(26,122,46,0.12)' : '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                  <div key={`wk-${wi}`} style={{ background: 'white', borderRadius: 10, boxShadow: isCurrentWeek ? '0 0 0 2px #2d8a4e, 0 4px 12px rgba(26,122,46,0.12)' : '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
                     {/* Week header */}
-                    <div style={{ padding: '0.5rem 0.75rem', background: isCurrentWeek ? '#1a7a2e' : '#f8fafc', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ padding: '0.5rem 0.75rem', background: isCurrentWeek ? '#2d8a4e' : '#f8fafc', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ fontWeight: 800, fontSize: '0.82rem', color: isCurrentWeek ? 'white' : '#1e293b', letterSpacing: '0.01em' }}>
                         Week {week.weekNum}
                       </span>
@@ -590,7 +600,7 @@ export default function PlannerPage() {
                         <div key={`dr-${datum}`} style={{ display: 'grid', gridTemplateColumns: `72px repeat(${colCount}, 1fr)`, gap: '0 0.5rem', borderBottom: ri < lesRows.length - 1 ? '1px solid #f1f5f9' : 'none', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : 'transparent' }}>
                           {/* Day label */}
                           <div style={{ padding: '0.5rem 0.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRight: '1px solid #f1f5f9' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isToday ? '#1a7a2e' : '#475569', lineHeight: 1.2 }}>{dagNamenKort[di]}</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isToday ? '#2d8a4e' : '#475569', lineHeight: 1.2 }}>{dagNamenKort[di]}</span>
                             <span style={{ fontSize: '0.62rem', color: isToday ? '#16a34a' : '#94a3b8', lineHeight: 1.3 }}>{formatDate(datum)}</span>
                             {vakantie && <span style={{ fontSize: '0.58rem', color: '#ca8a04', fontWeight: 600, marginTop: 2 }}>{vakantie.naam}</span>}
                           </div>
@@ -631,7 +641,7 @@ function TBtn({ active, onClick, title, children }: { active: boolean; onClick: 
     <button onClick={onClick} title={title} style={{
       width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
       border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.8rem',
-      background: active ? '#1a7a2e20' : 'transparent', color: active ? '#1a7a2e' : '#374151', fontWeight: active ? 700 : 400,
+      background: active ? '#2d8a4e20' : 'transparent', color: active ? '#2d8a4e' : '#374151', fontWeight: active ? 700 : 400,
     }}>{children}</button>
   );
 }
