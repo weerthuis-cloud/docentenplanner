@@ -429,7 +429,7 @@ export default function PlannerPage() {
               {days.map((d, idx) => {
                 const vak = isInVakantie(d, vakanties);
                 return (
-                  <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f9fafb', color: d === today ? '#1a7a2e' : vak ? '#b91c1c' : '#374151', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none' }}>
+                  <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f9fafb', color: d === today ? '#1a7a2e' : vak ? '#b91c1c' : '#374151', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                     <div style={{ fontSize: '0.82rem' }}>{dagNamen[idx]}</div>
                     <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(d)}</div>
                     {vak && <div style={{ fontSize: '0.58rem', color: '#DC2626', fontWeight: 600 }}>{vak.naam}</div>}
@@ -438,19 +438,20 @@ export default function PlannerPage() {
               })}
             </tr></thead>
             <tbody>
-              {(() => { const usedUren = allRooster.map(r => r.uur); const minU = Math.min(...usedUren, 9); const maxU = Math.max(...usedUren, 1); return Array.from({ length: maxU - minU + 1 }, (_, i) => minU + i); })().map(uur => {
-                const allSecond = [1,2,3,4,5].every(dag => !getSlot(dag, uur) || isBlokuurSecond(dag, uur));
+              {[1,2,3,4,5,6,7,8,9].map(uur => {
+                const allSecond = [1,2,3,4,5].every(dag => isBlokuurSecond(dag, uur));
                 if (allSecond) return null;
                 return (
                   <tr key={uur}>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem', borderRight: '1px solid #d1d5db' }}>{uur}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem', borderRight: '1px solid #d1d5db', verticalAlign: 'top', paddingTop: '0.5rem' }}>{uur}</td>
                     {days.map((d, idx) => {
                       const dag = idx + 1; const slot = getSlot(dag, uur); const vakantie = isInVakantie(d, vakanties);
                       if (isBlokuurSecond(dag, uur)) return null;
                       const isBlok = isBlokuurStart(dag, uur);
-                      if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', textAlign: 'center', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none', padding: '0.3rem' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
-                      if (!slot) return <td key={`${d}-${uur}`} style={{ ...td, background: '#f0f0f0', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none', minHeight: 60 }}><div style={{ minHeight: 60, background: '#f0f0f0' }} /></td>;
-                      return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderRight: idx < 4 ? '1px solid #d1d5db' : 'none' }}>{renderCell(slot, d, isBlok)}</td>;
+                      const cellBorder = idx < 4 ? '1px solid #d1d5db' : 'none';
+                      if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', borderRight: cellBorder, padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
+                      if (!slot) return <td key={`${d}-${uur}`} style={{ ...td, background: '#e8e8e8', borderRight: cellBorder, verticalAlign: 'top' }}><div style={{ minHeight: 70 }} /></td>;
+                      return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderRight: cellBorder, verticalAlign: 'top' }}>{renderCell(slot, d, isBlok)}</td>;
                     })}
                   </tr>
                 );
