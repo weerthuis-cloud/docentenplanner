@@ -42,7 +42,7 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
     },
     editorProps: {
       attributes: {
-        style: 'outline: none; padding: 6px 8px; font-size: 0.85rem; line-height: 1.5; min-height: 28px;',
+        style: 'outline: none; padding: 8px 10px; font-size: 0.85rem; line-height: 1.6; min-height: 80px;',
       },
     },
   });
