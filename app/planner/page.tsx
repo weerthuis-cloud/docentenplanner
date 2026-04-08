@@ -464,17 +464,28 @@ export default function PlannerPage() {
           </table>
         )}
 
-        {/* ═══ DAGPLANNER ═══ */}
+        {/* ═══ DAGPLANNER (zelfde patroon als weekplanner: uur-rijen, klas-kolommen) ═══ */}
         {view === 'dag' && (() => {
           const dagIdx = new Date(selectedDate + 'T12:00:00').getDay();
           const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
           const vakantie = isInVakantie(selectedDate, vakanties);
           if (dagNr === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lesdag (weekend).</div>;
           if (vakantie) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c95555', fontWeight: 600, padding: '3rem' }}>{vakantie.naam}</div>;
-          const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur);
-          /* Groepeer slots per klas om kolommen te bepalen */
+          const dagSlots = allRooster.filter(r => r.dag === dagNr);
           const klasIds = [...new Set(dagSlots.map(s => s.klas_id))];
           const dagKlassen = klasIds.map(id => klassen.find(k => k.id === id)!).filter(Boolean);
+          if (dagKlassen.length === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lessen op deze dag.</div>;
+
+          /* Bepaal per klas welke uren blokuur-second zijn (zodat rowSpan per cel correct is) */
+          const isBlokSecondForKlas = (klas_id: number, uur: number) => {
+            const prev = dagSlots.find(s => s.klas_id === klas_id && s.uur === uur - 1);
+            return prev?.is_blokuur || false;
+          };
+          const isBlokStartForKlas = (klas_id: number, uur: number) => {
+            const slot = dagSlots.find(s => s.klas_id === klas_id && s.uur === uur);
+            return slot?.is_blokuur || false;
+          };
+
           return (
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
               <thead><tr>
@@ -491,15 +502,17 @@ export default function PlannerPage() {
               </tr></thead>
               <tbody>
                 {[1,2,3,4,5,6,7,8,9].map(uur => {
-                  if (isBlokuurSecond(dagNr, uur)) return null;
-                  const isBlok = isBlokuurStart(dagNr, uur);
-                  const hasAny = dagKlassen.some(k => dagSlots.some(s => s.uur === uur && s.klas_id === k.id));
-                  if (!hasAny) return null;
+                  /* Skip rij alleen als ALLE klassen hier blokuur-second zijn */
+                  const allSecond = dagKlassen.every(k => isBlokSecondForKlas(k.id, uur));
+                  if (allSecond) return null;
                   return (
                     <tr key={uur}>
-                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem' }}>{uur}{isBlok ? `–${uur+1}` : ''}</td>
+                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem' }}>{uur}</td>
                       {dagKlassen.map(k => {
+                        /* Als deze klas hier blokuur-second is, skip (rowSpan van vorige rij) */
+                        if (isBlokSecondForKlas(k.id, uur)) return null;
                         const slot = dagSlots.find(s => s.uur === uur && s.klas_id === k.id);
+                        const isBlok = isBlokStartForKlas(k.id, uur);
                         if (!slot) return <td key={k.id} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: isBlok ? 160 : 80 }} /></td>;
                         return <td key={k.id} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, height: '1px' }}>{renderCell(slot, selectedDate, isBlok)}</td>;
                       })}
