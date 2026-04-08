@@ -992,16 +992,16 @@ export default function PlannerPage() {
             <div key={week.weekNr} style={{ flex: 1, minWidth: 0 }}>
               {/* Week header */}
               <div style={{
-                background: week.days.includes(today) ? '#dcfce7' : '#f8fafc',
-                borderRadius: '12px 12px 0 0', border: '1px solid #e2e8f0', borderBottom: 'none',
-                padding: '0.6rem 1rem', textAlign: 'center',
+                background: week.days.includes(today) ? '#1a7a2e' : '#374151',
+                borderRadius: '12px 12px 0 0',
+                padding: '0.8rem 1rem', textAlign: 'center',
               }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1a7a2e' }}>{week.weekNr}</div>
-                <div style={{ fontSize: '0.72rem', color: '#6B7280' }}>{formatDate(week.days[0])} – {formatDate(week.days[4])}</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>Week {week.weekNr}</div>
+                <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.75)', fontWeight: 500, marginTop: 2 }}>{formatDate(week.days[0])} – {formatDate(week.days[4])}</div>
               </div>
               {/* Lessons */}
               <div style={{
-                border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 12px 12px',
+                border: '1px solid #d1d5db', borderTop: 'none', borderRadius: '0 0 12px 12px',
                 background: 'white', overflow: 'hidden',
               }}>
                 {entries.length === 0 && (
@@ -1042,42 +1042,46 @@ export default function PlannerPage() {
                           }
                         }}
                         style={{
-                          display: 'flex', gap: '0.5rem', padding: '0.5rem 0.8rem', cursor: 'pointer',
-                          background: isExpanded ? kleur + '08' : datum === today ? '#f0fdf4' : 'transparent',
+                          display: 'flex', gap: '0.7rem', padding: '0.6rem 0.8rem', cursor: 'pointer',
+                          background: isExpanded ? kleur + '10' : datum === today ? '#f0fdf4' : 'transparent',
                           alignItems: 'flex-start',
                         }}
                       >
                         {/* Date block */}
                         <div style={{
-                          width: 44, flex: '0 0 auto', textAlign: 'center', paddingTop: 2,
+                          width: 52, flex: '0 0 auto', textAlign: 'center',
+                          background: datum === today ? '#1a7a2e' : kleur, borderRadius: 8, padding: '0.3rem 0.2rem',
                         }}>
-                          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: datum === today ? '#1a7a2e' : '#374151', lineHeight: 1 }}>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>
                             {new Date(datum + 'T12:00:00').getDate()}
                           </div>
-                          <div style={{ fontSize: '0.6rem', color: datum === today ? '#1a7a2e' : '#9CA3AF', fontWeight: 600 }}>
-                            {dagNamen[dag - 1].slice(0, 2)}
+                          <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
+                            {dagNamen[dag - 1]}
                           </div>
-                          <div style={{ fontSize: '0.55rem', color: '#9CA3AF' }}>
+                          <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>
                             Les {uur}{isBlok ? '–' + (uur + 1) : ''}
                           </div>
                         </div>
                         {/* Content preview */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1f2937' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1f2937' }}>
                               {les?.programma ? stripHtml(les.programma).split('\n')[0].slice(0, 60) || '\u00A0' : ''}
                             </div>
-                            <span style={{ fontSize: '0.65rem', color: '#9CA3AF' }}>{isExpanded ? '▲' : '▼'}</span>
+                            <span style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>{isExpanded ? '▲' : '▼'}</span>
                           </div>
                           {cellToetsen.length > 0 && (
-                            <div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap', marginTop: 2 }}>
+                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: 3 }}>
                               {cellToetsen.map(t => (
                                 <span key={t.id} style={{
                                   background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
-                                  padding: '0 4px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+                                  padding: '0.05rem 5px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 700,
                                 }}>{t.type}: {t.naam}</span>
                               ))}
                             </div>
+                          )}
+                          {!isExpanded && !les?.programma && (
+                            <div style={{ color: '#d4d4d4', fontSize: '0.8rem', marginTop: 2 }}>+ plan les</div>
                           )}
                         </div>
                       </div>
