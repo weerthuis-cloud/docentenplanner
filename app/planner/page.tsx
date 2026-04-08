@@ -69,7 +69,7 @@ export default function PlannerPage() {
   const [vakanties, setVakanties] = useState<Vakantie[]>([]);
   const [jaarplanners, setJaarplanners] = useState<Jaarplanner[]>([]);
 
-  const [view, setView] = useState<'rooster' | 'week'>('rooster');
+  const [view, setView] = useState<'rooster' | 'week' | 'dag' | 'klas' | 'jaarlaag'>('rooster');
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
   const [editingLes, setEditingLes] = useState<Les | null>(null);
   const [newToets, setNewToets] = useState({ naam: '', type: 'SO' });
@@ -81,6 +81,12 @@ export default function PlannerPage() {
   const [uploadJaarlaag, setUploadJaarlaag] = useState('');
   const [uploading, setUploading] = useState(false);
   const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedKlasId, setSelectedKlasId] = useState<number | null>(null);
+  const [selectedJaarlaag, setSelectedJaarlaag] = useState('');
+  const [klasWeekStart, setKlasWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
+  const [jaarlaagWeekStart, setJaarlaagWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
+  const [extraLessen, setExtraLessen] = useState<Les[]>([]);
 
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
@@ -114,9 +120,26 @@ export default function PlannerPage() {
       .then(r => setToetsen(r.flat()));
   }, [klassen]);
 
+  // Fetch lessons for klas/jaarlaag views (6-week range)
+  const fetchExtraLessen = useCallback((ws: string) => {
+    if (klassen.length === 0) return;
+    const start = ws;
+    const end = new Date(new Date(ws + 'T12:00:00').getTime() + 6 * 7 * 86400000).toISOString().split('T')[0];
+    Promise.all(klassen.map(k =>
+      fetch(`/api/lessen?klas_id=${k.id}&week_start=${start}&week_end=${end}`)
+        .then(r => r.json()).then((d: Les[] | Les | null) => Array.isArray(d) ? d : d ? [d] : [])
+    )).then(r => setExtraLessen(r.flat()));
+  }, [klassen]);
+
   useEffect(() => { fetchAllRooster(); }, [fetchAllRooster]);
-  useEffect(() => { if (view === 'week') fetchLessen(); }, [fetchLessen, view]);
-  useEffect(() => { if (view === 'week') fetchToetsen(); }, [fetchToetsen, view]);
+  useEffect(() => { if (view === 'week' || view === 'dag') fetchLessen(); }, [fetchLessen, view]);
+  useEffect(() => { if (view === 'week' || view === 'dag') fetchToetsen(); }, [fetchToetsen, view]);
+  useEffect(() => { if (view === 'klas') fetchExtraLessen(klasWeekStart); }, [view, klasWeekStart, fetchExtraLessen]);
+  useEffect(() => { if (view === 'jaarlaag') fetchExtraLessen(jaarlaagWeekStart); }, [view, jaarlaagWeekStart, fetchExtraLessen]);
+  useEffect(() => { if ((view === 'klas' || view === 'jaarlaag') && klassen.length > 0) fetchToetsen(); }, [view, klassen, fetchToetsen]);
+  // Auto-select first klas/jaarlaag
+  useEffect(() => { if (klassen.length > 0 && !selectedKlasId) setSelectedKlasId(klassen[0].id); }, [klassen, selectedKlasId]);
+  useEffect(() => { if (klassen.length > 0 && !selectedJaarlaag) setSelectedJaarlaag([...new Set(klassen.map(k => k.jaarlaag))][0] || ''); }, [klassen, selectedJaarlaag]);
 
   /* ───── Helpers ───── */
   const getSlot = (dag: number, uur: number): RoosterSlot | undefined =>
@@ -184,7 +207,10 @@ export default function PlannerPage() {
   async function saveLes(les: Les) {
     setSaving(true);
     await fetch('/api/lessen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(les) });
-    setSaving(false); fetchLessen();
+    setSaving(false);
+    fetchLessen();
+    if (view === 'klas') fetchExtraLessen(klasWeekStart);
+    if (view === 'jaarlaag') fetchExtraLessen(jaarlaagWeekStart);
   }
 
   async function deleteToets(id: number) {
@@ -271,14 +297,12 @@ export default function PlannerPage() {
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {/* View toggle */}
           <div style={{ display: 'flex', background: '#e8f5e9', borderRadius: 8, overflow: 'hidden' }}>
-            <button onClick={() => setView('rooster')} style={{
-              padding: '0.4rem 0.8rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem',
-              background: view === 'rooster' ? '#1a7a2e' : 'transparent', color: view === 'rooster' ? 'white' : '#1a7a2e',
-            }}>Rooster</button>
-            <button onClick={() => setView('week')} style={{
-              padding: '0.4rem 0.8rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem',
-              background: view === 'week' ? '#1a7a2e' : 'transparent', color: view === 'week' ? 'white' : '#1a7a2e',
-            }}>Weekplanner</button>
+            {(['rooster', 'week', 'dag', 'klas', 'jaarlaag'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                padding: '0.4rem 0.7rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem',
+                background: view === v ? '#1a7a2e' : 'transparent', color: view === v ? 'white' : '#1a7a2e',
+              }}>{{ rooster: 'Rooster', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag' }[v]}</button>
+            ))}
           </div>
 
           {/* Legenda */}
@@ -291,29 +315,64 @@ export default function PlannerPage() {
           ))}
         </div>
 
-        {/* Week nav (alleen bij weekplanner) */}
-        {view === 'week' && (
-          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-            {copySource && (
-              <span style={{ fontSize: '0.72rem', color: '#D97706', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#FEF3C7', borderRadius: 6 }}>
-                Gekopieerd <button onClick={() => setCopySource(null)} style={{ background: 'none', border: 'none', color: '#D97706', cursor: 'pointer', fontWeight: 700 }}>✕</button>
-              </span>
-            )}
+        {/* Navigation controls per view */}
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {copySource && (
+            <span style={{ fontSize: '0.72rem', color: '#D97706', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#FEF3C7', borderRadius: 6 }}>
+              Gekopieerd <button onClick={() => setCopySource(null)} style={{ background: 'none', border: 'none', color: '#D97706', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+            </span>
+          )}
+
+          {view === 'week' && (<>
             <button onClick={() => changeWeek(-1)} style={navBtn}>&#9664;</button>
             <span style={{ fontWeight: 700, color: '#1a7a2e', minWidth: 80, textAlign: 'center', fontSize: '0.9rem' }}>Wk {getWeekNumber(weekStart)}</span>
             <button onClick={() => changeWeek(1)} style={navBtn}>&#9654;</button>
             <button onClick={() => setWeekStart(getMonday(new Date()).toISOString().split('T')[0])}
               style={{ ...navBtn, background: '#1a7a2e', color: 'white', padding: '0.35rem 0.7rem' }}>Vandaag</button>
-          </div>
-        )}
+          </>)}
 
-        {view === 'rooster' && (
-          <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>
-            Stel je weekrooster in. Koppel het daarna aan weken via <strong>Weekplanner</strong>.
-          </div>
-        )}
+          {view === 'dag' && (<>
+            <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); setWeekStart(getMonday(d).toISOString().split('T')[0]); }} style={navBtn}>&#9664;</button>
+            <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.9rem' }}>
+              {dagNamen[new Date(selectedDate + 'T12:00:00').getDay() - 1] || 'Weekend'} {formatDate(selectedDate)}
+            </span>
+            <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); setWeekStart(getMonday(d).toISOString().split('T')[0]); }} style={navBtn}>&#9654;</button>
+            <button onClick={() => { const t = new Date(); setSelectedDate(t.toISOString().split('T')[0]); setWeekStart(getMonday(t).toISOString().split('T')[0]); }}
+              style={{ ...navBtn, background: '#1a7a2e', color: 'white', padding: '0.35rem 0.7rem' }}>Vandaag</button>
+          </>)}
 
-        {view === 'week' && (
+          {view === 'klas' && (<>
+            <select value={selectedKlasId || ''} onChange={e => setSelectedKlasId(Number(e.target.value))}
+              style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.82rem', fontWeight: 600 }}>
+              {klassen.map((k, i) => <option key={k.id} value={k.id} style={{ color: klasKleuren[i % klasKleuren.length] }}>{k.naam}</option>)}
+            </select>
+            <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 42); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9664;</button>
+            <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.85rem' }}>Wk {getWeekNumber(klasWeekStart)} – {getWeekNumber(new Date(new Date(klasWeekStart + 'T12:00:00').getTime() + 5 * 7 * 86400000).toISOString().split('T')[0])}</span>
+            <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 42); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9654;</button>
+            <button onClick={() => setKlasWeekStart(getMonday(new Date()).toISOString().split('T')[0])}
+              style={{ ...navBtn, background: '#1a7a2e', color: 'white', padding: '0.35rem 0.7rem' }}>Vandaag</button>
+          </>)}
+
+          {view === 'jaarlaag' && (<>
+            <select value={selectedJaarlaag} onChange={e => setSelectedJaarlaag(e.target.value)}
+              style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.82rem', fontWeight: 600 }}>
+              {[...new Set(klassen.map(k => k.jaarlaag))].map(j => <option key={j} value={j}>{j}</option>)}
+            </select>
+            <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 42); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9664;</button>
+            <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)} – {getWeekNumber(new Date(new Date(jaarlaagWeekStart + 'T12:00:00').getTime() + 5 * 7 * 86400000).toISOString().split('T')[0])}</span>
+            <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 42); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9654;</button>
+            <button onClick={() => setJaarlaagWeekStart(getMonday(new Date()).toISOString().split('T')[0])}
+              style={{ ...navBtn, background: '#1a7a2e', color: 'white', padding: '0.35rem 0.7rem' }}>Vandaag</button>
+          </>)}
+
+          {view === 'rooster' && (
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>
+              Stel je weekrooster in. Koppel het daarna aan weken via <strong>Week</strong>.
+            </span>
+          )}
+        </div>
+
+        {(view === 'week' || view === 'dag') && (
           <button onClick={() => setShowUploadModal(true)} style={{
             ...navBtn, background: '#2563EB', color: 'white', padding: '0.35rem 0.9rem'
           }}>
@@ -643,6 +702,327 @@ export default function PlannerPage() {
           </table>
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* DAGPLANNER VIEW */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {view === 'dag' && (() => {
+        const dagIdx = new Date(selectedDate + 'T12:00:00').getDay(); // 0=zo, 1=ma...
+        const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
+        const vakantie = isInVakantie(selectedDate, vakanties);
+
+        if (dagNr === 0) return (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: '1.1rem' }}>
+            Geen lesdag (weekend). Ga naar een werkdag.
+          </div>
+        );
+
+        if (vakantie) return (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', fontSize: '1.1rem', fontWeight: 600 }}>
+            {vakantie.naam}
+          </div>
+        );
+
+        // Get all rooster slots for this day
+        const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur);
+        // Remove blokuur second slots
+        const visibleSlots = dagSlots.filter(s => !isBlokuurSecond(dagNr, s.uur));
+
+        return (
+          <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '0.6rem', paddingTop: '0.25rem' }}>
+            {visibleSlots.length === 0 && (
+              <div style={{ textAlign: 'center', color: '#9CA3AF', padding: '2rem', fontSize: '0.95rem' }}>
+                Geen lessen ingepland op deze dag. Stel eerst het rooster in.
+              </div>
+            )}
+            {visibleSlots.map(slot => {
+              const klas = klassen.find(k => k.id === slot.klas_id);
+              const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
+              const les = getLes(slot.klas_id, selectedDate, slot.uur);
+              const cellToetsen = getToetsenForDateKlas(selectedDate, slot.klas_id);
+              const isBlok = isBlokuurStart(dagNr, slot.uur);
+
+              return (
+                <div key={slot.uur}
+                  onClick={() => {
+                    if (copySource) { saveLes({ ...copySource, klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur, id: undefined }); setCopySource(null); return; }
+                    setEditingLes(les || emptyLes(slot.klas_id, selectedDate, slot.uur));
+                  }}
+                  style={{
+                    display: 'flex', gap: '0.8rem', padding: '0.7rem 0.9rem', cursor: 'pointer',
+                    borderRadius: 10, border: `1px solid ${kleur}30`, borderLeft: `4px solid ${kleur}`,
+                    background: les?.programma ? 'white' : '#fcfcfc',
+                    transition: 'box-shadow 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  }}
+                >
+                  {/* Uur */}
+                  <div style={{ width: 42, textAlign: 'center', color: '#9CA3AF', fontWeight: 700, fontSize: '1rem', paddingTop: '0.2rem' }}>
+                    {slot.uur}{isBlok && <span style={{ display: 'block', fontSize: '0.6rem', color: kleur }}>blok</span>}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <div>
+                        <span style={{ fontWeight: 700, color: kleur, fontSize: '0.9rem', marginRight: 6 }}>{klas?.naam}</span>
+                        <span style={{ color: '#9CA3AF', fontSize: '0.75rem' }}>{klas?.lokaal} &middot; {klas?.vak}</span>
+                      </div>
+                      {les && (
+                        <button onClick={e => { e.stopPropagation(); setCopySource(les); }} title="Kopieer" style={miniBtn}>⧉</button>
+                      )}
+                    </div>
+
+                    {/* Toetsen */}
+                    {cellToetsen.length > 0 && (
+                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+                        {cellToetsen.map(t => (
+                          <span key={t.id} style={{
+                            background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
+                            padding: '0.1rem 0.4rem', borderRadius: 4, fontSize: '0.7rem', fontWeight: 700,
+                          }}>{t.type}: {t.naam}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Les inhoud */}
+                    {les?.programma ? (
+                      <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.5 }}>
+                        {stripHtml(les.programma).split('\n').slice(0, 3).map((l, i) => (
+                          <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l || '\u00A0'}</div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ color: '#d4d4d4', fontSize: '0.8rem' }}>+ plan les</div>
+                    )}
+
+                    {les?.leerdoelen && (
+                      <div style={{ fontSize: '0.72rem', color: '#2563EB', marginTop: '0.2rem' }}>
+                        🎯 {stripHtml(les.leerdoelen).slice(0, 60)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* KLASPLANNER VIEW */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {view === 'klas' && (() => {
+        const klas = klassen.find(k => k.id === selectedKlasId);
+        const kleur = selectedKlasId ? (klasKleurMap[selectedKlasId] || '#6B7280') : '#6B7280';
+        // Build 6 weeks of data
+        const weeks: { weekNr: number; weekStart: string; days: string[] }[] = [];
+        for (let w = 0; w < 6; w++) {
+          const ws = new Date(new Date(klasWeekStart + 'T12:00:00').getTime() + w * 7 * 86400000);
+          const wsStr = getMonday(ws).toISOString().split('T')[0];
+          weeks.push({ weekNr: getWeekNumber(wsStr), weekStart: wsStr, days: getDaysOfWeek(wsStr) });
+        }
+
+        // Get rooster slots for this klas
+        const klasSlots = allRooster.filter(r => r.klas_id === selectedKlasId).sort((a, b) => a.dag - b.dag || a.uur - b.uur);
+        // Group by day: { 1: [uur1, uur2], 2: [uur1], ... }
+        const slotsByDay: Record<number, number[]> = {};
+        klasSlots.forEach(s => {
+          if (!slotsByDay[s.dag]) slotsByDay[s.dag] = [];
+          slotsByDay[s.dag].push(s.uur);
+        });
+
+        return (
+          <div style={{ flex: 1, overflow: 'auto', borderRadius: 12, border: '1px solid #d4d4d4' }}>
+            {!klas ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#9CA3AF' }}>Selecteer een klas</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...th, width: 100 }}>{klas.naam}</th>
+                    {weeks.map(w => (
+                      <th key={w.weekNr} style={{
+                        ...th,
+                        background: w.days.includes(today) ? '#dcfce7' : '#f0fdf4',
+                      }}>
+                        <div>Wk {w.weekNr}</div>
+                        <div style={{ fontSize: '0.65rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(w.days[0])} – {formatDate(w.days[4])}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(slotsByDay).sort(([a],[b]) => Number(a)-Number(b)).map(([dagStr, uren]) => {
+                    const dag = Number(dagStr);
+                    return uren.map((uur, uurIdx) => {
+                      const isSecond = isBlokuurSecond(dag, uur);
+                      if (isSecond) return null;
+                      const isBlok = isBlokuurStart(dag, uur);
+
+                      return (
+                        <tr key={`${dag}-${uur}`}>
+                          <td style={{ ...td, background: '#fafafa', fontWeight: 600, fontSize: '0.78rem', color: kleur }}>
+                            {dagNamen[dag - 1]} uur {uur}{isBlok ? '–' + (uur + 1) : ''}
+                          </td>
+                          {weeks.map(w => {
+                            const datum = w.days[dag - 1];
+                            const vakantie = isInVakantie(datum, vakanties);
+                            const les = extraLessen.find(l => l.klas_id === selectedKlasId && l.datum === datum && l.uur === uur);
+                            const cellToetsen = toetsen.filter(t => t.datum === datum && t.klas_id === selectedKlasId);
+
+                            if (vakantie) return (
+                              <td key={datum} style={{ ...td, background: '#fef2f2', textAlign: 'center', fontSize: '0.65rem', color: '#f87171' }}>{vakantie.naam}</td>
+                            );
+
+                            return (
+                              <td key={datum}
+                                onClick={() => {
+                                  if (copySource && selectedKlasId) { saveLes({ ...copySource, klas_id: selectedKlasId, datum, uur, id: undefined }); setCopySource(null); fetchExtraLessen(klasWeekStart); return; }
+                                  setEditingLes(les || emptyLes(selectedKlasId!, datum, uur));
+                                }}
+                                style={{
+                                  ...td, cursor: 'pointer',
+                                  borderLeft: `3px solid ${kleur}`,
+                                  background: datum === today ? '#f0fdf4' : les?.programma ? 'white' : '#fcfcfc',
+                                }}
+                              >
+                                {cellToetsen.map(t => (
+                                  <div key={t.id} style={{
+                                    background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
+                                    padding: '0 3px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginBottom: 2,
+                                  }}>{t.type}: {t.naam.length > 10 ? t.naam.slice(0,10) + '..' : t.naam}</div>
+                                ))}
+                                {les?.programma ? (
+                                  <div style={{ fontSize: '0.68rem', color: '#334155', lineHeight: 1.3, overflow: 'hidden', maxHeight: 50 }}>
+                                    {stripHtml(les.programma).split('\n').slice(0, 2).map((l, i) => (
+                                      <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l || '\u00A0'}</div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ color: '#d4d4d4', fontSize: '0.65rem' }}>+</div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    });
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* JAARLAAG PLANNER VIEW */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {view === 'jaarlaag' && (() => {
+        const jaarlaagKlassen = klassen.filter(k => k.jaarlaag === selectedJaarlaag);
+        // Build 6 weeks
+        const weeks: { weekNr: number; weekStart: string; days: string[] }[] = [];
+        for (let w = 0; w < 6; w++) {
+          const ws = new Date(new Date(jaarlaagWeekStart + 'T12:00:00').getTime() + w * 7 * 86400000);
+          const wsStr = getMonday(ws).toISOString().split('T')[0];
+          weeks.push({ weekNr: getWeekNumber(wsStr), weekStart: wsStr, days: getDaysOfWeek(wsStr) });
+        }
+
+        return (
+          <div style={{ flex: 1, overflow: 'auto', borderRadius: 12, border: '1px solid #d4d4d4' }}>
+            {jaarlaagKlassen.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#9CA3AF' }}>Geen klassen voor jaarlaag "{selectedJaarlaag}"</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...th, width: 60 }}>Week</th>
+                    {jaarlaagKlassen.map((k, i) => (
+                      <th key={k.id} style={{ ...th, color: klasKleuren[klassen.indexOf(k) % klasKleuren.length] }}>
+                        {k.naam}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeks.map(w => {
+                    const isCurrentWeek = w.days.includes(today);
+                    return (
+                      <tr key={w.weekNr}>
+                        <td style={{
+                          ...td, textAlign: 'center', fontWeight: 700, fontSize: '0.82rem',
+                          background: isCurrentWeek ? '#dcfce7' : '#fafafa', color: isCurrentWeek ? '#1a7a2e' : '#9CA3AF',
+                        }}>
+                          <div>{w.weekNr}</div>
+                          <div style={{ fontSize: '0.6rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(w.days[0])}</div>
+                        </td>
+                        {jaarlaagKlassen.map(k => {
+                          const kleur = klasKleurMap[k.id] || '#6B7280';
+                          // Find lessons for this class in this week
+                          const weekLessen = extraLessen.filter(l => l.klas_id === k.id && w.days.includes(l.datum)).sort((a, b) => a.datum.localeCompare(b.datum) || (a.uur || 0) - (b.uur || 0));
+                          const weekToetsen = toetsen.filter(t => t.klas_id === k.id && w.days.includes(t.datum));
+                          const vakantie = isInVakantie(w.days[0], vakanties);
+                          // Count total planned
+                          const planned = weekLessen.filter(l => l.programma).length;
+                          const klasSlotCount = allRooster.filter(r => r.klas_id === k.id).length;
+
+                          if (vakantie) return (
+                            <td key={k.id} style={{ ...td, background: '#fef2f2', textAlign: 'center', fontSize: '0.65rem', color: '#f87171' }}>{vakantie.naam}</td>
+                          );
+
+                          return (
+                            <td key={k.id}
+                              onClick={() => {
+                                // Open first unplanned lesson of the week for this class
+                                const slots = allRooster.filter(r => r.klas_id === k.id).sort((a, b) => a.dag - b.dag || a.uur - b.uur);
+                                const firstSlot = slots[0];
+                                if (firstSlot) {
+                                  const datum = w.days[firstSlot.dag - 1];
+                                  const existing = weekLessen.find(l => l.datum === datum && l.uur === firstSlot.uur);
+                                  setEditingLes(existing || emptyLes(k.id, datum, firstSlot.uur));
+                                }
+                              }}
+                              style={{
+                                ...td, cursor: 'pointer', borderLeft: `3px solid ${kleur}`,
+                                background: isCurrentWeek ? '#f0fdf4' : planned > 0 ? 'white' : '#fcfcfc',
+                                height: 80,
+                              }}
+                            >
+                              {/* Progress indicator */}
+                              <div style={{ fontSize: '0.62rem', color: '#9CA3AF', marginBottom: 3 }}>
+                                {planned}/{klasSlotCount} gepland
+                              </div>
+
+                              {/* Toetsen */}
+                              {weekToetsen.map(t => (
+                                <div key={t.id} style={{
+                                  background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
+                                  padding: '0 3px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginBottom: 2,
+                                }}>{t.type}: {t.naam.length > 12 ? t.naam.slice(0, 12) + '..' : t.naam}</div>
+                              ))}
+
+                              {/* Lesson summaries */}
+                              {weekLessen.filter(l => l.programma).slice(0, 3).map((l, i) => (
+                                <div key={i} style={{ fontSize: '0.65rem', color: '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+                                  {dagNamen[(new Date(l.datum + 'T12:00:00').getDay() - 1)]?.slice(0, 2)} {l.uur}: {stripHtml(l.programma).slice(0, 30)}
+                                </div>
+                              ))}
+
+                              {planned === 0 && weekToetsen.length === 0 && (
+                                <div style={{ color: '#d4d4d4', fontSize: '0.65rem', marginTop: 2 }}>+</div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Les Planning Modal ── */}
       {editingLes && (() => {
