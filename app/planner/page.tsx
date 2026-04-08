@@ -361,9 +361,9 @@ export default function PlannerPage() {
               style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.82rem', fontWeight: 600 }}>
               {[...new Set(klassen.map(k => k.jaarlaag))].map(j => <option key={j} value={j}>{j}</option>)}
             </select>
-            <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 42); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9664;</button>
-            <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)} – {getWeekNumber(new Date(new Date(jaarlaagWeekStart + 'T12:00:00').getTime() + 5 * 7 * 86400000).toISOString().split('T')[0])}</span>
-            <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 42); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9654;</button>
+            <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9664;</button>
+            <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)} – {getWeekNumber(new Date(new Date(jaarlaagWeekStart + 'T12:00:00').getTime() + 7 * 86400000).toISOString().split('T')[0])}</span>
+            <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>&#9654;</button>
             <button onClick={() => setJaarlaagWeekStart(getMonday(new Date()).toISOString().split('T')[0])}
               style={{ ...navBtn, background: '#1a7a2e', color: 'white', padding: '0.35rem 0.7rem' }}>Vandaag</button>
           </>)}
@@ -1228,105 +1228,215 @@ export default function PlannerPage() {
       {/* ═══════════════════════════════════════════════════ */}
       {view === 'jaarlaag' && (() => {
         const jaarlaagKlassen = klassen.filter(k => k.jaarlaag === selectedJaarlaag);
-        // Build 6 weeks
+        // Build 2 weeks
         const weeks: { weekNr: number; weekStart: string; days: string[] }[] = [];
-        for (let w = 0; w < 6; w++) {
+        for (let w = 0; w < 2; w++) {
           const ws = new Date(new Date(jaarlaagWeekStart + 'T12:00:00').getTime() + w * 7 * 86400000);
           const wsStr = getMonday(ws).toISOString().split('T')[0];
           weeks.push({ weekNr: getWeekNumber(wsStr), weekStart: wsStr, days: getDaysOfWeek(wsStr) });
         }
 
         return (
-          <div style={{ flex: 1, overflow: 'auto', borderRadius: 12, border: '1px solid #d4d4d4' }}>
+          <div style={{ flex: 1, overflow: 'auto' }}>
             {jaarlaagKlassen.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#9CA3AF' }}>Geen klassen voor jaarlaag "{selectedJaarlaag}"</div>
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#9CA3AF' }}>Geen klassen voor jaarlaag &ldquo;{selectedJaarlaag}&rdquo;</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...th, width: 60 }}>Week</th>
-                    {jaarlaagKlassen.map((k, i) => (
-                      <th key={k.id} style={{ ...th, color: klasKleuren[klassen.indexOf(k) % klasKleuren.length] }}>
-                        {k.naam}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeks.map(w => {
-                    const isCurrentWeek = w.days.includes(today);
-                    return (
-                      <tr key={w.weekNr}>
-                        <td style={{
-                          ...td, textAlign: 'center', fontWeight: 700, fontSize: '0.82rem',
-                          background: isCurrentWeek ? '#dcfce7' : '#fafafa', color: isCurrentWeek ? '#1a7a2e' : '#9CA3AF',
-                        }}>
-                          <div>{w.weekNr}</div>
-                          <div style={{ fontSize: '0.6rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(w.days[0])}</div>
-                        </td>
-                        {jaarlaagKlassen.map(k => {
-                          const kleur = klasKleurMap[k.id] || '#6B7280';
-                          // Find lessons for this class in this week
-                          const weekLessen = extraLessen.filter(l => l.klas_id === k.id && w.days.includes(l.datum)).sort((a, b) => a.datum.localeCompare(b.datum) || (a.uur || 0) - (b.uur || 0));
-                          const weekToetsen = toetsen.filter(t => t.klas_id === k.id && w.days.includes(t.datum));
-                          const vakantie = isInVakantie(w.days[0], vakanties);
-                          // Count total planned
-                          const planned = weekLessen.filter(l => l.programma).length;
-                          const klasSlotCount = allRooster.filter(r => r.klas_id === k.id).length;
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {weeks.map(week => {
+                  const isCurrentWeek = week.days.includes(today);
+                  return (
+                    <div key={week.weekNr}>
+                      {/* Week header */}
+                      <div style={{
+                        background: isCurrentWeek ? '#1a7a2e' : '#374151',
+                        borderRadius: '12px 12px 0 0', padding: '0.6rem 1rem',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      }}>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'white' }}>Week {week.weekNr}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>{formatDate(week.days[0])} – {formatDate(week.days[4])}</div>
+                      </div>
 
-                          if (vakantie) return (
-                            <td key={k.id} style={{ ...td, background: '#fef2f2', textAlign: 'center', fontSize: '0.65rem', color: '#f87171' }}>{vakantie.naam}</td>
-                          );
+                      {/* Klas kolommen */}
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: `repeat(${jaarlaagKlassen.length}, 1fr)`,
+                        border: '1px solid #d1d5db', borderTop: 'none', borderRadius: '0 0 12px 12px',
+                        background: 'white', overflow: 'hidden',
+                      }}>
+                        {jaarlaagKlassen.map((k, ki) => {
+                          const kleur = klasKleurMap[k.id] || '#6B7280';
+                          const klasSlots = allRooster.filter(r => r.klas_id === k.id).sort((a, b) => a.dag - b.dag || a.uur - b.uur);
+                          const vakantie = isInVakantie(week.days[0], vakanties);
+
+                          // Build lesson entries for this class this week
+                          const entries: { dag: number; uur: number; isBlok: boolean; datum: string }[] = [];
+                          const slotsByDay: Record<number, number[]> = {};
+                          klasSlots.forEach(s => { if (!slotsByDay[s.dag]) slotsByDay[s.dag] = []; slotsByDay[s.dag].push(s.uur); });
+                          Object.entries(slotsByDay).sort(([a],[b]) => Number(a)-Number(b)).forEach(([dagStr, uren]) => {
+                            const dag = Number(dagStr);
+                            uren.forEach(uur => {
+                              if (isBlokuurSecond(dag, uur)) return;
+                              entries.push({ dag, uur, isBlok: isBlokuurStart(dag, uur), datum: week.days[dag - 1] });
+                            });
+                          });
 
                           return (
-                            <td key={k.id}
-                              onClick={() => {
-                                // Open first unplanned lesson of the week for this class
-                                const slots = allRooster.filter(r => r.klas_id === k.id).sort((a, b) => a.dag - b.dag || a.uur - b.uur);
-                                const firstSlot = slots[0];
-                                if (firstSlot) {
-                                  const datum = w.days[firstSlot.dag - 1];
-                                  const existing = weekLessen.find(l => l.datum === datum && l.uur === firstSlot.uur);
-                                  setEditingLes(existing || emptyLes(k.id, datum, firstSlot.uur));
-                                }
-                              }}
-                              style={{
-                                ...td, cursor: 'pointer', borderLeft: `3px solid ${kleur}`,
-                                background: isCurrentWeek ? '#f0fdf4' : planned > 0 ? 'white' : '#fcfcfc',
-                                height: 80,
-                              }}
-                            >
-                              {/* Progress indicator */}
-                              <div style={{ fontSize: '0.62rem', color: '#9CA3AF', marginBottom: 3 }}>
-                                {planned}/{klasSlotCount} gepland
+                            <div key={k.id} style={{ borderRight: ki < jaarlaagKlassen.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
+                              {/* Klas kop */}
+                              <div style={{
+                                background: kleur, padding: '0.45rem 0.5rem', textAlign: 'center',
+                                borderBottom: '1px solid #e5e7eb',
+                              }}>
+                                <div style={{ fontWeight: 800, color: 'white', fontSize: '0.85rem' }}>{k.naam}</div>
+                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.7)' }}>{k.vak}</div>
                               </div>
 
-                              {/* Toetsen */}
-                              {weekToetsen.map(t => (
-                                <div key={t.id} style={{
-                                  background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
-                                  padding: '0 3px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginBottom: 2,
-                                }}>{t.type}: {t.naam.length > 12 ? t.naam.slice(0, 12) + '..' : t.naam}</div>
-                              ))}
-
-                              {/* Lesson summaries */}
-                              {weekLessen.filter(l => l.programma).slice(0, 3).map((l, i) => (
-                                <div key={i} style={{ fontSize: '0.65rem', color: '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
-                                  {dagNamen[(new Date(l.datum + 'T12:00:00').getDay() - 1)]?.slice(0, 2)} {l.uur}: {stripHtml(l.programma).slice(0, 30)}
+                              {/* Lessen */}
+                              {vakantie ? (
+                                <div style={{ padding: '0.8rem 0.5rem', textAlign: 'center', background: '#fef2f2' }}>
+                                  <span style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>
                                 </div>
-                              ))}
+                              ) : entries.length === 0 ? (
+                                <div style={{ padding: '0.8rem 0.5rem', textAlign: 'center', color: '#d4d4d4', fontSize: '0.8rem' }}>—</div>
+                              ) : entries.map(({ dag, uur, isBlok, datum }) => {
+                                const les = extraLessen.find(l => l.klas_id === k.id && l.datum === datum && l.uur === uur);
+                                const cellToetsen = toetsen.filter(t => t.datum === datum && t.klas_id === k.id);
+                                const slotKey = `jl-${k.id}-${datum}-${uur}`;
+                                const isExpanded = expandedDagSlots.has(slotKey);
+                                const jlEditLes = dagEditLessen[slotKey] || null;
+                                const jlNewToets = dagNewToetsen[slotKey] || { naam: '', type: 'SO' };
+                                const setJlEditLes = (l: Les | null) => setDagEditLessen(prev => l ? { ...prev, [slotKey]: l } : (() => { const n = { ...prev }; delete n[slotKey]; return n; })());
+                                const setJlNewToets = (v: { naam: string; type: string }) => setDagNewToetsen(prev => ({ ...prev, [slotKey]: v }));
 
-                              {planned === 0 && weekToetsen.length === 0 && (
-                                <div style={{ color: '#d4d4d4', fontSize: '0.65rem', marginTop: 2 }}>+</div>
-                              )}
-                            </td>
+                                return (
+                                  <div key={slotKey} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    {/* Les header */}
+                                    <div
+                                      onClick={() => {
+                                        if (isExpanded) {
+                                          setExpandedDagSlots(prev => { const n = new Set(prev); n.delete(slotKey); return n; });
+                                          setJlEditLes(null);
+                                        } else {
+                                          setExpandedDagSlots(prev => new Set(prev).add(slotKey));
+                                          setJlEditLes(les || emptyLes(k.id, datum, uur));
+                                        }
+                                      }}
+                                      style={{
+                                        display: 'flex', gap: '0.4rem', padding: '0.4rem 0.5rem', cursor: 'pointer',
+                                        background: isExpanded ? kleur + '10' : datum === today ? '#f0fdf4' : 'transparent',
+                                        alignItems: 'flex-start',
+                                      }}
+                                    >
+                                      <div style={{
+                                        width: 36, flex: '0 0 auto', textAlign: 'center',
+                                        background: datum === today ? '#1a7a2e' : kleur, borderRadius: 6, padding: '0.2rem 0.1rem',
+                                      }}>
+                                        <div style={{ fontSize: '1rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>
+                                          {new Date(datum + 'T12:00:00').getDate()}
+                                        </div>
+                                        <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
+                                          {dagNamen[dag - 1].slice(0, 2)}
+                                        </div>
+                                      </div>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <div style={{ fontWeight: 600, fontSize: '0.75rem', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {les?.programma ? stripHtml(les.programma).split('\n')[0].slice(0, 40) : ''}
+                                          </div>
+                                          <span style={{ fontSize: '0.55rem', color: '#9CA3AF', flex: '0 0 auto' }}>{isExpanded ? '▲' : '▼'}</span>
+                                        </div>
+                                        {cellToetsen.length > 0 && (
+                                          <div style={{ display: 'flex', gap: '0.15rem', flexWrap: 'wrap', marginTop: 1 }}>
+                                            {cellToetsen.map(t => (
+                                              <span key={t.id} style={{
+                                                background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
+                                                padding: '0 3px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                                              }}>{t.type}: {t.naam.length > 8 ? t.naam.slice(0,8) + '..' : t.naam}</span>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {!isExpanded && !les?.programma && (
+                                          <div style={{ color: '#d4d4d4', fontSize: '0.7rem' }}>+ plan les</div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Expanded editor */}
+                                    {isExpanded && jlEditLes && (
+                                      <div style={{ padding: '0.4rem 0.5rem', background: '#fafafa', borderTop: `1px solid ${kleur}15` }}>
+                                        {/* Toets strip */}
+                                        <div style={{ background: 'white', borderRadius: 5, padding: '0.2rem 0.4rem', marginBottom: '0.3rem', border: '1px solid #e5e7eb' }}>
+                                          <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <select value={jlNewToets.type} onChange={e => setJlNewToets({ ...jlNewToets, type: e.target.value })}
+                                              style={{ border: '1px solid #d1d5db', borderRadius: 3, padding: '0.1rem 0.2rem', fontSize: '0.6rem', fontWeight: 600, color: toetsKleuren[jlNewToets.type] }}>
+                                              {Object.entries(toetsLabels).map(([kk, v]) => <option key={kk} value={kk}>{kk}</option>)}
+                                            </select>
+                                            <input value={jlNewToets.naam} onChange={e => setJlNewToets({ ...jlNewToets, naam: e.target.value })}
+                                              placeholder="Naam..." onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }}
+                                              style={{ flex: 1, minWidth: 40, border: '1px solid #d1d5db', borderRadius: 3, padding: '0.1rem 0.2rem', fontSize: '0.6rem' }} />
+                                            <button onClick={async () => {
+                                              if (!jlNewToets.naam.trim()) return;
+                                              await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ klas_id: jlEditLes.klas_id, naam: jlNewToets.naam, type: jlNewToets.type, datum: jlEditLes.datum, kleur: toetsKleuren[jlNewToets.type] || '#6B7280' }) });
+                                              setJlNewToets({ naam: '', type: 'SO' }); fetchToetsen();
+                                            }} style={{ ...btn, background: toetsKleuren[jlNewToets.type], color: 'white', padding: '0.1rem 0.3rem', fontSize: '0.58rem' }}>+</button>
+                                          </div>
+                                        </div>
+
+                                        {/* Lesvoorbereiding */}
+                                        <div style={{ marginBottom: '0.3rem' }}>
+                                          <RichTextEditor
+                                            label="Lesvoorbereiding" labelColor={kleur}
+                                            content={buildCombinedContent(jlEditLes)}
+                                            onChange={val => { const parsed = parseCombinedContent(val); setJlEditLes({ ...jlEditLes, ...parsed }); }}
+                                            placeholder="" minHeight={80}
+                                          />
+                                        </div>
+                                        {/* Leerdoelen */}
+                                        <div style={{ marginBottom: '0.3rem' }}>
+                                          <RichTextEditor
+                                            label="Leerdoelen" labelColor="#2563EB"
+                                            content={jlEditLes.leerdoelen || ''}
+                                            onChange={val => setJlEditLes({ ...jlEditLes, leerdoelen: val })}
+                                            placeholder="Leerdoelen" minHeight={30}
+                                          />
+                                        </div>
+                                        {/* Niet vergeten */}
+                                        <div style={{ marginBottom: '0.3rem' }}>
+                                          <RichTextEditor
+                                            label="Niet vergeten" labelColor="#DC2626"
+                                            content={jlEditLes.niet_vergeten || ''}
+                                            onChange={val => setJlEditLes({ ...jlEditLes, niet_vergeten: val })}
+                                            placeholder="Reminders" minHeight={25}
+                                          />
+                                        </div>
+                                        {/* Opslaan */}
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.2rem' }}>
+                                          <button onClick={async () => {
+                                            await saveLes(jlEditLes);
+                                            setExpandedDagSlots(prev => { const n = new Set(prev); n.delete(slotKey); return n; }); setJlEditLes(null);
+                                            fetchExtraLessen(jaarlaagWeekStart);
+                                          }} disabled={saving}
+                                            style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}>
+                                            {saving ? '...' : 'Opslaan'}
+                                          </button>
+                                          <button onClick={() => { setExpandedDagSlots(prev => { const n = new Set(prev); n.delete(slotKey); return n; }); setJlEditLes(null); }}
+                                            style={{ ...btn, background: '#e5e7eb', color: '#374151', padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}>
+                                            Dicht
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           );
                         })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         );
