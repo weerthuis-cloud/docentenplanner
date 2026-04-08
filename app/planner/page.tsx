@@ -513,7 +513,7 @@ export default function PlannerPage() {
                     return (
                       <div key={datum}>
                         <div style={{ padding: '0.25rem 0.6rem', background: datum === today ? '#dcfce7' : vakantie ? '#fef2f2' : '#f0f0f0', borderBottom: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.82rem', color: datum === today ? '#1a7a2e' : vakantie ? '#DC2626' : '#374151', background: kleur, padding: '0 0.35rem', borderRadius: 3, color: 'white', width: 28, textAlign: 'center' }}>{dagNamenKort[di]}</span>
+                          <span style={{ fontWeight: 700, fontSize: '0.82rem', background: kleur, padding: '0 0.35rem', borderRadius: 3, color: 'white', width: 28, textAlign: 'center' }}>{dagNamenKort[di]}</span>
                           <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>{formatDate(datum)}</span>
                           {vakantie && <span style={{ fontSize: '0.65rem', color: '#DC2626', fontWeight: 600 }}>{vakantie.naam}</span>}
                         </div>
