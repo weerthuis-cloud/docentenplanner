@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { label: 'Cijfers', href: '/cijfers' },
   { label: 'Resultaten', href: '/resultaten' },
   { label: 'Toetsen', href: '/toetsen' },
+  { label: 'Jaarplanner', href: '/jaarplanner' },
 ];
 
 export default function Dashboard() {

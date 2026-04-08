@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     return NextResponse.json(data);
   }
 
-  let query = supabase.from('jaarplanners').select('id, vak, jaarlaag, schooljaar, naam, created_at').order('created_at', { ascending: false });
+  let query = supabase.from('jaarplanners').select('id, vak, jaarlaag, schooljaar, naam, auteur, beschrijving, created_at').order('created_at', { ascending: false });
   if (vak) query = query.eq('vak', vak);
   if (jaarlaag) query = query.eq('jaarlaag', jaarlaag);
 
@@ -30,6 +30,8 @@ export async function POST(req: Request) {
     schooljaar: body.schooljaar || '2025-2026',
     data: body.data || [],
     naam: body.naam || '',
+    auteur: body.auteur || '',
+    beschrijving: body.beschrijving || '',
   }).select('id').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true, id: data?.id });
@@ -43,6 +45,8 @@ export async function PUT(req: Request) {
     schooljaar: body.schooljaar,
     data: body.data,
     naam: body.naam,
+    auteur: body.auteur,
+    beschrijving: body.beschrijving,
   }).eq('id', body.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
