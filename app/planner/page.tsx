@@ -18,61 +18,15 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }
 
-/* Combineer terugkijken + programma + huiswerk in één HTML blok met sectielabels */
+/* Combineer terugkijken + programma + huiswerk in één HTML blok (geen labels) */
 function buildCombinedContent(les: Les): string {
-  // Als alle drie leeg zijn, toon een leeg veld (docent vult zelf in)
-  const hasContent = les.terugkijken || les.programma || les.huiswerk;
-  if (!hasContent) return '';
-
-  const sections: string[] = [];
-  const label = (text: string, color: string) =>
-    `<p><strong><span style="color: ${color}">${text}</span></strong></p>`;
-
-  sections.push(label('Terugkijken', '#1a7a2e'));
-  sections.push(les.terugkijken || '<p></p>');
-  sections.push(label('Programma', '#1a7a2e'));
-  sections.push(les.programma || '<p></p>');
-  sections.push(label('Maak- / Huiswerk', '#D97706'));
-  sections.push(les.huiswerk || '<p></p>');
-
-  return sections.join('');
+  const parts = [les.terugkijken, les.programma, les.huiswerk].filter(Boolean);
+  return parts.join('') || '';
 }
 
-/* Parse gecombineerde content terug naar losse velden */
+/* Alles opslaan als programma (één veld) */
 function parseCombinedContent(html: string): { terugkijken: string; programma: string; huiswerk: string } {
-  // Split op de sectielabels
-  const terugkijkenMarker = 'Terugkijken</span></strong></p>';
-  const programmaMarker = 'Programma</span></strong></p>';
-  const huiswerkMarker = 'Maak- / Huiswerk</span></strong></p>';
-
-  let terugkijken = '';
-  let programma = '';
-  let huiswerk = '';
-
-  const tIdx = html.indexOf(terugkijkenMarker);
-  const pIdx = html.indexOf(programmaMarker);
-  const hIdx = html.indexOf(huiswerkMarker);
-
-  if (tIdx !== -1 && pIdx !== -1 && hIdx !== -1) {
-    const afterT = tIdx + terugkijkenMarker.length;
-    const afterP = pIdx + programmaMarker.length;
-    const afterH = hIdx + huiswerkMarker.length;
-
-    terugkijken = html.substring(afterT, pIdx).trim();
-    programma = html.substring(afterP, hIdx).trim();
-    huiswerk = html.substring(afterH).trim();
-  } else {
-    // Fallback: alles als programma
-    programma = html;
-  }
-
-  // Strip lege paragraaf-tags die alleen uit de label-regel bestaan
-  const cleanLabel = (s: string) => s.replace(/^<p><strong><span[^>]*>[^<]*<\/span><\/strong><\/p>/, '').trim();
-  terugkijken = cleanLabel(terugkijken);
-  programma = cleanLabel(programma);
-  huiswerk = cleanLabel(huiswerk);
-
-  return { terugkijken, programma, huiswerk };
+  return { terugkijken: '', programma: html, huiswerk: '' };
 }
 
 const dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
