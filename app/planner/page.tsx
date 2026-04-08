@@ -439,13 +439,15 @@ export default function PlannerPage() {
             </tr></thead>
             <tbody>
               {[1,2,3,4,5,6,7,8,9].map(uur => {
-                const allSecond = [1,2,3,4,5].every(dag => isBlokuurSecond(dag, uur));
+                const anyBlokSecond = [1,2,3,4,5].some(dag => isBlokuurSecond(dag, uur));
+                const allBlokSecond = [1,2,3,4,5].every(dag => isBlokuurSecond(dag, uur));
                 return (
-                  <tr key={uur} style={allSecond ? { height: 0, lineHeight: 0, fontSize: 0, overflow: 'hidden' } : undefined}>
-                    {!allSecond && <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem', borderRight: '1px solid #d1d5db', verticalAlign: 'top', paddingTop: '0.5rem' }}>{uur}</td>}
+                  <tr key={uur}>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem', borderRight: '1px solid #d1d5db', verticalAlign: 'top', paddingTop: '0.5rem' }}>{allBlokSecond ? '' : uur}</td>
                     {days.map((d, idx) => {
-                      const dag = idx + 1; const slot = getSlot(dag, uur); const vakantie = isInVakantie(d, vakanties);
+                      const dag = idx + 1; const vakantie = isInVakantie(d, vakanties);
                       if (isBlokuurSecond(dag, uur)) return null;
+                      const slot = getSlot(dag, uur);
                       const isBlok = isBlokuurStart(dag, uur);
                       const cellBorder = idx < 4 ? '1px solid #d1d5db' : 'none';
                       if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', borderRight: cellBorder, padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
