@@ -16,9 +16,10 @@ interface InlineEditorProps {
   onBlur?: () => void;
   placeholder?: string;
   borderColor?: string;
+  minHeight?: number;
 }
 
-export default function InlineEditor({ content, onChange, onFocus, onBlur, placeholder, borderColor }: InlineEditorProps) {
+export default function InlineEditor({ content, onChange, onFocus, onBlur, placeholder, borderColor, minHeight }: InlineEditorProps) {
   const hasInitialized = useRef(false);
 
   const editor = useEditor({
@@ -43,6 +44,7 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
     editorProps: {
       attributes: {
         class: 'tiptap',
+        style: minHeight ? `min-height: ${minHeight}px` : '',
       },
     },
   });

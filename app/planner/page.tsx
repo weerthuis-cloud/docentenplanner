@@ -197,7 +197,7 @@ export default function PlannerPage() {
     const jpSuggestion = getJpSuggestion(slot.klas_id, datum);
 
     return (
-      <div key={cellKey} style={{ minHeight: isBlok ? 160 : 80, borderLeft: `3px solid ${kleur}`, background: datum === today ? '#f7fdf9' : 'white', borderBottom: '1px solid #e5e7eb' }}>
+      <div key={cellKey} style={{ minHeight: isBlok ? 160 : 80, borderLeft: `3px solid ${kleur}`, background: 'white', borderBottom: '1px solid #e5e7eb' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 6px', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 700, fontSize: '0.68rem', color: 'white', background: kleur, padding: '0 0.35rem', borderRadius: 3 }}>{klas?.naam}</span>
@@ -220,7 +220,7 @@ export default function PlannerPage() {
         )}
         {/* Editor */}
         <InlineEditor content={les.programma || ''} onChange={(val) => updateCell(cellKey, les, 'programma', val)}
-          onFocus={(editor) => setActiveEditor(editor)} placeholder="Plan les..." borderColor={kleur} />
+          onFocus={(editor) => setActiveEditor(editor)} placeholder="Plan les..." borderColor={kleur} minHeight={isBlok ? 130 : 60} />
       </div>
     );
   }
