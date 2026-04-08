@@ -81,9 +81,9 @@ export default function PlannerPage() {
   const [uploadJaarlaag, setUploadJaarlaag] = useState('');
   const [uploading, setUploading] = useState(false);
   const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
-  const [expandedDagSlot, setExpandedDagSlot] = useState<string | null>(null); // "klas_id-uur" key
-  const [dagEditLes, setDagEditLes] = useState<Les | null>(null);
-  const [dagNewToets, setDagNewToets] = useState({ naam: '', type: 'SO' });
+  const [expandedDagSlots, setExpandedDagSlots] = useState<Set<string>>(new Set()); // multiple "klas_id-uur" keys
+  const [dagEditLessen, setDagEditLessen] = useState<Record<string, Les>>({}); // per-slot edit state
+  const [dagNewToetsen, setDagNewToetsen] = useState<Record<string, { naam: string; type: string }>>({}); // per-slot toets input
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedKlasId, setSelectedKlasId] = useState<number | null>(null);
   const [selectedJaarlaag, setSelectedJaarlaag] = useState('');
@@ -728,7 +728,11 @@ export default function PlannerPage() {
               const cellToetsen = getToetsenForDateKlas(selectedDate, slot.klas_id);
               const isBlok = isBlokuurStart(dagNr, slot.uur);
               const slotKey = `${slot.klas_id}-${slot.uur}`;
-              const isExpanded = expandedDagSlot === slotKey;
+              const isExpanded = expandedDagSlots.has(slotKey);
+              const dagEditLes = dagEditLessen[slotKey] || null;
+              const dagNewToets = dagNewToetsen[slotKey] || { naam: '', type: 'SO' };
+              const setDagEditLes = (les: Les | null) => setDagEditLessen(prev => les ? { ...prev, [slotKey]: les } : (() => { const n = { ...prev }; delete n[slotKey]; return n; })());
+              const setDagNewToets = (v: { naam: string; type: string }) => setDagNewToetsen(prev => ({ ...prev, [slotKey]: v }));
 
               // Jaarplanner context
               const jpKlas = klas ? jaarplanners.find(jp => jp.vak === klas.vak && jp.jaarlaag === klas.jaarlaag) : null;
@@ -748,22 +752,28 @@ export default function PlannerPage() {
                     onClick={() => {
                       if (copySource) { saveLes({ ...copySource, klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur, id: undefined }); setCopySource(null); return; }
                       if (isExpanded) {
-                        setExpandedDagSlot(null); setDagEditLes(null);
+                        setExpandedDagSlots(prev => { const n = new Set(prev); n.delete(slotKey); return n; });
+                        setDagEditLes(null);
                       } else {
-                        setExpandedDagSlot(slotKey);
+                        setExpandedDagSlots(prev => new Set(prev).add(slotKey));
                         setDagEditLes(les || emptyLes(slot.klas_id, selectedDate, slot.uur));
                       }
                     }}
-                    style={{ display: 'flex', gap: '0.8rem', padding: '0.7rem 0.9rem', cursor: 'pointer' }}
+                    style={{ display: 'flex', gap: '0.8rem', padding: '0.7rem 0.9rem', cursor: 'pointer',
+                      background: isExpanded ? kleur + '10' : 'transparent', borderRadius: '12px 12px 0 0',
+                    }}
                   >
                     <div style={{ width: 42, textAlign: 'center', color: '#9CA3AF', fontWeight: 700, fontSize: '1rem', paddingTop: '0.2rem' }}>
                       {slot.uur}{isBlok && <span style={{ display: 'block', fontSize: '0.6rem', color: kleur }}>blok</span>}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                        <div>
-                          <span style={{ fontWeight: 700, color: kleur, fontSize: '0.9rem', marginRight: 6 }}>{klas?.naam}</span>
-                          <span style={{ color: '#9CA3AF', fontSize: '0.75rem' }}>{klas?.lokaal} &middot; {klas?.vak}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            fontWeight: 700, color: 'white', fontSize: '0.82rem',
+                            background: kleur, padding: '0.15rem 0.5rem', borderRadius: 6,
+                          }}>{klas?.naam}</span>
+                          <span style={{ color: '#6B7280', fontSize: '0.75rem' }}>{klas?.lokaal} &middot; {klas?.vak}</span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                           {les && <button onClick={e => { e.stopPropagation(); setCopySource(les); }} title="Kopieer" style={miniBtn}>⧉</button>}
@@ -844,12 +854,12 @@ export default function PlannerPage() {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', marginBottom: '0.5rem' }}>
                           <button onClick={async () => {
                             await saveLes(dagEditLes);
-                            setExpandedDagSlot(null); setDagEditLes(null);
+                            setExpandedDagSlots(prev => { const n = new Set(prev); n.delete(slotKey); return n; }); setDagEditLes(null);
                           }} disabled={saving}
                             style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>
                             {saving ? 'Opslaan...' : 'Opslaan'}
                           </button>
-                          <button onClick={() => { setExpandedDagSlot(null); setDagEditLes(null); }}
+                          <button onClick={() => { setExpandedDagSlots(prev => { const n = new Set(prev); n.delete(slotKey); return n; }); setDagEditLes(null); }}
                             style={{ ...btn, background: '#e5e7eb', color: '#374151', padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>
                             Inklappen
                           </button>
@@ -925,7 +935,7 @@ export default function PlannerPage() {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
                           <button onClick={async () => {
                             await saveLes(dagEditLes);
-                            setExpandedDagSlot(null); setDagEditLes(null);
+                            setExpandedDagSlots(prev => { const n = new Set(prev); n.delete(slotKey); return n; }); setDagEditLes(null);
                           }} disabled={saving}
                             style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>
                             {saving ? 'Opslaan...' : 'Opslaan'}
