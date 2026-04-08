@@ -197,9 +197,9 @@ export default function PlannerPage() {
     const jpSuggestion = getJpSuggestion(slot.klas_id, datum);
 
     return (
-      <div key={cellKey} style={{ borderLeft: `3px solid ${kleur}`, background: datum === today ? '#f7fdf9' : 'white', borderBottom: '1px solid #e5e7eb' }}>
+      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', borderLeft: `3px solid ${kleur}`, background: datum === today ? '#f7fdf9' : 'white', borderBottom: '1px solid #e5e7eb' }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 6px', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 6px', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, flexWrap: 'wrap', flexShrink: 0 }}>
           <span style={{ fontWeight: 700, fontSize: '0.68rem', color: 'white', background: kleur, padding: '0 0.35rem', borderRadius: 3 }}>{klas?.naam}</span>
           <span style={{ fontSize: '0.6rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
           {isBlok && <span style={{ fontSize: '0.58rem', color: kleur, fontWeight: 600 }}>blok</span>}
@@ -213,14 +213,16 @@ export default function PlannerPage() {
         {/* JP suggestie */}
         {jpSuggestion && !les.programma && (
           <div onClick={() => updateCell(cellKey, les, 'programma', `<p>${jpSuggestion}</p>`)}
-            style={{ padding: '2px 6px', fontSize: '0.62rem', color: '#1a7a2e', background: '#f0fdf4', borderBottom: '1px dashed #bbf7d0', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            style={{ padding: '2px 6px', fontSize: '0.62rem', color: '#1a7a2e', background: '#f0fdf4', borderBottom: '1px dashed #bbf7d0', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="Klik om jaarplanner suggestie over te nemen">
             📅 {jpSuggestion.slice(0, 60)}{jpSuggestion.length > 60 ? '...' : ''}
           </div>
         )}
         {/* Editor */}
-        <InlineEditor content={les.programma || ''} onChange={(val) => updateCell(cellKey, les, 'programma', val)}
-          onFocus={(editor) => setActiveEditor(editor)} placeholder="Plan les..." borderColor={kleur} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <InlineEditor content={les.programma || ''} onChange={(val) => updateCell(cellKey, les, 'programma', val)}
+            onFocus={(editor) => setActiveEditor(editor)} placeholder="Plan les..." borderColor={kleur} />
+        </div>
       </div>
     );
   }
@@ -450,9 +452,9 @@ export default function PlannerPage() {
                     /* Vakantie */
                     if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
                     /* Leeg uur */
-                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top' }}><div style={{ minHeight: 80 }} /></td>;
+                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top', height: 1 }}><div style={{ minHeight: 80, height: '100%' }} /></td>;
                     /* Les cel */
-                    return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderLeft: `3px solid ${kleur}`, background: kleur + '06', verticalAlign: 'top' }}>{renderCell(slot, d, isBlok)}</td>;
+                    return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderLeft: `3px solid ${kleur}`, background: kleur + '06', verticalAlign: 'top', height: 1 }}>{renderCell(slot, d, isBlok)}</td>;
                   })}
                 </tr>
               ))}

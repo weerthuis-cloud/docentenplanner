@@ -42,7 +42,7 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
     },
     editorProps: {
       attributes: {
-        style: 'outline: none; padding: 8px 10px; font-size: 0.85rem; line-height: 1.6; min-height: 80px;',
+        class: 'tiptap',
       },
     },
   });
@@ -68,10 +68,15 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
         background: 'white',
         cursor: 'text',
         position: 'relative',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
       }}
       onClick={() => editor.commands.focus()}
     >
-      <EditorContent editor={editor} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }} className="inline-editor-grow">
+        <EditorContent editor={editor} style={{ flex: 1, display: 'flex', flexDirection: 'column' }} />
+      </div>
       {editor.isEmpty && placeholder && (
         <div style={{
           position: 'absolute', top: '6px', left: '8px',
