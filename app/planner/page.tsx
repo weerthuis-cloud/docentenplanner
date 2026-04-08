@@ -20,6 +20,10 @@ function stripHtml(html: string): string {
 
 /* Combineer terugkijken + programma + huiswerk in één HTML blok met sectielabels */
 function buildCombinedContent(les: Les): string {
+  // Als alle drie leeg zijn, toon een leeg veld (docent vult zelf in)
+  const hasContent = les.terugkijken || les.programma || les.huiswerk;
+  if (!hasContent) return '';
+
   const sections: string[] = [];
   const label = (text: string, color: string) =>
     `<p><strong><span style="color: ${color}">${text}</span></strong></p>`;
