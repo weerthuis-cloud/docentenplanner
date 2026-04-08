@@ -503,24 +503,17 @@ export default function PlannerPage() {
                       const canBlok = canBeBlokuur(dag, uur);
                       const isBlok = isBlokuurStart(dag, uur);
 
-                      // Als dit het 2e uur van een blokuur is, toon niets (wordt gemerged)
-                      if (isSecond) {
-                        return (
-                          <td key={`${dag}-${uur}`} style={{
-                            ...td, borderLeft: `3px solid ${kleur}`, background: kleur + '08',
-                            textAlign: 'center', color: kleur, fontSize: '0.68rem', fontStyle: 'italic',
-                          }}>
-                            ↑ blokuur
-                          </td>
-                        );
-                      }
+                      // Blokuur 2e uur: verborgen (rowSpan op 1e uur)
+                      if (isSecond) return null;
 
                       return (
-                        <td key={`${dag}-${uur}`} style={{
-                          ...td,
-                          borderLeft: slot ? `3px solid ${kleur}` : undefined,
-                          background: slot ? kleur + '06' : '#fcfcfc',
-                        }}>
+                        <td key={`${dag}-${uur}`}
+                          rowSpan={isBlok ? 2 : 1}
+                          style={{
+                            ...td,
+                            borderLeft: slot ? `3px solid ${kleur}` : undefined,
+                            background: slot ? kleur + '06' : '#fcfcfc',
+                          }}>
                           <select value={slot?.klas_id || ''}
                             onChange={e => setRoosterKlas(dag, uur, e.target.value ? Number(e.target.value) : null)}
                             style={{
@@ -617,20 +610,12 @@ export default function PlannerPage() {
                       return <td key={`${d}-${uur}`} style={{ ...td, background: '#fafafa' }}></td>;
                     }
 
-                    // Blokuur 2e uur: toon "↑ blokuur" subtiel
-                    if (isSecond) {
-                      return (
-                        <td key={`${d}-${uur}`} style={{
-                          ...td, borderLeft: `3px solid ${kleur}`, background: kleur + '05',
-                          textAlign: 'center', color: kleur, fontSize: '0.65rem', opacity: 0.5,
-                        }}>
-                          ↑ zie hierboven
-                        </td>
-                      );
-                    }
+                    // Blokuur 2e uur: verborgen (rowSpan op 1e uur)
+                    if (isSecond) return null;
 
                     return (
                       <td key={`${d}-${uur}`}
+                        rowSpan={isBlok ? 2 : 1}
                         onClick={() => {
                           if (copySource && slot) {
                             saveLes({ ...copySource, klas_id: slot.klas_id, datum: d, uur, id: undefined });
