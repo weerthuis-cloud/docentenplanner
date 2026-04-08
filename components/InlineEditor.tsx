@@ -3,32 +3,10 @@
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import { TextStyle } from '@tiptap/extension-text-style';
-import { Color } from '@tiptap/extension-color';
+import { TextStyle, Color, FontSize } from '@tiptap/extension-text-style';
 import TextAlign from '@tiptap/extension-text-align';
 import Highlight from '@tiptap/extension-highlight';
-import { Extension } from '@tiptap/core';
 import { useEffect, useRef } from 'react';
-
-/* Custom FontSize extension — voegt fontSize attribuut toe aan textStyle */
-const FontSize = Extension.create({
-  name: 'fontSize',
-  addGlobalAttributes() {
-    return [{
-      types: ['textStyle'],
-      attributes: {
-        fontSize: {
-          default: null,
-          parseHTML: (el) => el.style.fontSize || null,
-          renderHTML: (attrs) => {
-            if (!attrs.fontSize) return {};
-            return { style: `font-size: ${attrs.fontSize}` };
-          },
-        },
-      },
-    }];
-  },
-});
 
 interface InlineEditorProps {
   content: string;

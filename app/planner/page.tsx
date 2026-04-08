@@ -324,7 +324,7 @@ export default function PlannerPage() {
           <TBtn active={activeEditor?.isActive('bulletList') || false} onClick={() => activeEditor?.chain().focus().toggleBulletList().run()} title="Opsomming">•≡</TBtn>
           <TBtn active={activeEditor?.isActive('orderedList') || false} onClick={() => activeEditor?.chain().focus().toggleOrderedList().run()} title="Genummerd">1.</TBtn>
           <Sep />
-          <select onChange={e => { if (e.target.value && activeEditor) activeEditor.chain().focus().setMark('textStyle', { fontSize: e.target.value }).run(); }} defaultValue=""
+          <select onChange={e => { if (e.target.value && activeEditor) activeEditor.chain().focus().setFontSize(e.target.value).run(); }} defaultValue=""
             style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 4px', fontSize: '0.72rem', background: 'white', cursor: 'pointer' }}>
             <option value="" disabled>Grootte</option>
             {FONTS.map(s => <option key={s} value={s}>{parseInt(s)}pt</option>)}
