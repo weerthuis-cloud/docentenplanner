@@ -1049,17 +1049,17 @@ export default function PlannerPage() {
                       >
                         {/* Date block */}
                         <div style={{
-                          width: 52, flex: '0 0 auto', textAlign: 'center',
-                          background: datum === today ? '#1a7a2e' : kleur, borderRadius: 8, padding: '0.3rem 0.2rem',
+                          width: 48, flex: '0 0 auto', textAlign: 'center',
+                          background: datum === today ? '#1a7a2e' : kleur, borderRadius: 8, padding: '0.35rem 0.15rem',
                         }}>
-                          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>
                             {new Date(datum + 'T12:00:00').getDate()}
                           </div>
-                          <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
-                            {dagNamen[dag - 1]}
+                          <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600, marginTop: 1 }}>
+                            {dagNamen[dag - 1].slice(0, 2)}
                           </div>
-                          <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>
-                            Les {uur}{isBlok ? '–' + (uur + 1) : ''}
+                          <div style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
+                            {isBlok ? `${uur}–${uur + 1}` : `Les ${uur}`}
                           </div>
                         </div>
                         {/* Content preview */}
