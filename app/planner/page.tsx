@@ -536,46 +536,58 @@ export default function PlannerPage() {
           const jlKlassen = klassen.filter(k => k.jaarlaag === selectedJaarlaag);
           if (jlKlassen.length === 0) return <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF' }}>Geen klassen in deze jaarlaag.</div>;
           const weeks = getTwoWeeks(jaarlaagWeekStart);
+          const colCount = jlKlassen.length;
 
           return (
-            <div>
-              {weeks.map((week, wi) => (
-                <div key={wi} style={{ marginBottom: wi === 0 ? 0 : 0 }}>
-                  {/* Week header */}
-                  <div style={{ padding: '0.4rem 0.6rem', background: week.startDate <= today && today <= week.days[4] ? '#1a7a2e' : '#374151', color: 'white', fontWeight: 700, fontSize: '0.9rem', textAlign: 'center' }}>
-                    Week {week.weekNum} — {formatDate(week.days[0])} t/m {formatDate(week.days[4])}
+            <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${colCount}, 1fr)`, border: '1px solid #d1d5db' }}>
+              {/* ── Header row: empty corner + klas names ── */}
+              <div style={{ background: '#1a7a2e', padding: '0.5rem', borderRight: '1px solid #15803d', borderBottom: '2px solid #15803d' }} />
+              {jlKlassen.map((klas, ki) => {
+                const kleur = klasKleurMap[klas.id] || '#6B7280';
+                return (
+                  <div key={klas.id} style={{ background: kleur, color: 'white', padding: '0.5rem 0.3rem', fontWeight: 700, fontSize: '0.9rem', textAlign: 'center', borderRight: ki < colCount - 1 ? '1px solid rgba(255,255,255,0.3)' : 'none', borderBottom: '2px solid #15803d' }}>
+                    {klas.naam}
                   </div>
-                  {/* Days */}
-                  {week.days.map((datum, di) => {
-                    const dag = di + 1;
-                    const vakantie = isInVakantie(datum, vakanties);
-                    // Welke klassen hebben les op deze dag?
-                    const klassenMetLes = jlKlassen.filter(k => allRooster.some(r => r.dag === dag && r.klas_id === k.id));
-                    if (klassenMetLes.length === 0) return null;
-                    return (
-                      <div key={datum}>
-                        <div style={{ padding: '0.2rem 0.6rem', background: datum === today ? '#dcfce7' : vakantie ? '#fef2f2' : '#f0f0f0', borderBottom: '1px solid #d1d5db', fontWeight: 700, fontSize: '0.8rem', color: datum === today ? '#1a7a2e' : '#374151' }}>
-                          {dagNamen[di]} {formatDate(datum)}
-                          {vakantie && <span style={{ marginLeft: 8, fontSize: '0.68rem', color: '#DC2626' }}>{vakantie.naam}</span>}
+                );
+              })}
+
+              {/* ── Week rows ── */}
+              {weeks.map((week, wi) => {
+                // Collect all lesson rows for this week: [{datum, dag, slots_per_klas}]
+                const lesRows: Array<{ datum: string; dag: number; di: number; vakantie: Vakantie | null }> = [];
+                week.days.forEach((datum, di) => {
+                  const dag = di + 1;
+                  const vakantie = isInVakantie(datum, vakanties);
+                  const anyLes = jlKlassen.some(k => allRooster.some(r => r.dag === dag && r.klas_id === k.id));
+                  if (anyLes) lesRows.push({ datum, dag, di, vakantie });
+                });
+
+                return [
+                  /* Week header spanning full width */
+                  <div key={`wh-${wi}`} style={{ gridColumn: `1 / -1`, padding: '0.35rem 0.6rem', background: week.startDate <= today && today <= week.days[4] ? '#1a7a2e' : '#374151', color: 'white', fontWeight: 700, fontSize: '0.82rem', textAlign: 'center' }}>
+                    Week {week.weekNum} — {formatDate(week.days[0])} t/m {formatDate(week.days[4])}
+                  </div>,
+                  /* Lesson rows */
+                  ...lesRows.map(({ datum, dag, di, vakantie }) => [
+                    /* Day label cell */
+                    <div key={`dl-${datum}`} style={{ padding: '0.3rem 0.4rem', background: datum === today ? '#dcfce7' : vakantie ? '#fef2f2' : '#f9fafb', borderRight: '1px solid #d1d5db', borderBottom: '1px solid #e5e7eb', fontWeight: 700, fontSize: '0.72rem', color: datum === today ? '#1a7a2e' : '#374151' }}>
+                      {dagNamenKort[di]}<br /><span style={{ fontWeight: 400, fontSize: '0.65rem', color: '#6B7280' }}>{formatDate(datum)}</span>
+                      {vakantie && <div style={{ fontSize: '0.6rem', color: '#DC2626', marginTop: 2 }}>{vakantie.naam}</div>}
+                    </div>,
+                    /* One cell per klas */
+                    ...jlKlassen.map((klas, ki) => {
+                      if (vakantie) return <div key={`v-${datum}-${klas.id}`} style={{ background: '#fef2f2', borderRight: ki < colCount - 1 ? '1px solid #e5e7eb' : 'none', borderBottom: '1px solid #e5e7eb', padding: '0.3rem', fontSize: '0.65rem', color: '#DC2626' }}>{vakantie.naam}</div>;
+                      const slots = allRooster.filter(r => r.dag === dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
+                      if (slots.length === 0) return <div key={`e-${datum}-${klas.id}`} style={{ background: '#f9fafb', borderRight: ki < colCount - 1 ? '1px solid #e5e7eb' : 'none', borderBottom: '1px solid #e5e7eb' }} />;
+                      return (
+                        <div key={`c-${datum}-${klas.id}`} style={{ borderRight: ki < colCount - 1 ? '1px solid #e5e7eb' : 'none', borderBottom: '1px solid #e5e7eb' }}>
+                          {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
                         </div>
-                        {!vakantie && (
-                          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${klassenMetLes.length}, 1fr)`, gap: 0 }}>
-                            {klassenMetLes.map(klas => {
-                              const kleur = klasKleurMap[klas.id] || '#6B7280';
-                              const slots = allRooster.filter(r => r.dag === dag && r.klas_id === klas.id).sort((a,b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
-                              return (
-                                <div key={klas.id} style={{ borderRight: '1px solid #e5e7eb' }}>
-                                  {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+                      );
+                    }),
+                  ]).flat(),
+                ].flat();
+              })}
             </div>
           );
         })()}
