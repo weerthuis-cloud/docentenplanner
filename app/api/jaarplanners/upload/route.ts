@@ -9,77 +9,114 @@ interface JaarplannerRow {
 }
 
 /**
- * Parse HTML table (from mammoth) to extract jaarplanner data
+ * Strip HTML tags and decode entities from cell content.
+ * Adds spaces for block elements (p, br, div) so text doesn't merge.
+ */
+function cleanCell(html: string): string {
+  return html
+    .replace(/<\/?(p|br|div|li|ul|ol)[^>]*>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Parse HTML tables (from mammoth) to extract jaarplanner data.
+ * The docx has two tables: first is general info, second is the jaarplanner.
+ * The jaarplanner table has columns: wk, les, planning, toetsen/opmerkingen
+ * with rowspan grouping multiple rows per week.
  */
 function parseHtmlTable(html: string): JaarplannerRow[] {
   const rows: JaarplannerRow[] = [];
 
-  // Find all table rows
+  // Find ALL tables in the document
+  const tableRegex = /<table>([\s\S]*?)<\/table>/gi;
+  const tables: string[] = [];
+  let tableMatch;
+  while ((tableMatch = tableRegex.exec(html)) !== null) {
+    tables.push(tableMatch[1]);
+  }
+
+  // Use the largest table (the main jaarplanner), skip small info tables
+  let mainTable = '';
+  for (const t of tables) {
+    if (t.length > mainTable.length) mainTable = t;
+  }
+
+  if (!mainTable) return rows;
+
+  // Extract all rows from the main table
   const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let rowMatch;
-  let isFirstRow = true;
+  let isHeader = true;
+  let currentWeek = 0;
 
-  while ((rowMatch = rowRegex.exec(html)) !== null) {
-    if (isFirstRow) {
-      isFirstRow = false; // Skip header row
-      continue;
-    }
-
+  while ((rowMatch = rowRegex.exec(mainTable)) !== null) {
     const rowHtml = rowMatch[1];
+
+    // Extract cells (td or th), preserving rowspan info
     const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
     const cells: string[] = [];
     let cellMatch;
 
     while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-      let cellContent = cellMatch[1];
-      // Remove HTML tags and decode entities
-      cellContent = cellContent.replace(/<[^>]*>/g, '');
-      cellContent = cellContent
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&')
-        .trim();
-      cells.push(cellContent);
+      cells.push(cleanCell(cellMatch[1]));
     }
 
-    // Expected: [week, les1_planning, les1_toetsen, les2_planning, les2_toetsen]
-    if (cells.length >= 2) {
-      const week = parseInt(cells[0], 10);
-      if (!isNaN(week)) {
-        // Les 1
-        if (cells.length >= 3) {
-          rows.push({
-            week,
-            les: 1,
-            planning: cells[1] || '',
-            toetsen: cells[2] || '',
-          });
-        }
-        // Les 2
-        if (cells.length >= 5) {
-          rows.push({
-            week,
-            les: 2,
-            planning: cells[3] || '',
-            toetsen: cells[4] || '',
-          });
-        } else if (cells.length === 4) {
-          // Sometimes only 4 cells: week, les1_planning, les2_planning, notes/combined
-          rows.push({
-            week,
-            les: 1,
-            planning: cells[1] || '',
-            toetsen: cells[3] || '',
-          });
-          rows.push({
-            week,
-            les: 2,
-            planning: cells[2] || '',
-            toetsen: '',
-          });
-        }
+    // Skip header row (contains "wk", "les", "planning", etc.)
+    if (isHeader) {
+      const joined = cells.join(' ').toLowerCase();
+      if (joined.includes('wk') || joined.includes('les') || joined.includes('planning')) {
+        isHeader = false;
+        continue;
+      }
+      // If first row doesn't look like a header, don't skip
+      isHeader = false;
+    }
+
+    // Skip empty rows
+    if (cells.length === 0 || cells.every(c => c === '')) continue;
+
+    // Detect row type based on number of cells:
+    // 4 cells = new week row: [week_info, les_nr, planning, toetsen]
+    // 3 cells = continuation row (rowspan): [les_nr, planning, toetsen]
+    if (cells.length >= 4) {
+      // First cell contains week number (possibly with dates like "35 24 aug 29 aug")
+      const weekText = cells[0].split(/\s+/)[0] || '';
+      const weekNum = parseInt(weekText, 10);
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        currentWeek = weekNum;
+      }
+
+      const lesNr = parseInt(cells[1], 10);
+      const planning = cells[2] || '';
+      const toetsen = cells[3] || '';
+
+      if (!isNaN(lesNr) && lesNr > 0 && currentWeek > 0) {
+        rows.push({ week: currentWeek, les: lesNr, planning, toetsen });
+      } else if (currentWeek > 0 && (planning || toetsen)) {
+        // No les number but has content, treat as les 1
+        rows.push({ week: currentWeek, les: 1, planning, toetsen });
+      }
+    } else if (cells.length === 3 && currentWeek > 0) {
+      // Continuation row within a week (rowspan on week cell)
+      const lesNr = parseInt(cells[0], 10);
+      const planning = cells[1] || '';
+      const toetsen = cells[2] || '';
+
+      if (!isNaN(lesNr) && lesNr > 0) {
+        rows.push({ week: currentWeek, les: lesNr, planning, toetsen });
+      }
+    } else if (cells.length === 2 && currentWeek > 0) {
+      // Minimal row: [planning, toetsen] or [les, planning]
+      const lesNr = parseInt(cells[0], 10);
+      if (!isNaN(lesNr) && lesNr > 0) {
+        rows.push({ week: currentWeek, les: lesNr, planning: cells[1] || '', toetsen: '' });
       }
     }
   }
