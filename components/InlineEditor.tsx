@@ -16,10 +16,10 @@ interface InlineEditorProps {
   onBlur?: () => void;
   placeholder?: string;
   borderColor?: string;
-  minHeight?: number;
+  grow?: boolean;
 }
 
-export default function InlineEditor({ content, onChange, onFocus, onBlur, placeholder, borderColor, minHeight }: InlineEditorProps) {
+export default function InlineEditor({ content, onChange, onFocus, onBlur, placeholder, borderColor, grow }: InlineEditorProps) {
   const hasInitialized = useRef(false);
 
   const editor = useEditor({
@@ -44,7 +44,6 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
     editorProps: {
       attributes: {
         class: 'tiptap',
-        style: minHeight ? `min-height: ${minHeight}px` : '',
       },
     },
   });
@@ -66,14 +65,20 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
 
   return (
     <div
+      className={grow ? 'editor-grow' : undefined}
       style={{
         background: 'white',
         cursor: 'text',
         position: 'relative',
+        ...(grow ? { flex: 1, display: 'flex', flexDirection: 'column' as const } : {}),
       }}
       onClick={() => editor.commands.focus()}
     >
-      <EditorContent editor={editor} />
+      <EditorContent
+        editor={editor}
+        className={grow ? 'editor-grow' : undefined}
+        style={grow ? { flex: 1, display: 'flex', flexDirection: 'column' as const } : undefined}
+      />
       {editor.isEmpty && placeholder && (
         <div style={{
           position: 'absolute', top: '6px', left: '8px',
