@@ -15,7 +15,7 @@ function parseHtmlTable(html: string): JaarplannerRow[] {
   const rows: JaarplannerRow[] = [];
 
   // Find all table rows
-  const rowRegex = /<tr[^>]*>(.*?)<\/tr>/gis;
+  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let rowMatch;
   let isFirstRow = true;
 
@@ -26,7 +26,7 @@ function parseHtmlTable(html: string): JaarplannerRow[] {
     }
 
     const rowHtml = rowMatch[1];
-    const cellRegex = /<t[dh][^>]*>(.*?)<\/t[dh]>/gis;
+    const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
     const cells: string[] = [];
     let cellMatch;
 
@@ -129,12 +129,12 @@ export async function POST(req: Request) {
         }
 
         // Basic XML to HTML conversion for tables
-        const tableRegex = /<w:tbl>(.*?)<\/w:tbl>/gs;
+        const tableRegex = /<w:tbl>([\s\S]*?)<\/w:tbl>/g;
         let tableMatch;
 
         while ((tableMatch = tableRegex.exec(documentXml)) !== null) {
           const tableXml = tableMatch[1];
-          const rowRegex = /<w:tr>(.*?)<\/w:tr>/gs;
+          const rowRegex = /<w:tr>([\s\S]*?)<\/w:tr>/g;
           let rowMatch;
           let tableHtml = '<table>';
 
@@ -142,12 +142,12 @@ export async function POST(req: Request) {
             const rowXml = rowMatch[1];
             tableHtml += '<tr>';
 
-            const cellRegex = /<w:tc>(.*?)<\/w:tc>/gs;
+            const cellRegex = /<w:tc>([\s\S]*?)<\/w:tc>/g;
             let cellMatch;
 
             while ((cellMatch = cellRegex.exec(rowXml)) !== null) {
               const cellXml = cellMatch[1];
-              const textRegex = /<w:t[^>]*>(.*?)<\/w:t>/g;
+              const textRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
               let textMatch;
               let cellText = '';
 
