@@ -100,20 +100,23 @@ export default function RichTextEditor({ content, onChange, placeholder, label, 
 
         {/* Lists */}
         <ToolBtn active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Opsomming">
-          ☰
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="0.5"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="0.5"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="0.5"/></svg>
         </ToolBtn>
         <ToolBtn active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Genummerd">
-          1.
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><text x="0" y="5.5" fontSize="5" fontWeight="700">1.</text><rect x="5" y="3" width="10" height="2" rx="0.5"/><text x="0" y="9.5" fontSize="5" fontWeight="700">2.</text><rect x="5" y="7" width="10" height="2" rx="0.5"/><text x="0" y="13.5" fontSize="5" fontWeight="700">3.</text><rect x="5" y="11" width="10" height="2" rx="0.5"/></svg>
         </ToolBtn>
 
         <Divider />
 
         {/* Text align */}
-        <ToolBtn active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Links">
-          ≡
+        <ToolBtn active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Links uitlijnen">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="0.5"/><rect x="1" y="6" width="9" height="2" rx="0.5"/><rect x="1" y="10" width="14" height="2" rx="0.5"/></svg>
         </ToolBtn>
-        <ToolBtn active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Midden">
-          ≡
+        <ToolBtn active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Centreren">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="0.5"/><rect x="3.5" y="6" width="9" height="2" rx="0.5"/><rect x="1" y="10" width="14" height="2" rx="0.5"/></svg>
+        </ToolBtn>
+        <ToolBtn active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()} title="Rechts uitlijnen">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="0.5"/><rect x="6" y="6" width="9" height="2" rx="0.5"/><rect x="1" y="10" width="14" height="2" rx="0.5"/></svg>
         </ToolBtn>
 
         <Divider />
