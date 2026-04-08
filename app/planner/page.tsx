@@ -11,6 +11,8 @@ interface RoosterSlot { id?: number; klas_id: number; dag: number; uur: number; 
 interface Les { id?: number; klas_id: number; datum: string; uur: number | null; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; }
 interface Toets { id: number; klas_id: number; naam: string; type: string; datum: string; kleur: string; les_id: number | null; }
 interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; }
+interface Jaarplanner { id: number; vak: string; jaarlaag: string; schooljaar: string; naam: string; data: Array<{ week: number; les: number; planning: string; toetsen: string }>; created_at: string; }
+interface JaarplannerRow { week: number; les: number; planning: string; toetsen: string; }
 
 /* Strip HTML tags for plain text preview */
 function stripHtml(html: string): string {
@@ -65,6 +67,7 @@ export default function PlannerPage() {
   const [lessen, setLessen] = useState<Les[]>([]);
   const [toetsen, setToetsen] = useState<Toets[]>([]);
   const [vakanties, setVakanties] = useState<Vakantie[]>([]);
+  const [jaarplanners, setJaarplanners] = useState<Jaarplanner[]>([]);
 
   const [view, setView] = useState<'rooster' | 'week'>('rooster');
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
@@ -72,6 +75,12 @@ export default function PlannerPage() {
   const [newToets, setNewToets] = useState({ naam: '', type: 'SO' });
   const [copySource, setCopySource] = useState<Les | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadVak, setUploadVak] = useState('');
+  const [uploadJaarlaag, setUploadJaarlaag] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
 
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
@@ -84,6 +93,7 @@ export default function PlannerPage() {
   useEffect(() => {
     fetch('/api/klassen').then(r => r.json()).then(setKlassen);
     fetch('/api/vakanties').then(r => r.json()).then(setVakanties);
+    fetch('/api/jaarplanners').then(r => r.json()).then(setJaarplanners);
   }, []);
 
   const fetchAllRooster = useCallback(() => {
@@ -186,6 +196,70 @@ export default function PlannerPage() {
     setWeekStart(d.toISOString().split('T')[0]);
   }
 
+  /* ───── Jaarplanner helpers ───── */
+  function getJaarplannerForLesson(les: Les): Jaarplanner | null {
+    const klas = klassen.find(k => k.id === les.klas_id);
+    if (!klas) return null;
+    return jaarplanners.find(jp => jp.vak === klas.vak && jp.jaarlaag === klas.jaarlaag) || null;
+  }
+
+  function getJaarplannerWeeks(jaarplanner: Jaarplanner, centerWeek: number): JaarplannerRow[][] {
+    const result: JaarplannerRow[][] = [];
+    const weeks = [centerWeek - 1, centerWeek, centerWeek + 1];
+
+    for (const week of weeks) {
+      const weekRows = jaarplanner.data.filter(row => row.week === week).sort((a, b) => a.les - b.les);
+      result.push(weekRows);
+    }
+
+    return result;
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Gekopieerd naar klembord!');
+    }).catch(() => {
+      alert('Kan niet kopiëren naar klembord');
+    });
+  }
+
+  async function handleJaarplannerUpload() {
+    if (!uploadFile || !uploadVak || !uploadJaarlaag) {
+      alert('Vul alle velden in');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+    formData.append('vak', uploadVak);
+    formData.append('jaarlaag', uploadJaarlaag);
+
+    try {
+      const res = await fetch('/api/jaarplanners/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        alert('Upload mislukt: ' + (result.error || 'Onbekende fout'));
+      } else {
+        alert(`Jaarplanner geupload! ${result.rowsImported} rijen geïmporteerd.`);
+        setShowUploadModal(false);
+        setUploadFile(null);
+        setUploadVak('');
+        setUploadJaarlaag('');
+        fetch('/api/jaarplanners').then(r => r.json()).then(setJaarplanners);
+      }
+    } catch (error) {
+      alert('Upload fout: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   /* ═══════════════════════════════════════════════════════ */
   /* ───── RENDER ───── */
   /* ═══════════════════════════════════════════════════════ */
@@ -238,7 +312,109 @@ export default function PlannerPage() {
             Stel je weekrooster in. Koppel het daarna aan weken via <strong>Weekplanner</strong>.
           </div>
         )}
+
+        {view === 'week' && (
+          <button onClick={() => setShowUploadModal(true)} style={{
+            ...navBtn, background: '#2563EB', color: 'white', padding: '0.35rem 0.9rem'
+          }}>
+            ⬆ Jaarplanner uploaden
+          </button>
+        )}
       </div>
+
+      {/* ── Jaarplanner Upload Modal ── */}
+      {showUploadModal && (
+        <div style={overlay} onClick={() => setShowUploadModal(false)}>
+          <div style={{ ...modal, maxWidth: 450 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#1a7a2e' }}>Jaarplanner uploaden</div>
+              <button onClick={() => setShowUploadModal(false)} style={closeBtn}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', color: '#374151', marginBottom: '0.4rem' }}>
+                Docx bestand
+              </label>
+              <input type="file" accept=".docx" onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                style={{
+                  display: 'block', width: '100%', padding: '0.5rem',
+                  border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.85rem',
+                }}
+              />
+              {uploadFile && (
+                <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.3rem' }}>
+                  ✓ {uploadFile.name}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', color: '#374151', marginBottom: '0.4rem' }}>
+                  Vak
+                </label>
+                <select value={uploadVak} onChange={e => setUploadVak(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.5rem', border: '1px solid #d1d5db',
+                    borderRadius: 8, fontSize: '0.85rem',
+                  }}
+                >
+                  <option value="">— kies vak —</option>
+                  {[...new Set(klassen.map(k => k.vak))].map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', color: '#374151', marginBottom: '0.4rem' }}>
+                  Jaarlaag
+                </label>
+                <select value={uploadJaarlaag} onChange={e => setUploadJaarlaag(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.5rem', border: '1px solid #d1d5db',
+                    borderRadius: 8, fontSize: '0.85rem',
+                  }}
+                >
+                  <option value="">— kies jaarlaag —</option>
+                  {[...new Set(klassen.map(k => k.jaarlaag))].map(j => (
+                    <option key={j} value={j}>{j}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.8rem', color: '#6B7280', background: '#f9fafb', padding: '0.6rem 0.8rem', borderRadius: 8, lineHeight: 1.5 }}>
+                <strong>Format:</strong> De docx moet een tabel bevatten met kolommen: Wk, Les 1 (Planning), Les 1 (Toets), Les 2 (Planning), Les 2 (Toets)
+              </div>
+            </div>
+
+            {jaarplanners.length > 0 && (
+              <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#374151', marginBottom: '0.5rem' }}>Bestaande jaarplanners:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  {jaarplanners.map(jp => (
+                    <div key={jp.id} style={{ fontSize: '0.78rem', color: '#6B7280', padding: '0.3rem 0.5rem', background: '#f9fafb', borderRadius: 6 }}>
+                      {jp.naam}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button onClick={() => setShowUploadModal(false)} style={{ ...btn, background: '#e5e7eb', color: '#374151' }}>
+                Annuleren
+              </button>
+              <button onClick={handleJaarplannerUpload} disabled={uploading}
+                style={{ ...btn, background: '#2563EB', color: 'white' }}>
+                {uploading ? 'Uploaden...' : 'Uploaden'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════ */}
       {/* ROOSTER VIEW */}
@@ -474,12 +650,70 @@ export default function PlannerPage() {
         const kleur = klasKleurMap[editingLes.klas_id] || '#1a7a2e';
         const dagIdx = new Date(editingLes.datum + 'T12:00:00').getDay() - 1;
         const modalToetsen = toetsen.filter(t => t.datum === editingLes.datum && t.klas_id === editingLes.klas_id);
+        const jaarplanner = getJaarplannerForLesson(editingLes);
+        const lesWeek = getWeekNumber(editingLes.datum);
+        const jaarplannerWeeks = jaarplanner ? getJaarplannerWeeks(jaarplanner, lesWeek) : [];
+
         return (
           <div style={overlay} onClick={() => setEditingLes(null)}>
-            <div style={{ ...modal, maxWidth: 780 }} onClick={e => e.stopPropagation()}>
+            <div style={{ ...modal, maxWidth: 1200, display: 'flex', gap: '1.5rem' }} onClick={e => e.stopPropagation()}>
 
-              {/* ── Header: klas + datum + kopieer ── */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            {/* ── Left column: Jaarplanner reference ── */}
+            {jaarplanner && (
+              <div style={{ width: 280, flex: '0 0 auto', paddingRight: '1rem', borderRight: '1px solid #e5e7eb', overflow: 'auto', maxHeight: '85vh' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Jaarplanner</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a7a2e' }}>{jaarplanner.naam}</div>
+                </div>
+
+                {/* Three weeks from jaarplanner */}
+                {jaarplannerWeeks.map((weekData, weekIdx) => {
+                  const weekNum = lesWeek - 1 + weekIdx;
+                  const isCenterWeek = weekIdx === 1;
+
+                  return (
+                    <div key={weekIdx} style={{
+                      marginBottom: '1rem',
+                      padding: '0.6rem 0.7rem',
+                      background: isCenterWeek ? '#f0fdf4' : '#fafafa',
+                      borderRadius: 8,
+                      border: isCenterWeek ? '2px solid #1a7a2e' : '1px solid #e5e7eb',
+                    }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: isCenterWeek ? '#1a7a2e' : '#6B7280', marginBottom: '0.4rem' }}>
+                        Week {weekNum}
+                      </div>
+
+                      {weekData.length === 0 ? (
+                        <div style={{ fontSize: '0.72rem', color: '#b0b0b0', fontStyle: 'italic' }}>—</div>
+                      ) : (
+                        weekData.map((row, rowIdx) => (
+                          <div key={rowIdx} style={{ marginBottom: '0.5rem', fontSize: '0.73rem' }}>
+                            <div style={{ fontWeight: 600, color: '#374151', marginBottom: '0.15rem' }}>
+                              Les {row.les}
+                            </div>
+                            {row.planning && (
+                              <div style={{ color: '#4B5563', marginBottom: '0.15rem', lineHeight: 1.3 }}>
+                                {row.planning}
+                              </div>
+                            )}
+                            {row.toetsen && (
+                              <div style={{ color: '#DC2626', fontWeight: 600, fontSize: '0.7rem' }}>
+                                {row.toetsen}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Right column: Main editor ── */}
+            <div style={{ flex: 1, overflow: 'auto', maxHeight: '85vh' }}>
+              {/* ── Header: klas + datum + opslaan + kopieer ── */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <div style={{ width: 6, height: 32, borderRadius: 3, background: kleur }} />
                   <div>
@@ -489,11 +723,52 @@ export default function PlannerPage() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                  <button onClick={() => { setCopySource(editingLes); setEditingLes(null); }}
-                    style={{ ...btn, background: '#FEF3C7', color: '#92400E', fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}>
-                    ⧉ Kopieer les
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={async () => { await saveLes(editingLes); setEditingLes(null); }} disabled={saving}
+                    style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}>
+                    {saving ? 'Opslaan...' : 'Opslaan'}
                   </button>
+
+                  {/* Copy dropdown */}
+                  <div style={{ position: 'relative' }}>
+                    <button onClick={() => setCopyDropdownOpen(!copyDropdownOpen)}
+                      style={{ ...btn, background: '#FEF3C7', color: '#92400E', fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}>
+                      ⧉ Kopieer
+                    </button>
+                    {copyDropdownOpen && (
+                      <div style={{
+                        position: 'absolute', top: '100%', right: 0, marginTop: '0.3rem',
+                        background: 'white', borderRadius: 8, border: '1px solid #d1d5db',
+                        boxShadow: '0 10px 15px rgba(0,0,0,0.1)', zIndex: 100,
+                      }}>
+                        <button onClick={() => {
+                          setCopySource(editingLes);
+                          setEditingLes(null);
+                          setCopyDropdownOpen(false);
+                        }} style={{
+                          display: 'block', width: '100%', padding: '0.5rem 0.8rem',
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          textAlign: 'left', fontSize: '0.8rem', fontWeight: 500,
+                          color: '#374151', borderBottom: '1px solid #e5e7eb',
+                        }}>
+                          Kopieer naar andere klas
+                        </button>
+                        <button onClick={() => {
+                          const plainText = stripHtml(buildCombinedContent(editingLes));
+                          copyToClipboard(plainText);
+                          setCopyDropdownOpen(false);
+                        }} style={{
+                          display: 'block', width: '100%', padding: '0.5rem 0.8rem',
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          textAlign: 'left', fontSize: '0.8rem', fontWeight: 500,
+                          color: '#374151',
+                        }}>
+                          Kopieer als tekst
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <button onClick={() => setEditingLes(null)} style={closeBtn}>✕</button>
                 </div>
               </div>
@@ -578,12 +853,11 @@ export default function PlannerPage() {
                 />
               </div>
 
-              {/* ── Opslaan/Annuleren ── */}
+              {/* ── Opslaan/Annuleren (at bottom) ── */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
                 <button onClick={() => setEditingLes(null)} style={{ ...btn, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
-                <button onClick={async () => { await saveLes(editingLes); setEditingLes(null); }} disabled={saving}
-                  style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.5rem 1.5rem' }}>{saving ? 'Opslaan...' : 'Opslaan'}</button>
               </div>
+            </div>
             </div>
           </div>
         );
