@@ -3,11 +3,32 @@
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import { TextStyle } from '@tiptap/extension-text-style';
-import { Color } from '@tiptap/extension-text-style';
+import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
 import Highlight from '@tiptap/extension-highlight';
+import { Extension } from '@tiptap/core';
 import { useEffect, useRef } from 'react';
+
+/* Custom FontSize extension — voegt fontSize attribuut toe aan textStyle */
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [{
+      types: ['textStyle'],
+      attributes: {
+        fontSize: {
+          default: null,
+          parseHTML: (el) => el.style.fontSize || null,
+          renderHTML: (attrs) => {
+            if (!attrs.fontSize) return {};
+            return { style: `font-size: ${attrs.fontSize}` };
+          },
+        },
+      },
+    }];
+  },
+});
 
 interface InlineEditorProps {
   content: string;
@@ -28,6 +49,7 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
       Underline,
       TextStyle,
       Color,
+      FontSize,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
@@ -55,7 +77,6 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
       hasInitialized.current = true;
       return;
     }
-    // Only update if content actually differs (prevent cursor jump)
     if (content !== editor.getHTML()) {
       editor.commands.setContent(content || '');
     }
