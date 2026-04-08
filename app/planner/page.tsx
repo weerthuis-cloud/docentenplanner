@@ -440,10 +440,9 @@ export default function PlannerPage() {
             <tbody>
               {[1,2,3,4,5,6,7,8,9].map(uur => {
                 const allSecond = [1,2,3,4,5].every(dag => isBlokuurSecond(dag, uur));
-                if (allSecond) return null;
                 return (
-                  <tr key={uur}>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem', borderRight: '1px solid #d1d5db', verticalAlign: 'top', paddingTop: '0.5rem' }}>{uur}</td>
+                  <tr key={uur} style={allSecond ? { height: 0, lineHeight: 0, fontSize: 0, overflow: 'hidden' } : undefined}>
+                    {!allSecond && <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem', borderRight: '1px solid #d1d5db', verticalAlign: 'top', paddingTop: '0.5rem' }}>{uur}</td>}
                     {days.map((d, idx) => {
                       const dag = idx + 1; const slot = getSlot(dag, uur); const vakantie = isInVakantie(d, vakanties);
                       if (isBlokuurSecond(dag, uur)) return null;
