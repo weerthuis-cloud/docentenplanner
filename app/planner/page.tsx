@@ -18,6 +18,59 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 }
 
+/* Combineer terugkijken + programma + huiswerk in één HTML blok met sectielabels */
+function buildCombinedContent(les: Les): string {
+  const sections: string[] = [];
+  const label = (text: string, color: string) =>
+    `<p><strong><span style="color: ${color}">${text}</span></strong></p>`;
+
+  sections.push(label('Terugkijken', '#1a7a2e'));
+  sections.push(les.terugkijken || '<p></p>');
+  sections.push(label('Programma', '#1a7a2e'));
+  sections.push(les.programma || '<p></p>');
+  sections.push(label('Maak- / Huiswerk', '#D97706'));
+  sections.push(les.huiswerk || '<p></p>');
+
+  return sections.join('');
+}
+
+/* Parse gecombineerde content terug naar losse velden */
+function parseCombinedContent(html: string): { terugkijken: string; programma: string; huiswerk: string } {
+  // Split op de sectielabels
+  const terugkijkenMarker = 'Terugkijken</span></strong></p>';
+  const programmaMarker = 'Programma</span></strong></p>';
+  const huiswerkMarker = 'Maak- / Huiswerk</span></strong></p>';
+
+  let terugkijken = '';
+  let programma = '';
+  let huiswerk = '';
+
+  const tIdx = html.indexOf(terugkijkenMarker);
+  const pIdx = html.indexOf(programmaMarker);
+  const hIdx = html.indexOf(huiswerkMarker);
+
+  if (tIdx !== -1 && pIdx !== -1 && hIdx !== -1) {
+    const afterT = tIdx + terugkijkenMarker.length;
+    const afterP = pIdx + programmaMarker.length;
+    const afterH = hIdx + huiswerkMarker.length;
+
+    terugkijken = html.substring(afterT, pIdx).trim();
+    programma = html.substring(afterP, hIdx).trim();
+    huiswerk = html.substring(afterH).trim();
+  } else {
+    // Fallback: alles als programma
+    programma = html;
+  }
+
+  // Strip lege paragraaf-tags die alleen uit de label-regel bestaan
+  const cleanLabel = (s: string) => s.replace(/^<p><strong><span[^>]*>[^<]*<\/span><\/strong><\/p>/, '').trim();
+  terugkijken = cleanLabel(terugkijken);
+  programma = cleanLabel(programma);
+  huiswerk = cleanLabel(huiswerk);
+
+  return { terugkijken, programma, huiswerk };
+}
+
 const dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const klasKleuren = ['#1a7a2e', '#2563EB', '#9333EA', '#DC2626', '#D97706', '#0891B2', '#BE185D', '#4338CA'];
 const toetsKleuren: Record<string, string> = { PW: '#DC2626', SO: '#D97706', PO: '#7C3AED', MO: '#059669', SE: '#2563EB', overig: '#6B7280' };
@@ -528,37 +581,18 @@ export default function PlannerPage() {
                 )}
               </div>
 
-              {/* ── Hoofdblok: Terugkijken + Programma + Maak-/Huiswerk ── */}
+              {/* ── Hoofdblok: Terugkijken + Programma + Maak-/Huiswerk in één editor ── */}
               <div style={{ marginBottom: '0.75rem' }}>
                 <RichTextEditor
-                  label="Terugkijken"
+                  label="Lesvoorbereiding"
                   labelColor={kleur}
-                  content={editingLes.terugkijken || ''}
-                  onChange={val => setEditingLes({ ...editingLes, terugkijken: val })}
-                  placeholder="Wat hebben we vorige les behandeld?"
-                  minHeight={60}
-                />
-              </div>
-
-              <div style={{ marginBottom: '0.75rem' }}>
-                <RichTextEditor
-                  label="Programma"
-                  labelColor={kleur}
-                  content={editingLes.programma || ''}
-                  onChange={val => setEditingLes({ ...editingLes, programma: val })}
-                  placeholder="Wat gaan we doen deze les?"
-                  minHeight={100}
-                />
-              </div>
-
-              <div style={{ marginBottom: '0.75rem' }}>
-                <RichTextEditor
-                  label="Maak- / Huiswerk"
-                  labelColor="#D97706"
-                  content={editingLes.huiswerk || ''}
-                  onChange={val => setEditingLes({ ...editingLes, huiswerk: val })}
-                  placeholder="Op te geven huiswerk of maakwerk"
-                  minHeight={60}
+                  content={buildCombinedContent(editingLes)}
+                  onChange={val => {
+                    const parsed = parseCombinedContent(val);
+                    setEditingLes({ ...editingLes, ...parsed });
+                  }}
+                  placeholder=""
+                  minHeight={220}
                 />
               </div>
 
