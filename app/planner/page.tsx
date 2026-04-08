@@ -470,28 +470,48 @@ export default function PlannerPage() {
           const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
           const vakantie = isInVakantie(selectedDate, vakanties);
           if (dagNr === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lesdag (weekend).</div>;
-          if (vakantie) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', fontWeight: 600, padding: '3rem' }}>{vakantie.naam}</div>;
-          const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dagNr, s.uur));
+          if (vakantie) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c95555', fontWeight: 600, padding: '3rem' }}>{vakantie.naam}</div>;
+          const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur);
+          /* Groepeer slots per klas om kolommen te bepalen */
+          const klasIds = [...new Set(dagSlots.map(s => s.klas_id))];
+          const dagKlassen = klasIds.map(id => klassen.find(k => k.id === id)!).filter(Boolean);
           return (
-            <div style={{ maxWidth: 700, margin: '0 auto', padding: '0.5rem 0.5rem' }}>
-              {dagSlots.length === 0 && <div style={{ textAlign: 'center', color: '#9CA3AF', padding: '2rem' }}>Geen lessen op deze dag.</div>}
-              {dagSlots.map(slot => {
-                const isBlok = isBlokuurStart(dagNr, slot.uur);
-                return (
-                  <div key={slot.uur} style={{ marginBottom: '0.5rem', borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.2rem 0.5rem', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#9CA3AF', width: 28, textAlign: 'center' }}>{slot.uur}</span>
-                      <span style={{ fontSize: '0.72rem', color: '#6B7280' }}>uur {slot.uur}{isBlok ? '–' + (slot.uur + 1) : ''}</span>
-                    </div>
-                    {renderCell(slot, selectedDate, isBlok)}
-                  </div>
-                );
-              })}
-            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
+              <thead><tr>
+                <th style={{ ...th, width: 42 }}>Uur</th>
+                {dagKlassen.map(k => {
+                  const kleur = klasKleurMap[k.id] || '#6B7280';
+                  return (
+                    <th key={k.id} style={{ ...th, color: kleur }}>
+                      <div style={{ fontSize: '0.85rem' }}>{k.naam}</div>
+                      <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{k.vak} · {k.lokaal}</div>
+                    </th>
+                  );
+                })}
+              </tr></thead>
+              <tbody>
+                {[1,2,3,4,5,6,7,8,9].map(uur => {
+                  if (isBlokuurSecond(dagNr, uur)) return null;
+                  const isBlok = isBlokuurStart(dagNr, uur);
+                  const hasAny = dagKlassen.some(k => dagSlots.some(s => s.uur === uur && s.klas_id === k.id));
+                  if (!hasAny) return null;
+                  return (
+                    <tr key={uur}>
+                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem' }}>{uur}{isBlok ? `–${uur+1}` : ''}</td>
+                      {dagKlassen.map(k => {
+                        const slot = dagSlots.find(s => s.uur === uur && s.klas_id === k.id);
+                        if (!slot) return <td key={k.id} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: isBlok ? 160 : 80 }} /></td>;
+                        return <td key={k.id} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, height: '1px' }}>{renderCell(slot, selectedDate, isBlok)}</td>;
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           );
         })()}
 
-        {/* ═══ KLASPLANNER (2 weken naast elkaar) ═══ */}
+        {/* ═══ KLASPLANNER (2 weken als kolommen, zelfde tabel-stijl als weekplanner) ═══ */}
         {view === 'klas' && selectedKlasId && (() => {
           const klas = klassen.find(k => k.id === selectedKlasId);
           if (!klas) return null;
@@ -501,48 +521,62 @@ export default function PlannerPage() {
           const slotsByDay: Record<number, number[]> = {};
           klasSlots.forEach(s => { if (!slotsByDay[s.dag]) slotsByDay[s.dag] = []; slotsByDay[s.dag].push(s.uur); });
 
+          /* Verzamel alle lesdagen per week */
+          const weekColumns = weeks.map(week => {
+            const lesDagen: Array<{ datum: string; di: number; dag: number; vakantie: Vakantie | null; slots: RoosterSlot[] }> = [];
+            week.days.forEach((datum, di) => {
+              const dag = di + 1;
+              const uren = slotsByDay[dag];
+              if (!uren || uren.length === 0) return;
+              const vakantie = isInVakantie(datum, vakanties);
+              const slots = klasSlots.filter(s => s.dag === dag).sort((a,b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
+              lesDagen.push({ datum, di, dag, vakantie, slots });
+            });
+            return { ...week, lesDagen };
+          });
+
           return (
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              {weeks.map((week, wi) => {
-                const isCurrentWeek = week.startDate <= today && today <= week.days[4];
-                return (
-                  <div key={wi} style={{ flex: 1, background: 'white', borderRadius: 10, boxShadow: isCurrentWeek ? `0 0 0 2px ${kleur}, 0 4px 14px ${kleur}18` : '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                    {/* Week header */}
-                    <div style={{ padding: '0.55rem 0.75rem', background: isCurrentWeek ? kleur : '#f8fafc', borderBottom: '1px solid #e8ecf0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 800, fontSize: '0.85rem', color: isCurrentWeek ? 'white' : '#334155' }}>
-                        Week {week.weekNum}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', color: isCurrentWeek ? 'rgba(255,255,255,0.75)' : '#94a3b8' }}>
-                        {formatDate(week.days[0])} – {formatDate(week.days[4])}
-                      </span>
-                      {isCurrentWeek && <span style={{ marginLeft: 'auto', fontSize: '0.6rem', background: 'rgba(255,255,255,0.22)', color: 'white', padding: '1px 8px', borderRadius: 99, fontWeight: 600 }}>nu</span>}
-                    </div>
-                    {/* Days */}
-                    {week.days.map((datum, di) => {
-                      const dag = di + 1;
-                      const uren = slotsByDay[dag];
-                      if (!uren || uren.length === 0) return null;
-                      const vakantie = isInVakantie(datum, vakanties);
-                      const isToday = datum === today;
-                      return (
-                        <div key={datum} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <div style={{ padding: '0.35rem 0.6rem', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : '#fafbfc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isToday ? kleur : '#475569', minWidth: 22 }}>{dagNamenKort[di]}</span>
-                            <span style={{ fontSize: '0.68rem', color: isToday ? kleur + 'aa' : '#94a3b8' }}>{formatDate(datum)}</span>
-                            {vakantie && <span style={{ fontSize: '0.62rem', color: '#ca8a04', fontWeight: 600, fontStyle: 'italic' }}>{vakantie.naam}</span>}
-                          </div>
-                          {!vakantie && uren.sort((a,b) => a - b).filter(u => !isBlokuurSecond(dag, u)).map(uur => {
-                            const slot = getSlot(dag, uur);
-                            if (!slot || slot.klas_id !== selectedKlasId) return null;
-                            return <div key={uur}>{renderCell(slot, datum, isBlokuurStart(dag, uur))}</div>;
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
+              <thead><tr>
+                <th style={{ ...th, width: 42 }} />
+                {weekColumns.map((week, wi) => {
+                  const isCurrentWeek = week.startDate <= today && today <= week.days[4];
+                  return (
+                    <th key={wi} colSpan={1} style={{ ...th, background: isCurrentWeek ? '#f0fdf4' : '#f9fafb', color: isCurrentWeek ? kleur : '#374151' }}>
+                      <div style={{ fontSize: '0.85rem' }}>Week {week.weekNum}</div>
+                      <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(week.days[0])} – {formatDate(week.days[4])}</div>
+                    </th>
+                  );
+                })}
+              </tr></thead>
+              <tbody>
+                {/* Match lesdagen per rij: week1.dag[i] naast week2.dag[i] */}
+                {Array.from({ length: Math.max(weekColumns[0].lesDagen.length, weekColumns[1].lesDagen.length) }).map((_, rowIdx) => {
+                  return (
+                    <tr key={rowIdx}>
+                      {/* Dag label van week 1 als rij-identifier */}
+                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.72rem', padding: '0.2rem', verticalAlign: 'top' }}>
+                        {weekColumns[0].lesDagen[rowIdx] ? (
+                          <>{dagNamenKort[weekColumns[0].lesDagen[rowIdx].di]}<br/><span style={{ fontSize: '0.6rem', fontWeight: 400 }}>{formatDate(weekColumns[0].lesDagen[rowIdx].datum)}</span></>
+                        ) : ''}
+                      </td>
+                      {weekColumns.map((week, wi) => {
+                        const lesdag = week.lesDagen[rowIdx];
+                        if (!lesdag) return <td key={wi} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: 80 }} /></td>;
+                        const { datum, dag, vakantie, slots } = lesdag;
+                        const isToday = datum === today;
+                        if (vakantie) return <td key={wi} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center', padding: '0.5rem' }}><span style={{ fontSize: '0.68rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</span></td>;
+                        return (
+                          <td key={wi} style={{ ...td, padding: 0, height: '1px', background: isToday ? '#f0fdf408' : undefined }}>
+                            {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           );
         })()}
 
@@ -551,86 +585,72 @@ export default function PlannerPage() {
           const jlKlassen = klassen.filter(k => k.jaarlaag === selectedJaarlaag);
           if (jlKlassen.length === 0) return <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF' }}>Geen klassen in deze jaarlaag.</div>;
           const weeks = getTwoWeeks(jaarlaagWeekStart);
-          const colCount = jlKlassen.length;
+
+          /* Bouw rijen: weekheader + lesdagen per week */
+          type JaarlaagRow = { type: 'weekheader'; week: typeof weeks[0]; isCurrentWeek: boolean } | { type: 'dag'; datum: string; dag: number; di: number; vakantie: Vakantie | null };
+          const rows: JaarlaagRow[] = [];
+          weeks.forEach(week => {
+            const isCurrentWeek = week.startDate <= today && today <= week.days[4];
+            rows.push({ type: 'weekheader', week, isCurrentWeek });
+            week.days.forEach((datum, di) => {
+              const dag = di + 1;
+              const vakantie = isInVakantie(datum, vakanties);
+              const anyLes = jlKlassen.some(k => allRooster.some(r => r.dag === dag && r.klas_id === k.id));
+              if (anyLes) rows.push({ type: 'dag', datum, dag, di, vakantie });
+            });
+          });
 
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {/* ── Sticky klas column headers ── */}
-              <div style={{ display: 'grid', gridTemplateColumns: `72px repeat(${colCount}, 1fr)`, gap: '0.5rem', position: 'sticky', top: 0, zIndex: 10, paddingBottom: '0.25rem' }}>
-                <div />
-                {jlKlassen.map((klas) => {
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
+              <thead><tr>
+                <th style={{ ...th, width: 72 }}>Dag</th>
+                {jlKlassen.map(klas => {
                   const kleur = klasKleurMap[klas.id] || '#6B7280';
                   return (
-                    <div key={klas.id} style={{ background: kleur, color: 'white', padding: '0.5rem 0.75rem', fontWeight: 700, fontSize: '0.85rem', textAlign: 'center', borderRadius: 8, boxShadow: '0 2px 6px ' + kleur + '40', letterSpacing: '0.02em' }}>
-                      {klas.naam}
-                      <div style={{ fontSize: '0.62rem', fontWeight: 400, opacity: 0.85, marginTop: 1 }}>{klas.vak}</div>
-                    </div>
+                    <th key={klas.id} style={{ ...th, color: kleur }}>
+                      <div style={{ fontSize: '0.85rem' }}>{klas.naam}</div>
+                      <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{klas.vak}</div>
+                    </th>
                   );
                 })}
-              </div>
-
-              {/* ── Week blocks ── */}
-              {weeks.map((week, wi) => {
-                const isCurrentWeek = week.startDate <= today && today <= week.days[4];
-                const lesRows: Array<{ datum: string; dag: number; di: number; vakantie: Vakantie | null }> = [];
-                week.days.forEach((datum, di) => {
-                  const dag = di + 1;
-                  const vakantie = isInVakantie(datum, vakanties);
-                  const anyLes = jlKlassen.some(k => allRooster.some(r => r.dag === dag && r.klas_id === k.id));
-                  if (anyLes) lesRows.push({ datum, dag, di, vakantie });
-                });
-
-                return (
-                  <div key={`wk-${wi}`} style={{ background: 'white', borderRadius: 10, boxShadow: isCurrentWeek ? '0 0 0 2px #2d8a4e, 0 4px 12px rgba(26,122,46,0.12)' : '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                    {/* Week header */}
-                    <div style={{ padding: '0.5rem 0.75rem', background: isCurrentWeek ? '#2d8a4e' : '#f8fafc', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 800, fontSize: '0.82rem', color: isCurrentWeek ? 'white' : '#1e293b', letterSpacing: '0.01em' }}>
-                        Week {week.weekNum}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', color: isCurrentWeek ? 'rgba(255,255,255,0.8)' : '#94a3b8' }}>
-                        {formatDate(week.days[0])} – {formatDate(week.days[4])}
-                      </span>
-                      {isCurrentWeek && <span style={{ marginLeft: 'auto', fontSize: '0.6rem', background: 'rgba(255,255,255,0.25)', color: 'white', padding: '1px 8px', borderRadius: 99, fontWeight: 600 }}>deze week</span>}
-                    </div>
-
-                    {/* Day rows */}
-                    {lesRows.map(({ datum, dag, di, vakantie }, ri) => {
-                      const isToday = datum === today;
-                      return (
-                        <div key={`dr-${datum}`} style={{ display: 'grid', gridTemplateColumns: `72px repeat(${colCount}, 1fr)`, gap: '0 0.5rem', borderBottom: ri < lesRows.length - 1 ? '1px solid #f1f5f9' : 'none', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : 'transparent' }}>
-                          {/* Day label */}
-                          <div style={{ padding: '0.5rem 0.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRight: '1px solid #f1f5f9' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isToday ? '#2d8a4e' : '#475569', lineHeight: 1.2 }}>{dagNamenKort[di]}</span>
-                            <span style={{ fontSize: '0.62rem', color: isToday ? '#16a34a' : '#94a3b8', lineHeight: 1.3 }}>{formatDate(datum)}</span>
-                            {vakantie && <span style={{ fontSize: '0.58rem', color: '#ca8a04', fontWeight: 600, marginTop: 2 }}>{vakantie.naam}</span>}
-                          </div>
-                          {/* Cells per klas */}
-                          {jlKlassen.map((klas, ki) => {
-                            if (vakantie) return (
-                              <div key={`v-${datum}-${klas.id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.4rem', fontSize: '0.62rem', color: '#ca8a04', fontStyle: 'italic' }}>
-                                {vakantie.naam}
-                              </div>
-                            );
-                            const slots = allRooster.filter(r => r.dag === dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
-                            if (slots.length === 0) return <div key={`e-${datum}-${klas.id}`} style={{ minHeight: 40 }} />;
-                            return (
-                              <div key={`c-${datum}-${klas.id}`} style={{ padding: '0.25rem 0', minHeight: 60 }}>
-                                {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                    {lesRows.length === 0 && (
-                      <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.72rem', color: '#94a3b8', fontStyle: 'italic' }}>Geen lessen deze week</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+              </tr></thead>
+              <tbody>
+                {rows.map((row, ri) => {
+                  if (row.type === 'weekheader') {
+                    return (
+                      <tr key={`wh-${ri}`}>
+                        <td colSpan={1 + jlKlassen.length} style={{ padding: '0.4rem 0.6rem', background: row.isCurrentWeek ? '#f0fdf4' : '#f9fafb', fontWeight: 700, fontSize: '0.82rem', color: row.isCurrentWeek ? '#2d8a4e' : '#374151', borderBottom: '2px solid #e5e7eb', textAlign: 'center' }}>
+                          Week {row.week.weekNum} <span style={{ fontWeight: 400, fontSize: '0.72rem', color: '#94a3b8', marginLeft: 6 }}>{formatDate(row.week.days[0])} – {formatDate(row.week.days[4])}</span>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const { datum, dag, di, vakantie } = row;
+                  const isToday = datum === today;
+                  return (
+                    <tr key={`d-${datum}`}>
+                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, fontSize: '0.72rem', padding: '0.2rem', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : '#fafafa', color: isToday ? '#2d8a4e' : '#475569', verticalAlign: 'top' }}>
+                        {dagNamenKort[di]}<br/><span style={{ fontSize: '0.6rem', fontWeight: 400, color: '#94a3b8' }}>{formatDate(datum)}</span>
+                        {vakantie && <div style={{ fontSize: '0.56rem', color: '#ca8a04', fontWeight: 600, marginTop: 2 }}>{vakantie.naam}</div>}
+                      </td>
+                      {jlKlassen.map(klas => {
+                        if (vakantie) return <td key={klas.id} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.62rem', color: '#ca8a04' }}>{vakantie.naam}</span></td>;
+                        const slots = allRooster.filter(r => r.dag === dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
+                        if (slots.length === 0) return <td key={klas.id} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: 60 }} /></td>;
+                        return (
+                          <td key={klas.id} style={{ ...td, padding: 0, height: '1px' }}>
+                            {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           );
         })()}
+        {/* jaarlaag view ends above */}
       </div>
     </div>
   );
