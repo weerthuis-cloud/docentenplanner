@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/RichTextEditor'), { ssr: false });
 
 /* ───── Types ───── */
 interface Klas { id: number; naam: string; vak: string; jaarlaag: string; lokaal: string; }
@@ -8,6 +11,12 @@ interface RoosterSlot { id?: number; klas_id: number; dag: number; uur: number; 
 interface Les { id?: number; klas_id: number; datum: string; uur: number | null; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; }
 interface Toets { id: number; klas_id: number; naam: string; type: string; datum: string; kleur: string; les_id: number | null; }
 interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; }
+
+/* Strip HTML tags for plain text preview */
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+}
 
 const dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const klasKleuren = ['#1a7a2e', '#2563EB', '#9333EA', '#DC2626', '#D97706', '#0891B2', '#BE185D', '#4338CA'];
@@ -412,17 +421,22 @@ export default function PlannerPage() {
 
                         {/* Les preview */}
                         {les?.programma ? (
-                          <div style={{ fontSize: '0.7rem', lineHeight: 1.3, color: '#334155' }}>
-                            {les.programma.split('\n').slice(0, isBlok ? 4 : 2).map((l, i) => (
-                              <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l}</div>
+                          <div style={{ fontSize: '0.7rem', lineHeight: 1.3, color: '#334155', overflow: 'hidden', maxHeight: isBlok ? 80 : 36 }}>
+                            {stripHtml(les.programma).split('\n').slice(0, isBlok ? 4 : 2).map((l, i) => (
+                              <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l || '\u00A0'}</div>
                             ))}
                           </div>
                         ) : (
                           <div style={{ color: '#d4d4d4', fontSize: '0.68rem' }}>+ plan les</div>
                         )}
+                        {les?.terugkijken && (
+                          <div style={{ color: '#6B7280', fontSize: '0.6rem', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            ↩ {stripHtml(les.terugkijken).slice(0, 30)}
+                          </div>
+                        )}
                         {les?.huiswerk && (
-                          <div style={{ color: '#D97706', fontWeight: 600, fontSize: '0.62rem', marginTop: 1 }}>
-                            HW: {les.huiswerk.split('\n')[0].slice(0, 28)}
+                          <div style={{ color: '#D97706', fontWeight: 600, fontSize: '0.62rem', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            HW: {stripHtml(les.huiswerk).slice(0, 28)}
                           </div>
                         )}
 
@@ -448,66 +462,135 @@ export default function PlannerPage() {
         const klas = klassen.find(k => k.id === editingLes.klas_id);
         const kleur = klasKleurMap[editingLes.klas_id] || '#1a7a2e';
         const dagIdx = new Date(editingLes.datum + 'T12:00:00').getDay() - 1;
+        const modalToetsen = toetsen.filter(t => t.datum === editingLes.datum && t.klas_id === editingLes.klas_id);
         return (
           <div style={overlay} onClick={() => setEditingLes(null)}>
-            <div style={{ ...modal, maxWidth: 680 }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ ...modal, maxWidth: 780 }} onClick={e => e.stopPropagation()}>
+
+              {/* ── Header: klas + datum + kopieer ── */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ padding: '0.2rem 0.6rem', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', background: kleur + '15', color: kleur }}>{klas?.naam}</span>
-                  <span style={{ color: '#374151', fontWeight: 600, fontSize: '0.95rem' }}>
-                    {dagNamen[dagIdx]} {formatDate(editingLes.datum)}{editingLes.uur ? `, uur ${editingLes.uur}` : ''}
-                  </span>
+                  <div style={{ width: 6, height: 32, borderRadius: 3, background: kleur }} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1.05rem', color: kleur }}>{klas?.naam}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>
+                      Les {editingLes.uur || ''} &middot; {dagNamen[dagIdx]} {formatDate(editingLes.datum)}
+                    </div>
+                  </div>
                 </div>
-                <button onClick={() => setEditingLes(null)} style={closeBtn}>✕</button>
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                  <button onClick={() => { setCopySource(editingLes); setEditingLes(null); }}
+                    style={{ ...btn, background: '#FEF3C7', color: '#92400E', fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}>
+                    ⧉ Kopieer les
+                  </button>
+                  <button onClick={() => setEditingLes(null)} style={closeBtn}>✕</button>
+                </div>
               </div>
 
-              {[
-                { key: 'terugkijken', label: 'Terugkijken', placeholder: 'Wat hebben we vorige les behandeld?', rows: 2 },
-                { key: 'programma', label: 'Programma', placeholder: 'Wat gaan we doen deze les?', rows: 3 },
-                { key: 'leerdoelen', label: 'Leerdoelen', placeholder: 'Wat moeten leerlingen aan het einde kunnen?', rows: 2 },
-                { key: 'startopdracht', label: 'Startopdracht', placeholder: 'Opdracht bij binnenkomst', rows: 2 },
-                { key: 'huiswerk', label: 'Maak-/Huiswerk', placeholder: 'Op te geven huiswerk', rows: 2 },
-                { key: 'niet_vergeten', label: 'Niet vergeten', placeholder: 'Reminders voor jezelf', rows: 2 },
-                { key: 'notities', label: 'Notities', placeholder: 'Vrije notities', rows: 2 },
-              ].map(f => (
-                <div key={f.key} style={{ marginBottom: '0.6rem' }}>
-                  <label style={{ display: 'block', fontWeight: 600, fontSize: '0.82rem', color: '#374151', marginBottom: 3 }}>{f.label}</label>
-                  <textarea
-                    value={(editingLes[f.key as keyof Les] as string) || ''}
-                    onChange={e => setEditingLes({ ...editingLes, [f.key]: e.target.value })}
-                    placeholder={f.placeholder} rows={f.rows}
-                    style={{ width: '100%', border: `1.5px solid ${kleur}30`, borderRadius: 8, padding: '0.45rem 0.7rem', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', background: '#fafffe', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
-
-              {/* Toets */}
-              <div style={{ background: '#fafafa', padding: '0.6rem', borderRadius: 8, marginBottom: '0.75rem' }}>
-                <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#374151', marginBottom: 4 }}>Toets toevoegen</div>
-                <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* ── Toets toevoegen strip ── */}
+              <div style={{
+                background: '#fafafa', borderRadius: 10, padding: '0.5rem 0.7rem', marginBottom: '0.75rem',
+                border: '1px solid #e5e7eb',
+              }}>
+                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.78rem', color: '#374151', marginRight: 4 }}>Toets</span>
                   <select value={newToets.type} onChange={e => setNewToets({ ...newToets, type: e.target.value })}
-                    style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem', fontSize: '0.78rem', fontWeight: 600, color: toetsKleuren[newToets.type] }}>
-                    {Object.entries(toetsLabels).map(([k]) => <option key={k} value={k}>{k}</option>)}
+                    style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.28rem 0.4rem', fontSize: '0.76rem', fontWeight: 600, color: toetsKleuren[newToets.type] }}>
+                    {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
                   </select>
                   <input value={newToets.naam} onChange={e => setNewToets({ ...newToets, naam: e.target.value })}
-                    placeholder="Naam" style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem' }} />
-                  <button onClick={async () => {
+                    placeholder="Naam toets..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addToetsBtn')?.click(); } }}
+                    style={{ flex: 1, minWidth: 120, border: '1px solid #d1d5db', borderRadius: 6, padding: '0.28rem 0.5rem', fontSize: '0.76rem' }} />
+                  <button id="addToetsBtn" onClick={async () => {
                     if (!newToets.naam.trim()) return; setSaving(true);
                     await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ klas_id: editingLes.klas_id, naam: newToets.naam, type: newToets.type, datum: editingLes.datum, kleur: toetsKleuren[newToets.type] || '#6B7280' }) });
                     setSaving(false); setNewToets({ naam: '', type: 'SO' }); fetchToetsen();
-                  }} style={{ ...btn, background: toetsKleuren[newToets.type], color: 'white', padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}>+</button>
+                  }} style={{ ...btn, background: toetsKleuren[newToets.type], color: 'white', padding: '0.28rem 0.55rem', fontSize: '0.76rem' }}>+ Toevoegen</button>
                 </div>
+
+                {/* Bestaande toetsen */}
+                {modalToetsen.length > 0 && (
+                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                    {modalToetsen.map(t => (
+                      <span key={t.id} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                        background: (toetsKleuren[t.type] || '#6B7280') + '15',
+                        color: toetsKleuren[t.type] || '#6B7280',
+                        padding: '0.15rem 0.45rem', borderRadius: 5, fontSize: '0.72rem', fontWeight: 700,
+                      }}>
+                        {t.type}: {t.naam}
+                        <button onClick={() => deleteToets(t.id)}
+                          style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.65rem', padding: 0 }}>✕</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <button onClick={() => { setCopySource(editingLes); setEditingLes(null); }}
-                  style={{ ...btn, background: '#FEF3C7', color: '#92400E', fontSize: '0.8rem' }}>Kopieer les</button>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <button onClick={() => setEditingLes(null)} style={{ ...btn, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
-                  <button onClick={async () => { await saveLes(editingLes); setEditingLes(null); }} disabled={saving}
-                    style={{ ...btn, background: '#1a7a2e', color: 'white' }}>{saving ? 'Opslaan...' : 'Opslaan'}</button>
-                </div>
+              {/* ── Hoofdblok: Terugkijken + Programma + Maak-/Huiswerk ── */}
+              <div style={{ marginBottom: '0.75rem' }}>
+                <RichTextEditor
+                  label="Terugkijken"
+                  labelColor={kleur}
+                  content={editingLes.terugkijken || ''}
+                  onChange={val => setEditingLes({ ...editingLes, terugkijken: val })}
+                  placeholder="Wat hebben we vorige les behandeld?"
+                  minHeight={60}
+                />
+              </div>
+
+              <div style={{ marginBottom: '0.75rem' }}>
+                <RichTextEditor
+                  label="Programma"
+                  labelColor={kleur}
+                  content={editingLes.programma || ''}
+                  onChange={val => setEditingLes({ ...editingLes, programma: val })}
+                  placeholder="Wat gaan we doen deze les?"
+                  minHeight={100}
+                />
+              </div>
+
+              <div style={{ marginBottom: '0.75rem' }}>
+                <RichTextEditor
+                  label="Maak- / Huiswerk"
+                  labelColor="#D97706"
+                  content={editingLes.huiswerk || ''}
+                  onChange={val => setEditingLes({ ...editingLes, huiswerk: val })}
+                  placeholder="Op te geven huiswerk of maakwerk"
+                  minHeight={60}
+                />
+              </div>
+
+              {/* ── Leerdoelen: apart blok ── */}
+              <div style={{ marginBottom: '0.75rem' }}>
+                <RichTextEditor
+                  label="Leerdoelen"
+                  labelColor="#2563EB"
+                  content={editingLes.leerdoelen || ''}
+                  onChange={val => setEditingLes({ ...editingLes, leerdoelen: val })}
+                  placeholder="Wat moeten leerlingen aan het einde van de les kunnen?"
+                  minHeight={60}
+                />
+              </div>
+
+              {/* ── Niet vergeten (compact) ── */}
+              <div style={{ marginBottom: '0.75rem' }}>
+                <RichTextEditor
+                  label="Niet vergeten"
+                  labelColor="#DC2626"
+                  content={editingLes.niet_vergeten || ''}
+                  onChange={val => setEditingLes({ ...editingLes, niet_vergeten: val })}
+                  placeholder="Reminders voor jezelf"
+                  minHeight={40}
+                />
+              </div>
+
+              {/* ── Opslaan/Annuleren ── */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button onClick={() => setEditingLes(null)} style={{ ...btn, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
+                <button onClick={async () => { await saveLes(editingLes); setEditingLes(null); }} disabled={saving}
+                  style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.5rem 1.5rem' }}>{saving ? 'Opslaan...' : 'Opslaan'}</button>
               </div>
             </div>
           </div>
