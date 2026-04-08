@@ -81,6 +81,9 @@ export default function PlannerPage() {
   const [uploadJaarlaag, setUploadJaarlaag] = useState('');
   const [uploading, setUploading] = useState(false);
   const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
+  const [expandedDagSlot, setExpandedDagSlot] = useState<string | null>(null); // "klas_id-uur" key
+  const [dagEditLes, setDagEditLes] = useState<Les | null>(null);
+  const [dagNewToets, setDagNewToets] = useState({ naam: '', type: 'SO' });
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedKlasId, setSelectedKlasId] = useState<number | null>(null);
   const [selectedJaarlaag, setSelectedJaarlaag] = useState('');
@@ -707,7 +710,7 @@ export default function PlannerPage() {
       {/* DAGPLANNER VIEW */}
       {/* ═══════════════════════════════════════════════════ */}
       {view === 'dag' && (() => {
-        const dagIdx = new Date(selectedDate + 'T12:00:00').getDay(); // 0=zo, 1=ma...
+        const dagIdx = new Date(selectedDate + 'T12:00:00').getDay();
         const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
         const vakantie = isInVakantie(selectedDate, vakanties);
 
@@ -723,13 +726,11 @@ export default function PlannerPage() {
           </div>
         );
 
-        // Get all rooster slots for this day
         const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur);
-        // Remove blokuur second slots
         const visibleSlots = dagSlots.filter(s => !isBlokuurSecond(dagNr, s.uur));
 
         return (
-          <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '0.6rem', paddingTop: '0.25rem' }}>
+          <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingTop: '0.25rem', maxWidth: 900 }}>
             {visibleSlots.length === 0 && (
               <div style={{ textAlign: 'center', color: '#9CA3AF', padding: '2rem', fontSize: '0.95rem' }}>
                 Geen lessen ingepland op deze dag. Stel eerst het rooster in.
@@ -741,66 +742,213 @@ export default function PlannerPage() {
               const les = getLes(slot.klas_id, selectedDate, slot.uur);
               const cellToetsen = getToetsenForDateKlas(selectedDate, slot.klas_id);
               const isBlok = isBlokuurStart(dagNr, slot.uur);
+              const slotKey = `${slot.klas_id}-${slot.uur}`;
+              const isExpanded = expandedDagSlot === slotKey;
+
+              // Jaarplanner context
+              const jpKlas = klas ? jaarplanners.find(jp => jp.vak === klas.vak && jp.jaarlaag === klas.jaarlaag) : null;
+              const lesWeek = getWeekNumber(selectedDate);
+              const jpWeeks = jpKlas ? getJaarplannerWeeks(jpKlas, lesWeek) : [];
 
               return (
-                <div key={slot.uur}
-                  onClick={() => {
-                    if (copySource) { saveLes({ ...copySource, klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur, id: undefined }); setCopySource(null); return; }
-                    setEditingLes(les || emptyLes(slot.klas_id, selectedDate, slot.uur));
-                  }}
-                  style={{
-                    display: 'flex', gap: '0.8rem', padding: '0.7rem 0.9rem', cursor: 'pointer',
-                    borderRadius: 10, border: `1px solid ${kleur}30`, borderLeft: `4px solid ${kleur}`,
-                    background: les?.programma ? 'white' : '#fcfcfc',
-                    transition: 'box-shadow 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                  }}
-                >
-                  {/* Uur */}
-                  <div style={{ width: 42, textAlign: 'center', color: '#9CA3AF', fontWeight: 700, fontSize: '1rem', paddingTop: '0.2rem' }}>
-                    {slot.uur}{isBlok && <span style={{ display: 'block', fontSize: '0.6rem', color: kleur }}>blok</span>}
-                  </div>
-
-                  {/* Content */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                      <div>
-                        <span style={{ fontWeight: 700, color: kleur, fontSize: '0.9rem', marginRight: 6 }}>{klas?.naam}</span>
-                        <span style={{ color: '#9CA3AF', fontSize: '0.75rem' }}>{klas?.lokaal} &middot; {klas?.vak}</span>
+                <div key={slot.uur} style={{
+                  borderRadius: 12, border: `1px solid ${isExpanded ? kleur + '60' : kleur + '30'}`,
+                  borderLeft: `4px solid ${kleur}`,
+                  background: isExpanded ? 'white' : les?.programma ? 'white' : '#fcfcfc',
+                  boxShadow: isExpanded ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'box-shadow 0.2s, border-color 0.2s',
+                }}>
+                  {/* ── Header (altijd zichtbaar, klikbaar) ── */}
+                  <div
+                    onClick={() => {
+                      if (copySource) { saveLes({ ...copySource, klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur, id: undefined }); setCopySource(null); return; }
+                      if (isExpanded) {
+                        setExpandedDagSlot(null); setDagEditLes(null);
+                      } else {
+                        setExpandedDagSlot(slotKey);
+                        setDagEditLes(les || emptyLes(slot.klas_id, selectedDate, slot.uur));
+                      }
+                    }}
+                    style={{ display: 'flex', gap: '0.8rem', padding: '0.7rem 0.9rem', cursor: 'pointer' }}
+                  >
+                    <div style={{ width: 42, textAlign: 'center', color: '#9CA3AF', fontWeight: 700, fontSize: '1rem', paddingTop: '0.2rem' }}>
+                      {slot.uur}{isBlok && <span style={{ display: 'block', fontSize: '0.6rem', color: kleur }}>blok</span>}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                        <div>
+                          <span style={{ fontWeight: 700, color: kleur, fontSize: '0.9rem', marginRight: 6 }}>{klas?.naam}</span>
+                          <span style={{ color: '#9CA3AF', fontSize: '0.75rem' }}>{klas?.lokaal} &middot; {klas?.vak}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                          {les && <button onClick={e => { e.stopPropagation(); setCopySource(les); }} title="Kopieer" style={miniBtn}>⧉</button>}
+                          <span style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>{isExpanded ? '▲' : '▼'}</span>
+                        </div>
                       </div>
-                      {les && (
-                        <button onClick={e => { e.stopPropagation(); setCopySource(les); }} title="Kopieer" style={miniBtn}>⧉</button>
+
+                      {cellToetsen.length > 0 && (
+                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+                          {cellToetsen.map(t => (
+                            <span key={t.id} style={{
+                              background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
+                              padding: '0.1rem 0.4rem', borderRadius: 4, fontSize: '0.7rem', fontWeight: 700,
+                            }}>{t.type}: {t.naam}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Ingeklapte preview */}
+                      {!isExpanded && (
+                        <>
+                          {les?.programma ? (
+                            <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.5 }}>
+                              {stripHtml(les.programma).split('\n').slice(0, 2).map((l, i) => (
+                                <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l || '\u00A0'}</div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: '#d4d4d4', fontSize: '0.8rem' }}>+ plan les</div>
+                          )}
+                          {les?.leerdoelen && (
+                            <div style={{ fontSize: '0.72rem', color: '#2563EB', marginTop: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              Leerdoelen: {stripHtml(les.leerdoelen).slice(0, 60)}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
-
-                    {/* Toetsen */}
-                    {cellToetsen.length > 0 && (
-                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
-                        {cellToetsen.map(t => (
-                          <span key={t.id} style={{
-                            background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
-                            padding: '0.1rem 0.4rem', borderRadius: 4, fontSize: '0.7rem', fontWeight: 700,
-                          }}>{t.type}: {t.naam}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Les inhoud */}
-                    {les?.programma ? (
-                      <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.5 }}>
-                        {stripHtml(les.programma).split('\n').slice(0, 3).map((l, i) => (
-                          <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l || '\u00A0'}</div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{ color: '#d4d4d4', fontSize: '0.8rem' }}>+ plan les</div>
-                    )}
-
-                    {les?.leerdoelen && (
-                      <div style={{ fontSize: '0.72rem', color: '#2563EB', marginTop: '0.2rem' }}>
-                        🎯 {stripHtml(les.leerdoelen).slice(0, 60)}
-                      </div>
-                    )}
                   </div>
+
+                  {/* ── Uitgeklapte editor ── */}
+                  {isExpanded && dagEditLes && (
+                    <div style={{ borderTop: `1px solid ${kleur}20`, padding: '0.75rem 0.9rem', display: 'flex', gap: '1rem' }}>
+
+                      {/* Jaarplanner zijpaneel */}
+                      {jpKlas && (
+                        <div style={{ width: 220, flex: '0 0 auto', paddingRight: '0.75rem', borderRight: '1px solid #e5e7eb', overflow: 'auto', maxHeight: 500 }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Jaarplanner</div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1a7a2e', marginBottom: '0.6rem' }}>{jpKlas.naam}</div>
+                          {jpWeeks.map((weekData, weekIdx) => {
+                            const weekNum = lesWeek - 1 + weekIdx;
+                            const isCenter = weekIdx === 1;
+                            return (
+                              <div key={weekIdx} style={{
+                                marginBottom: '0.5rem', padding: '0.4rem 0.5rem',
+                                background: isCenter ? '#f0fdf4' : '#fafafa', borderRadius: 6,
+                                border: isCenter ? '2px solid #1a7a2e' : '1px solid #e5e7eb',
+                              }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: isCenter ? '#1a7a2e' : '#6B7280', marginBottom: '0.2rem' }}>Wk {weekNum}</div>
+                                {weekData.length === 0 ? (
+                                  <div style={{ fontSize: '0.65rem', color: '#b0b0b0' }}>—</div>
+                                ) : weekData.map((row, ri) => (
+                                  <div key={ri} style={{ marginBottom: '0.3rem', fontSize: '0.68rem' }}>
+                                    <div style={{ fontWeight: 600, color: '#374151' }}>Les {row.les}</div>
+                                    {row.planning && <div style={{ color: '#4B5563', lineHeight: 1.3 }}>{row.planning}</div>}
+                                    {row.toetsen && <div style={{ color: '#DC2626', fontWeight: 600 }}>{row.toetsen}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Editor kolom */}
+                      <div style={{ flex: 1 }}>
+                        {/* Opslaan knop */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                          <button onClick={async () => {
+                            await saveLes(dagEditLes);
+                            setExpandedDagSlot(null); setDagEditLes(null);
+                          }} disabled={saving}
+                            style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>
+                            {saving ? 'Opslaan...' : 'Opslaan'}
+                          </button>
+                          <button onClick={() => { setExpandedDagSlot(null); setDagEditLes(null); }}
+                            style={{ ...btn, background: '#e5e7eb', color: '#374151', padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>
+                            Inklappen
+                          </button>
+                        </div>
+
+                        {/* Toets strip */}
+                        <div style={{ background: '#fafafa', borderRadius: 8, padding: '0.4rem 0.6rem', marginBottom: '0.5rem', border: '1px solid #e5e7eb' }}>
+                          <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.72rem', color: '#374151', marginRight: 3 }}>Toets</span>
+                            <select value={dagNewToets.type} onChange={e => setDagNewToets({ ...dagNewToets, type: e.target.value })}
+                              style={{ border: '1px solid #d1d5db', borderRadius: 5, padding: '0.2rem 0.3rem', fontSize: '0.72rem', fontWeight: 600, color: toetsKleuren[dagNewToets.type] }}>
+                              {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k} - {v}</option>)}
+                            </select>
+                            <input value={dagNewToets.naam} onChange={e => setDagNewToets({ ...dagNewToets, naam: e.target.value })}
+                              placeholder="Naam..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); } }}
+                              style={{ flex: 1, minWidth: 80, border: '1px solid #d1d5db', borderRadius: 5, padding: '0.2rem 0.4rem', fontSize: '0.72rem' }} />
+                            <button onClick={async () => {
+                              if (!dagNewToets.naam.trim()) return;
+                              await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ klas_id: dagEditLes.klas_id, naam: dagNewToets.naam, type: dagNewToets.type, datum: dagEditLes.datum, kleur: toetsKleuren[dagNewToets.type] || '#6B7280' }) });
+                              setDagNewToets({ naam: '', type: 'SO' }); fetchToetsen();
+                            }} style={{ ...btn, background: toetsKleuren[dagNewToets.type], color: 'white', padding: '0.2rem 0.45rem', fontSize: '0.72rem' }}>+ Toevoegen</button>
+                          </div>
+                          {cellToetsen.length > 0 && (
+                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: '0.3rem' }}>
+                              {cellToetsen.map(t => (
+                                <span key={t.id} style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                                  background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280',
+                                  padding: '0.1rem 0.35rem', borderRadius: 4, fontSize: '0.68rem', fontWeight: 700,
+                                }}>
+                                  {t.type}: {t.naam}
+                                  <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.6rem', padding: 0 }}>✕</button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Lesvoorbereiding editor */}
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <RichTextEditor
+                            label="Lesvoorbereiding" labelColor={kleur}
+                            content={buildCombinedContent(dagEditLes)}
+                            onChange={val => { const parsed = parseCombinedContent(val); setDagEditLes({ ...dagEditLes, ...parsed }); }}
+                            placeholder="" minHeight={160}
+                          />
+                        </div>
+
+                        {/* Leerdoelen */}
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <RichTextEditor
+                            label="Leerdoelen" labelColor="#2563EB"
+                            content={dagEditLes.leerdoelen || ''}
+                            onChange={val => setDagEditLes({ ...dagEditLes, leerdoelen: val })}
+                            placeholder="Wat moeten leerlingen aan het einde van de les kunnen?"
+                            minHeight={50}
+                          />
+                        </div>
+
+                        {/* Niet vergeten */}
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <RichTextEditor
+                            label="Niet vergeten" labelColor="#DC2626"
+                            content={dagEditLes.niet_vergeten || ''}
+                            onChange={val => setDagEditLes({ ...dagEditLes, niet_vergeten: val })}
+                            placeholder="Reminders voor jezelf"
+                            minHeight={35}
+                          />
+                        </div>
+
+                        {/* Opslaan onderaan */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                          <button onClick={async () => {
+                            await saveLes(dagEditLes);
+                            setExpandedDagSlot(null); setDagEditLes(null);
+                          }} disabled={saving}
+                            style={{ ...btn, background: '#1a7a2e', color: 'white', padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>
+                            {saving ? 'Opslaan...' : 'Opslaan'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
