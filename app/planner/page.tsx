@@ -438,7 +438,7 @@ export default function PlannerPage() {
               })}
             </tr></thead>
             <tbody>
-              {[1,2,3,4,5,6,7,8,9].filter(uur => allRooster.some(r => r.uur === uur)).map(uur => {
+              {(() => { const usedUren = allRooster.map(r => r.uur); const minU = Math.min(...usedUren, 9); const maxU = Math.max(...usedUren, 1); return Array.from({ length: maxU - minU + 1 }, (_, i) => minU + i); })().map(uur => {
                 const allSecond = [1,2,3,4,5].every(dag => !getSlot(dag, uur) || isBlokuurSecond(dag, uur));
                 if (allSecond) return null;
                 return (
@@ -449,7 +449,7 @@ export default function PlannerPage() {
                       if (isBlokuurSecond(dag, uur)) return null;
                       const isBlok = isBlokuurStart(dag, uur);
                       if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', textAlign: 'center', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none', padding: '0.3rem' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
-                      if (!slot) return <td key={`${d}-${uur}`} style={{ ...td, background: '#fafafa', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none' }}></td>;
+                      if (!slot) return <td key={`${d}-${uur}`} style={{ ...td, background: '#f0f0f0', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none', minHeight: 60 }}><div style={{ minHeight: 60, background: '#f0f0f0' }} /></td>;
                       return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderRight: idx < 4 ? '1px solid #d1d5db' : 'none' }}>{renderCell(slot, d, isBlok)}</td>;
                     })}
                   </tr>
