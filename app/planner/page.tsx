@@ -425,11 +425,11 @@ export default function PlannerPage() {
         {view === 'week' && (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
             <thead><tr>
-              <th style={{ ...th, width: 36, borderRight: '1px solid #d1d5db' }}></th>
+              <th style={{ ...th, width: 42 }}>Uur</th>
               {days.map((d, idx) => {
                 const vak = isInVakantie(d, vakanties);
                 return (
-                  <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f9fafb', color: d === today ? '#1a7a2e' : vak ? '#b91c1c' : '#374151', borderRight: idx < 4 ? '1px solid #d1d5db' : 'none', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                  <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f9fafb', color: d === today ? '#1a7a2e' : vak ? '#b91c1c' : '#374151', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                     <div style={{ fontSize: '0.82rem' }}>{dagNamen[idx]}</div>
                     <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(d)}</div>
                     {vak && <div style={{ fontSize: '0.58rem', color: '#DC2626', fontWeight: 600 }}>{vak.naam}</div>}
@@ -440,26 +440,19 @@ export default function PlannerPage() {
             <tbody>
               {[1,2,3,4,5,6,7,8,9].map(uur => (
                 <tr key={uur}>
-                  {/* Uur nummer */}
-                  <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem', borderRight: '1px solid #d1d5db', verticalAlign: 'middle',
-                    borderBottom: [1,2,3,4,5].some(dag => isBlokuurStart(dag, uur)) ? 'none' : undefined,
-                    borderTop: [1,2,3,4,5].some(dag => isBlokuurSecond(dag, uur)) ? 'none' : undefined,
-                  }}>{[1,2,3,4,5].some(dag => isBlokuurSecond(dag, uur)) ? '' : uur}</td>
-                  {/* Dag cellen */}
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem' }}>{uur}</td>
                   {days.map((d, idx) => {
-                    const dag = idx + 1; const vakantie = isInVakantie(d, vakanties);
-                    const slot = getSlot(dag, uur);
+                    const dag = idx + 1; const slot = getSlot(dag, uur); const vakantie = isInVakantie(d, vakanties);
+                    /* Exact zelfde patroon als rooster: blokuur-second → null */
+                    if (isBlokuurSecond(dag, uur)) return null;
                     const isBlok = isBlokuurStart(dag, uur);
-                    const isSecond = isBlokuurSecond(dag, uur);
-                    const cellBorder = idx < 4 ? '1px solid #d1d5db' : 'none';
+                    const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
                     /* Vakantie */
-                    if (vakantie) return <td key={`${d}-${uur}`} style={{ ...td, background: '#fef2f2', borderRight: cellBorder, padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
-                    /* Blokuur tweede helft: lege voortzettingscel, geen bovenrand */
-                    if (isSecond) return <td key={`${d}-${uur}`} style={{ ...td, padding: 0, borderRight: cellBorder, borderTop: 'none', background: slot ? 'white' : '#e8e8e8' }}><div style={{ minHeight: 40 }} /></td>;
+                    if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
                     /* Leeg uur */
-                    if (!slot) return <td key={`${d}-${uur}`} style={{ ...td, background: '#e8e8e8', borderRight: cellBorder, verticalAlign: 'top', borderBottom: isBlok ? 'none' : undefined }}><div style={{ minHeight: 70 }} /></td>;
+                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top' }}><div style={{ minHeight: 80 }} /></td>;
                     /* Les cel */
-                    return <td key={`${d}-${uur}`} style={{ ...td, padding: 0, borderRight: cellBorder, verticalAlign: 'top', borderBottom: isBlok ? 'none' : undefined }}>{renderCell(slot, d, isBlok)}</td>;
+                    return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderLeft: `3px solid ${kleur}`, background: kleur + '06', verticalAlign: 'top' }}>{renderCell(slot, d, isBlok)}</td>;
                   })}
                 </tr>
               ))}
