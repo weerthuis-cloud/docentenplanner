@@ -68,15 +68,10 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
         background: 'white',
         cursor: 'text',
         position: 'relative',
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
       }}
       onClick={() => editor.commands.focus()}
     >
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }} className="inline-editor-grow">
-        <EditorContent editor={editor} style={{ flex: 1, display: 'flex', flexDirection: 'column' }} />
-      </div>
+      <EditorContent editor={editor} />
       {editor.isEmpty && placeholder && (
         <div style={{
           position: 'absolute', top: '6px', left: '8px',
