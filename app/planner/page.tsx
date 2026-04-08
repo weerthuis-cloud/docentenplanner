@@ -452,9 +452,9 @@ export default function PlannerPage() {
                     /* Vakantie */
                     if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
                     /* Leeg uur */
-                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top', height: 1 }}><div style={{ minHeight: 80, height: '100%' }} /></td>;
+                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top' }}><div style={{ minHeight: 80 }} /></td>;
                     /* Les cel */
-                    return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderLeft: `3px solid ${kleur}`, background: kleur + '06', verticalAlign: 'top', height: 1 }}>{renderCell(slot, d, isBlok)}</td>;
+                    return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, borderLeft: `3px solid ${kleur}`, background: kleur + '06', position: 'relative' }}><div style={{ position: 'absolute', inset: 0, overflow: 'auto' }}>{renderCell(slot, d, isBlok)}</div></td>;
                   })}
                 </tr>
               ))}
