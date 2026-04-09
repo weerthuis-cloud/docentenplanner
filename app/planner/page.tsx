@@ -198,6 +198,17 @@ export default function PlannerPage() {
     const cellToetsen = getToetsenForDateKlas(datum, slot.klas_id);
     const jpSuggestion = getJpSuggestion(slot.klas_id, datum);
 
+    /* Content indicators: welke extra velden zijn ingevuld? */
+    const extraFields: Array<{ key: keyof Les; icon: string; label: string }> = [
+      { key: 'startopdracht', icon: '🚀', label: 'Start' },
+      { key: 'terugkijken', icon: '🔄', label: 'Terugkijken' },
+      { key: 'leerdoelen', icon: '🎯', label: 'Doelen' },
+      { key: 'huiswerk', icon: '📝', label: 'Huiswerk' },
+      { key: 'niet_vergeten', icon: '⚡', label: 'Onthoud' },
+      { key: 'notities', icon: '💬', label: 'Notities' },
+    ];
+    const filledExtras = extraFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; });
+
     return (
       <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 160 : 80, borderLeft: `3px solid ${kleur}`, background: 'white', cursor: 'pointer', position: 'relative' }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
@@ -224,6 +235,14 @@ export default function PlannerPage() {
         {/* Editor - flex:1 vult rest van cel */}
         <InlineEditor content={les.programma || ''} onChange={(val) => updateCell(cellKey, les, 'programma', val)}
           onFocus={(editor) => setActiveEditor(editor)} placeholder="Plan les..." borderColor={kleur} grow />
+        {/* Content indicators voor extra velden */}
+        {filledExtras.length > 0 && (
+          <div style={{ display: 'flex', gap: 2, padding: '2px 6px 3px', flexShrink: 0, flexWrap: 'wrap' }}>
+            {filledExtras.map(f => (
+              <span key={f.key} title={f.label} style={{ fontSize: '0.52rem', lineHeight: 1, opacity: 0.7 }}>{f.icon}</span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -445,6 +464,15 @@ export default function PlannerPage() {
                       const les = getLes(slot.klas_id, today, slot.uur);
                       const klas = klassen.find(k => k.id === slot.klas_id);
                       const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
+                      const overzichtFields: Array<{ key: keyof Les; icon: string; label: string }> = [
+                        { key: 'startopdracht', icon: '🚀', label: 'Start' },
+                        { key: 'terugkijken', icon: '🔄', label: 'Terugkijken' },
+                        { key: 'leerdoelen', icon: '🎯', label: 'Doelen' },
+                        { key: 'huiswerk', icon: '📝', label: 'Huiswerk' },
+                        { key: 'niet_vergeten', icon: '⚡', label: 'Onthoud' },
+                        { key: 'notities', icon: '💬', label: 'Notities' },
+                      ];
+                      const filledFields = les ? overzichtFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; }) : [];
                       return (
                         <div key={slot.uur} onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: today, uur: slot.uur })}
                           style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${kleur}30`, borderLeft: `3px solid ${kleur}`, borderRadius: 6, cursor: 'pointer' }}>
@@ -452,6 +480,11 @@ export default function PlannerPage() {
                             <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur, minWidth: 30 }}>Uur {slot.uur}</span>
                             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>{klas?.naam}</span>
                             <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>({klas?.lokaal})</span>
+                            {filledFields.length > 0 && (
+                              <span style={{ display: 'flex', gap: 3, marginLeft: 'auto' }}>
+                                {filledFields.map(f => <span key={f.key} title={f.label} style={{ fontSize: '0.6rem', opacity: 0.7 }}>{f.icon}</span>)}
+                              </span>
+                            )}
                           </div>
                           {les?.programma && <div style={{ fontSize: '0.82rem', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stripHtml(les.programma).slice(0, 80)}</div>}
                           {!les?.programma && <div style={{ fontSize: '0.82rem', color: '#d1d5db', fontStyle: 'italic' }}>Niet gepland...</div>}
@@ -603,6 +636,7 @@ export default function PlannerPage() {
 
           const dagFields: Array<{ key: keyof Les; label: string; placeholder: string }> = [
             { key: 'startopdracht', label: '🚀 Start', placeholder: 'Startopdracht...' },
+            { key: 'terugkijken', label: '🔄 Terugkijken', placeholder: 'Wat bespreken we?' },
             { key: 'programma', label: '📋 Programma', placeholder: 'Plan les...' },
             { key: 'leerdoelen', label: '🎯 Leerdoelen', placeholder: 'Wat moeten ze leren?' },
             { key: 'huiswerk', label: '📝 Huiswerk', placeholder: 'Huiswerk opgave...' },
@@ -622,8 +656,9 @@ export default function PlannerPage() {
 
                 return (
                   <div key={slot.uur} style={{ background: 'white', borderRadius: 10, border: '1px solid #e5e7eb', overflow: 'hidden', borderLeft: `4px solid ${kleur}` }}>
-                    {/* Header */}
-                    <div style={{ padding: '0.5rem 0.75rem', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {/* Header - klik opent zijpaneel voor snelle tab-navigatie */}
+                    <div onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur })}
+                      style={{ padding: '0.5rem 0.75rem', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', cursor: 'pointer' }}>
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur }}>Uur {slot.uur}{isBlok ? `–${slot.uur + 1}` : ''}</span>
                       <span style={{ fontWeight: 700, fontSize: '0.78rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 4 }}>{klas?.naam}</span>
                       <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{klas?.vak} · {klas?.lokaal}</span>
@@ -633,21 +668,31 @@ export default function PlannerPage() {
                           {t.type}: {t.naam}
                         </span>
                       ))}
+                      <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: '#b0b8c4' }}>&#9654;</span>
                     </div>
-                    {/* Velden grid: 2 kolommen */}
+                    {/* Velden grid: 2 kolommen, 7 velden (laatste rij krijgt colspan via gridColumn) */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-                      {dagFields.map((field, fi) => (
-                        <div key={field.key} style={{ borderBottom: fi < dagFields.length - 2 ? '1px solid #f1f5f9' : 'none', borderRight: fi % 2 === 0 ? '1px solid #f1f5f9' : 'none', padding: '0.25rem 0.5rem', minHeight: 60 }}>
-                          <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{field.label}</div>
-                          <InlineEditor
-                            content={(les[field.key] as string) || ''}
-                            onChange={(val) => updateCell(cellKey, les, field.key, val)}
-                            onFocus={(editor) => setActiveEditor(editor)}
-                            placeholder={field.placeholder}
-                            borderColor={kleur}
-                          />
-                        </div>
-                      ))}
+                      {dagFields.map((field, fi) => {
+                        const isLast = fi === dagFields.length - 1;
+                        const isInLastRow = fi >= dagFields.length - 2;
+                        return (
+                          <div key={field.key} style={{
+                            borderBottom: isInLastRow ? 'none' : '1px solid #f1f5f9',
+                            borderRight: fi % 2 === 0 && !isLast ? '1px solid #f1f5f9' : 'none',
+                            padding: '0.25rem 0.5rem', minHeight: 60,
+                            ...(isLast ? { gridColumn: '1 / -1' } : {}),
+                          }}>
+                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{field.label}</div>
+                            <InlineEditor
+                              content={(les[field.key] as string) || ''}
+                              onChange={(val) => updateCell(cellKey, les, field.key, val)}
+                              onFocus={(editor) => setActiveEditor(editor)}
+                              placeholder={field.placeholder}
+                              borderColor={kleur}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
