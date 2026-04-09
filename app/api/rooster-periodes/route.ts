@@ -93,12 +93,21 @@ export async function PUT(req: Request) {
   return NextResponse.json({ success: true });
 }
 
-// DELETE: periode verwijderen (cascade verwijdert ook rooster slots)
+// DELETE: periode verwijderen inclusief rooster slots
 export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
+  // Eerst rooster slots verwijderen (geen cascade op FK)
+  const { error: slotsError } = await supabase
+    .from('roosters')
+    .delete()
+    .eq('periode_id', Number(id));
+
+  if (slotsError) return NextResponse.json({ error: `Slots verwijderen mislukt: ${slotsError.message}` }, { status: 500 });
+
+  // Dan de periode zelf
   const { error } = await supabase
     .from('rooster_periodes')
     .delete()

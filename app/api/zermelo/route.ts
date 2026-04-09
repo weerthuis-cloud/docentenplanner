@@ -214,7 +214,8 @@ export async function POST(req: Request) {
 
     // mapping = { "groepNaam": klasId (number) | "new" | 0 (skip) }
     // Als mapping ontbreekt: fallback naar originele naam-matching
-    const hasMapping = mapping && typeof mapping === 'object' && Object.keys(mapping).length > 0;
+    const typedMapping = (mapping && typeof mapping === 'object') ? mapping as Record<string, string | number> : {} as Record<string, string | number>;
+    const hasMapping = Object.keys(typedMapping).length > 0;
 
     // 1. Haal bestaande klassen op
     const { data: bestaandeKlassen } = await supabase.from('klassen').select('id, naam, vak, lokaal');
@@ -229,10 +230,9 @@ export async function POST(req: Request) {
     if (hasMapping) {
       // Verwerk mapping: maak nieuwe klassen aan waar nodig
       const nieuweKlassen: Array<{ naam: string; vak: string; lokaal: string; jaarlaag: string; schooljaar: string }> = [];
-      const nieuweKlassenGroepen: string[] = []; // om later IDs te koppelen
 
-      for (const [groep, target] of Object.entries(mapping)) {
-        if (target === 0 || target === '0') {
+      for (const [groep, target] of Object.entries(typedMapping)) {
+        if (target === 0 || target === '0' || String(target) === '0') {
           // Overslaan
           continue;
         }
@@ -247,10 +247,9 @@ export async function POST(req: Request) {
             jaarlaag: jaarlaagMatch ? jaarlaagMatch[1] : '',
             schooljaar: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
           });
-          nieuweKlassenGroepen.push(groep);
         } else {
           // Bestaande klas koppelen
-          const klasId = typeof target === 'string' ? Number(target) : target;
+          const klasId = Number(target);
           if (klasId && klasMapById.has(klasId)) {
             groepToKlasId.set(groep, klasId);
           }
@@ -262,7 +261,7 @@ export async function POST(req: Request) {
         const { data: inserted, error: klasError } = await supabase
           .from('klassen')
           .insert(nieuweKlassen)
-          .select('id, naam');
+          .select('id, naam, vak, lokaal');
 
         if (klasError) {
           return NextResponse.json({ error: `Klassen aanmaken mislukt: ${klasError.message}` }, { status: 500 });
@@ -387,7 +386,7 @@ export async function POST(req: Request) {
         });
       } else if (hasMapping) {
         // In mapping mode: slot is overgeslagen (skip), geen fout
-        const mappingValue = mapping[slot.groep];
+        const mappingValue = typedMapping[slot.groep];
         if (mappingValue !== 0 && mappingValue !== '0') {
           onbekend.push(`${slot.groep} (${slot.vak})`);
         }
