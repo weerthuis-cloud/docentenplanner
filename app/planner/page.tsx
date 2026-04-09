@@ -61,7 +61,7 @@ export default function PlannerPage() {
   const [vakanties, setVakanties] = useState<Vakantie[]>([]);
   const [jaarplanners, setJaarplanners] = useState<Jaarplanner[]>([]);
 
-  const [view, setView] = useState<'dashboard' | 'week' | 'dag' | 'klas' | 'jaarlaag' | 'rooster'>('dashboard');
+  const [view, setView] = useState<'overzicht' | 'week' | 'dag' | 'klas' | 'jaarlaag' | 'rooster'>('overzicht');
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedKlasId, setSelectedKlasId] = useState<number | null>(null);
@@ -73,6 +73,7 @@ export default function PlannerPage() {
   const [newToets, setNewToets] = useState({ naam: '', type: 'SO', klas_id: 0, datum: '' });
   const [showToetsForm, setShowToetsForm] = useState(false);
   const [selectedLesPanel, setSelectedLesPanel] = useState<{ klas_id: number; datum: string; uur: number | null } | null>(null);
+  const [panelTab, setPanelTab] = useState<string>('programma');
 
   const [editState, setEditState] = useState<Record<string, Les>>({});
   const saveTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -250,11 +251,11 @@ export default function PlannerPage() {
       {/* ═══ TOP BAR ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: '#eef4f0', borderRadius: 8, overflow: 'hidden' }}>
-          {(['dashboard', 'week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
+          {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
               padding: '0.35rem 0.7rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem',
               background: view === v ? '#2d8a4e' : 'transparent', color: view === v ? 'white' : '#2d8a4e',
-            }}>{{ dashboard: 'Dashboard', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster' }[v]}</button>
+            }}>{{ overzicht: 'Overzicht', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster' }[v]}</button>
           ))}
         </div>
 
@@ -267,8 +268,8 @@ export default function PlannerPage() {
 
         {saving && <span style={{ fontSize: '0.7rem', color: '#2d8a4e', fontWeight: 600 }}>💾 Opslaan...</span>}
 
-        {/* Dashboard nav */}
-        {view === 'dashboard' && (
+        {/* Overzicht nav */}
+        {view === 'overzicht' && (
           <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         )}
 
@@ -321,7 +322,7 @@ export default function PlannerPage() {
       </div>
 
       {/* ═══ SHARED TOOLBAR ═══ */}
-      {view !== 'rooster' && view !== 'dashboard' && (
+      {view !== 'rooster' && view !== 'overzicht' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', padding: '0.25rem 0.8rem', background: '#fafafa', borderBottom: '1px solid #e0e0e0', alignItems: 'center', flexShrink: 0 }}>
           <TBtn active={activeEditor?.isActive('bold') || false} onClick={() => activeEditor?.chain().focus().toggleBold().run()} title="Dikgedrukt"><strong>B</strong></TBtn>
           <TBtn active={activeEditor?.isActive('italic') || false} onClick={() => activeEditor?.chain().focus().toggleItalic().run()} title="Schuin"><em>I</em></TBtn>
@@ -393,7 +394,7 @@ export default function PlannerPage() {
         <div style={{ flex: 1, overflow: 'auto' }}>
 
         {/* ═══ DASHBOARD ═══ */}
-        {view === 'dashboard' && (() => {
+        {view === 'overzicht' && (() => {
           const today = new Date().toISOString().split('T')[0];
           const todayDag = new Date(today + 'T12:00:00').getDay();
           const todayDagNum = todayDag >= 1 && todayDag <= 5 ? todayDag : 0;
@@ -590,7 +591,7 @@ export default function PlannerPage() {
           </table>
         )}
 
-        {/* ═══ DAGPLANNER (lijst van alle lessen, halve breedte) ═══ */}
+        {/* ═══ DAGPLANNER (alle lesvelden direct zichtbaar per les) ═══ */}
         {view === 'dag' && (() => {
           const dagIdx = new Date(selectedDate + 'T12:00:00').getDay();
           const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
@@ -600,18 +601,54 @@ export default function PlannerPage() {
           const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dagNr, s.uur));
           if (dagSlots.length === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lessen op deze dag.</div>;
 
+          const dagFields: Array<{ key: keyof Les; label: string; placeholder: string }> = [
+            { key: 'startopdracht', label: '🚀 Start', placeholder: 'Startopdracht...' },
+            { key: 'programma', label: '📋 Programma', placeholder: 'Plan les...' },
+            { key: 'leerdoelen', label: '🎯 Leerdoelen', placeholder: 'Wat moeten ze leren?' },
+            { key: 'huiswerk', label: '📝 Huiswerk', placeholder: 'Huiswerk opgave...' },
+            { key: 'niet_vergeten', label: '⚡ Onthoud', placeholder: 'Niet vergeten...' },
+            { key: 'notities', label: '💬 Notities', placeholder: 'Notities...' },
+          ];
+
           return (
-            <div style={{ maxWidth: 600, margin: '0 auto', padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ maxWidth: 700, margin: '0 auto', padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {dagSlots.map(slot => {
                 const isBlok = isBlokuurStart(dagNr, slot.uur);
                 const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
+                const klas = klassen.find(k => k.id === slot.klas_id);
+                const cellKey = `${slot.klas_id}-${selectedDate}-${slot.uur}`;
+                const les = getCellLes(slot.klas_id, selectedDate, slot.uur);
+                const cellToetsen = getToetsenForDateKlas(selectedDate, slot.klas_id);
+
                 return (
-                  <div key={slot.uur} style={{ background: 'white', borderRadius: 8, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-                    {/* Uur label balk */}
-                    <div style={{ padding: '0.25rem 0.6rem', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#9CA3AF', minWidth: 20 }}>{slot.uur}{isBlok ? `–${slot.uur + 1}` : ''}</span>
+                  <div key={slot.uur} style={{ background: 'white', borderRadius: 10, border: '1px solid #e5e7eb', overflow: 'hidden', borderLeft: `4px solid ${kleur}` }}>
+                    {/* Header */}
+                    <div style={{ padding: '0.5rem 0.75rem', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur }}>Uur {slot.uur}{isBlok ? `–${slot.uur + 1}` : ''}</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.78rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 4 }}>{klas?.naam}</span>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{klas?.vak} · {klas?.lokaal}</span>
+                      {isBlok && <span style={{ fontSize: '0.62rem', color: kleur, fontWeight: 600, background: kleur + '15', padding: '1px 6px', borderRadius: 3 }}>blokuur</span>}
+                      {cellToetsen.map(t => (
+                        <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 6px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 700 }}>
+                          {t.type}: {t.naam}
+                        </span>
+                      ))}
                     </div>
-                    {renderCell(slot, selectedDate, isBlok)}
+                    {/* Velden grid: 2 kolommen */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                      {dagFields.map((field, fi) => (
+                        <div key={field.key} style={{ borderBottom: fi < dagFields.length - 2 ? '1px solid #f1f5f9' : 'none', borderRight: fi % 2 === 0 ? '1px solid #f1f5f9' : 'none', padding: '0.25rem 0.5rem', minHeight: 60 }}>
+                          <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{field.label}</div>
+                          <InlineEditor
+                            content={(les[field.key] as string) || ''}
+                            onChange={(val) => updateCell(cellKey, les, field.key, val)}
+                            onFocus={(editor) => setActiveEditor(editor)}
+                            placeholder={field.placeholder}
+                            borderColor={kleur}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -761,78 +798,62 @@ export default function PlannerPage() {
         {/* jaarlaag view ends above */}
         </div>
 
-        {/* ═══ LESSON DETAIL PANEL ═══ */}
+        {/* ═══ LESSON DETAIL PANEL (tabbed) ═══ */}
         {selectedLesPanel && (() => {
           const panelLes = getCellLes(selectedLesPanel.klas_id, selectedLesPanel.datum, selectedLesPanel.uur || 0);
           const panelKlas = klassen.find(k => k.id === selectedLesPanel.klas_id);
           const panelKleur = klasKleurMap[selectedLesPanel.klas_id] || '#6B7280';
           const panelKey = `${selectedLesPanel.klas_id}-${selectedLesPanel.datum}-${selectedLesPanel.uur}`;
+          const tabs: Array<{ key: keyof Les; label: string; placeholder: string; icon: string }> = [
+            { key: 'programma', label: 'Programma', placeholder: 'Plan les...', icon: '📋' },
+            { key: 'startopdracht', label: 'Start', placeholder: 'Startopdracht...', icon: '🚀' },
+            { key: 'terugkijken', label: 'Terugkijken', placeholder: 'Wat bespreken we?', icon: '🔄' },
+            { key: 'leerdoelen', label: 'Doelen', placeholder: 'Wat moeten ze leren?', icon: '🎯' },
+            { key: 'huiswerk', label: 'Huiswerk', placeholder: 'Huiswerk opgave...', icon: '📝' },
+            { key: 'niet_vergeten', label: 'Onthoud', placeholder: 'Niet vergeten...', icon: '⚡' },
+            { key: 'notities', label: 'Notities', placeholder: 'Notities...', icon: '💬' },
+          ];
+          const activeTab = tabs.find(t => t.key === panelTab) || tabs[0];
+          const hasContent = (key: keyof Les) => { const v = panelLes[key]; return typeof v === 'string' && stripHtml(v).length > 0; };
 
           return (
-            <div style={{ width: 400, background: 'white', borderLeft: `1px solid #e5e7eb`, display: 'flex', flexDirection: 'column', boxShadow: '-2px 0 8px rgba(0,0,0,0.1)' }}>
+            <div style={{ width: 380, background: 'white', borderLeft: `1px solid #e5e7eb`, display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 12px rgba(0,0,0,0.06)' }}>
               {/* Panel header */}
-              <div style={{ padding: '1rem 1.25rem', borderBottom: `2px solid ${panelKleur}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ padding: '0.75rem 1rem', borderBottom: `3px solid ${panelKleur}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: panelKleur + '08' }}>
                 <div>
-                  <div style={{ fontSize: '0.85rem', color: '#9CA3AF', marginBottom: '0.25rem' }}>
-                    {panelKlas?.naam} • Uur {selectedLesPanel.uur || '—'} • {formatDate(selectedLesPanel.datum)}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: panelKleur, fontWeight: 700 }}>{panelKlas?.vak}</div>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: panelKleur }}>{panelKlas?.naam}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: 8 }}>Uur {selectedLesPanel.uur || '—'} · {formatDate(selectedLesPanel.datum)}</span>
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 2 }}>{panelKlas?.vak} · {panelKlas?.lokaal}</div>
                 </div>
-                <button onClick={() => setSelectedLesPanel(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#9CA3AF' }}>✕</button>
+                <button onClick={() => setSelectedLesPanel(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8', padding: '4px 8px', borderRadius: 4 }}>✕</button>
               </div>
 
-              {/* Panel content - scrollable */}
-              <div style={{ flex: 1, overflow: 'auto', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Tab bar */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, padding: '0.4rem 0.5rem', background: '#f8fafc', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
+                {tabs.map(tab => (
+                  <button key={tab.key} onClick={() => setPanelTab(tab.key)}
+                    style={{ padding: '0.25rem 0.5rem', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600,
+                      background: panelTab === tab.key ? panelKleur : 'transparent',
+                      color: panelTab === tab.key ? 'white' : hasContent(tab.key) ? '#334155' : '#b0b8c4',
+                      position: 'relative'
+                    }}>
+                    {tab.icon} {tab.label}
+                    {hasContent(tab.key) && panelTab !== tab.key && <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: panelKleur, marginLeft: 3, verticalAlign: 'middle' }} />}
+                  </button>
+                ))}
+              </div>
 
-                {/* Startopdracht */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Startopdracht</label>
-                  <InlineEditor content={panelLes.startopdracht || ''} onChange={(val) => updateCell(panelKey, panelLes, 'startopdracht', val)}
-                    onFocus={(editor) => setActiveEditor(editor)} placeholder="Voer startopdracht in..." borderColor={panelKleur} />
-                </div>
-
-                {/* Terugkijken */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Terugkijken</label>
-                  <InlineEditor content={panelLes.terugkijken || ''} onChange={(val) => updateCell(panelKey, panelLes, 'terugkijken', val)}
-                    onFocus={(editor) => setActiveEditor(editor)} placeholder="Wat bespreken we?" borderColor={panelKleur} />
-                </div>
-
-                {/* Programma */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Programma</label>
-                  <InlineEditor content={panelLes.programma || ''} onChange={(val) => updateCell(panelKey, panelLes, 'programma', val)}
-                    onFocus={(editor) => setActiveEditor(editor)} placeholder="Plan les..." borderColor={panelKleur} />
-                </div>
-
-                {/* Leerdoelen */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Leerdoelen</label>
-                  <InlineEditor content={panelLes.leerdoelen || ''} onChange={(val) => updateCell(panelKey, panelLes, 'leerdoelen', val)}
-                    onFocus={(editor) => setActiveEditor(editor)} placeholder="Wat moeten ze leren?" borderColor={panelKleur} />
-                </div>
-
-                {/* Huiswerk */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Huiswerk</label>
-                  <InlineEditor content={panelLes.huiswerk || ''} onChange={(val) => updateCell(panelKey, panelLes, 'huiswerk', val)}
-                    onFocus={(editor) => setActiveEditor(editor)} placeholder="Huiswerk opgave..." borderColor={panelKleur} />
-                </div>
-
-                {/* Niet vergeten */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Niet vergeten</label>
-                  <InlineEditor content={panelLes.niet_vergeten || ''} onChange={(val) => updateCell(panelKey, panelLes, 'niet_vergeten', val)}
-                    onFocus={(editor) => setActiveEditor(editor)} placeholder="Reminders..." borderColor={panelKleur} />
-                </div>
-
-                {/* Notities */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Notities</label>
-                  <InlineEditor content={panelLes.notities || ''} onChange={(val) => updateCell(panelKey, panelLes, 'notities', val)}
-                    onFocus={(editor) => setActiveEditor(editor)} placeholder="Notities..." borderColor={panelKleur} />
-                </div>
-
+              {/* Active tab content - full height editor */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <InlineEditor
+                  key={`${panelKey}-${activeTab.key}`}
+                  content={(panelLes[activeTab.key] as string) || ''}
+                  onChange={(val) => updateCell(panelKey, panelLes, activeTab.key, val)}
+                  onFocus={(editor) => setActiveEditor(editor)}
+                  placeholder={activeTab.placeholder}
+                  borderColor={panelKleur}
+                  grow
+                />
               </div>
             </div>
           );
