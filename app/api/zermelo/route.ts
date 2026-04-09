@@ -5,16 +5,16 @@ import { supabase } from '@/lib/supabase';
   Zermelo Import API
 
   Stap 1: POST { action: 'auth', school, code }
-    → Haalt access_token op
+    ‚Üí Haalt access_token op
 
   Stap 2: POST { action: 'fetch', school, token, week_start }
-    → Haalt rooster op, geeft preview met groepen
+    ‚Üí Haalt rooster op, geeft preview met groepen
 
   Stap 3: POST { action: 'fetch_students', school, token, groepen: string[] }
-    → Haalt leerlingen op per groep
+    ‚Üí Haalt leerlingen op per groep
 
   Stap 4: POST { action: 'import_full', school, token, slots, groepen_data, periode_naam, start_datum, eind_datum }
-    → Importeert alles: maakt klassen aan, importeert leerlingen, maakt roosterperiode + slots
+    ‚Üí Importeert alles: maakt klassen aan, importeert leerlingen, maakt roosterperiode + slots
 */
 
 function epochToHour(startTimeSlot: number): { dag: number; uur: number } {
@@ -53,7 +53,7 @@ async function zermeloGet(school: string, token: string, endpoint: string, param
 export async function POST(req: Request) {
   const body = await req.json();
 
-  // ─── STAP 1: Authenticatie ───
+  // ‚îÄ‚îÄ‚îÄ STAP 1: Authenticatie ‚îÄ‚îÄ‚îÄ
   if (body.action === 'auth') {
     const { school, code } = body;
     if (!school || !code) {
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // ─── STAP 2: Rooster ophalen ───
+  // ‚îÄ‚îÄ‚îÄ STAP 2: Rooster ophalen ‚îÄ‚îÄ‚îÄ
   if (body.action === 'fetch') {
     const { school, token, week_start } = body;
     if (!school || !token) {
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // ─── STAP 3: Leerlingen per groep ophalen ───
+  // ‚îÄ‚îÄ‚îÄ STAP 3: Leerlingen per groep ophalen ‚îÄ‚îÄ‚îÄ
   if (body.action === 'fetch_students') {
     const { school, token, groepen } = body;
     if (!school || !token || !groepen) {
@@ -205,73 +205,134 @@ export async function POST(req: Request) {
     }
   }
 
-  // ─── STAP 4: Volledige import (rooster + klassen + leerlingen) ───
+  // ‚îÄ‚îÄ‚îÄ STAP 4: Volledige import (rooster + klassen + leerlingen) ‚îÄ‚îÄ‚îÄ
   if (body.action === 'import_full') {
-    const { slots, students, periode_naam, start_datum, eind_datum } = body;
+    const { slots, students, mapping, periode_naam, start_datum, eind_datum } = body;
     if (!slots || !start_datum || !eind_datum) {
       return NextResponse.json({ error: 'Slots, start_datum en eind_datum zijn verplicht' }, { status: 400 });
     }
 
-    // 1. Verzamel unieke groepen uit slots
-    const groepInfo = new Map<string, { vak: string; lokaal: string }>();
-    for (const slot of slots) {
-      const groep = slot.groep;
-      if (groep && !groepInfo.has(groep)) {
-        groepInfo.set(groep, { vak: slot.vak || '', lokaal: slot.lokaal || '' });
-      }
-    }
+    // mapping = { "groepNaam": klasId (number) | "new" | 0 (skip) }
+    // Als mapping ontbreekt: fallback naar originele naam-matching
+    const hasMapping = mapping && typeof mapping === 'object' && Object.keys(mapping).length > 0;
 
-    // 2. Check welke klassen al bestaan
+    // 1. Haal bestaande klassen op
     const { data: bestaandeKlassen } = await supabase.from('klassen').select('id, naam, vak, lokaal');
-    const klasMap = new Map((bestaandeKlassen || []).map(k => [k.naam.toLowerCase(), k]));
+    const klasMapByName = new Map((bestaandeKlassen || []).map(k => [k.naam.toLowerCase(), k]));
+    const klasMapById = new Map((bestaandeKlassen || []).map(k => [k.id, k]));
 
-    // 3. Maak nieuwe klassen aan voor onbekende groepen
-    const nieuweKlassen: Array<{ naam: string; vak: string; lokaal: string; jaarlaag: string; schooljaar: string }> = [];
-    for (const [groep, info] of groepInfo) {
-      if (!klasMap.has(groep.toLowerCase())) {
-        // Probeer jaarlaag af te leiden uit groepnaam (bijv. "h5e" → "5", "a3a" → "3", "m3c" → "3")
-        const jaarlaagMatch = groep.match(/(\d)/);
-        const jaarlaag = jaarlaagMatch ? jaarlaagMatch[1] : '';
-        nieuweKlassen.push({
-          naam: groep,
-          vak: info.vak,
-          lokaal: info.lokaal,
-          jaarlaag,
-          schooljaar: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-        });
+    // 2. Bouw groep ‚Üí klas_id map op basis van mapping
+    // groepToKlasId: groepnaam ‚Üí klas_id (resolved, incl. nieuw aangemaakte)
+    const groepToKlasId = new Map<string, number>();
+    let klassenAangemaakt = 0;
+
+    if (hasMapping) {
+      // Verwerk mapping: maak nieuwe klassen aan waar nodig
+      const nieuweKlassen: Array<{ naam: string; vak: string; lokaal: string; jaarlaag: string; schooljaar: string }> = [];
+      const nieuweKlassenGroepen: string[] = []; // om later IDs te koppelen
+
+      for (const [groep, target] of Object.entries(mapping)) {
+        if (target === 0 || target === '0') {
+          // Overslaan
+          continue;
+        }
+        if (target === 'new') {
+          // Nieuwe klas aanmaken
+          const slotInfo = slots.find((s: Record<string, string>) => s.groep === groep);
+          const jaarlaagMatch = groep.match(/(\d)/);
+          nieuweKlassen.push({
+            naam: groep,
+            vak: slotInfo?.vak || '',
+            lokaal: slotInfo?.lokaal || '',
+            jaarlaag: jaarlaagMatch ? jaarlaagMatch[1] : '',
+            schooljaar: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+          });
+          nieuweKlassenGroepen.push(groep);
+        } else {
+          // Bestaande klas koppelen
+          const klasId = typeof target === 'string' ? Number(target) : target;
+          if (klasId && klasMapById.has(klasId)) {
+            groepToKlasId.set(groep, klasId);
+          }
+        }
       }
-    }
 
-    if (nieuweKlassen.length > 0) {
-      const { data: inserted, error: klasError } = await supabase
-        .from('klassen')
-        .insert(nieuweKlassen)
-        .select('id, naam');
+      // Maak nieuwe klassen aan
+      if (nieuweKlassen.length > 0) {
+        const { data: inserted, error: klasError } = await supabase
+          .from('klassen')
+          .insert(nieuweKlassen)
+          .select('id, naam');
 
-      if (klasError) {
-        return NextResponse.json({ error: `Klassen aanmaken mislukt: ${klasError.message}` }, { status: 500 });
+        if (klasError) {
+          return NextResponse.json({ error: `Klassen aanmaken mislukt: ${klasError.message}` }, { status: 500 });
+        }
+
+        if (inserted) {
+          for (const k of inserted) {
+            groepToKlasId.set(k.naam, k.id);
+            klasMapById.set(k.id, k);
+          }
+          klassenAangemaakt = inserted.length;
+        }
+      }
+    } else {
+      // Fallback: originele naam-matching (voor legacy/backward compat)
+      const groepInfo = new Map<string, { vak: string; lokaal: string }>();
+      for (const slot of slots) {
+        const groep = slot.groep;
+        if (groep && !groepInfo.has(groep)) {
+          groepInfo.set(groep, { vak: slot.vak || '', lokaal: slot.lokaal || '' });
+        }
       }
 
-      // Update klasMap met nieuw aangemaakte klassen
-      if (inserted) {
-        for (const k of inserted) {
-          klasMap.set(k.naam.toLowerCase(), k);
+      const nieuweKlassen: Array<{ naam: string; vak: string; lokaal: string; jaarlaag: string; schooljaar: string }> = [];
+      for (const [groep, info] of groepInfo) {
+        const existing = klasMapByName.get(groep.toLowerCase());
+        if (existing) {
+          groepToKlasId.set(groep, existing.id);
+        } else {
+          const jaarlaagMatch = groep.match(/(\d)/);
+          nieuweKlassen.push({
+            naam: groep,
+            vak: info.vak,
+            lokaal: info.lokaal,
+            jaarlaag: jaarlaagMatch ? jaarlaagMatch[1] : '',
+            schooljaar: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+          });
+        }
+      }
+
+      if (nieuweKlassen.length > 0) {
+        const { data: inserted, error: klasError } = await supabase
+          .from('klassen')
+          .insert(nieuweKlassen)
+          .select('id, naam');
+
+        if (klasError) {
+          return NextResponse.json({ error: `Klassen aanmaken mislukt: ${klasError.message}` }, { status: 500 });
+        }
+
+        if (inserted) {
+          for (const k of inserted) {
+            groepToKlasId.set(k.naam, k.id);
+          }
+          klassenAangemaakt = inserted.length;
         }
       }
     }
 
-    // 4. Importeer leerlingen per groep (als students data meegegeven)
+    // 3. Importeer leerlingen per groep
     let leerlingenImported = 0;
     if (students && typeof students === 'object') {
       for (const [groep, leerlingList] of Object.entries(students)) {
-        const klas = klasMap.get(groep.toLowerCase());
-        if (!klas || !Array.isArray(leerlingList) || leerlingList.length === 0) continue;
+        const klasId = groepToKlasId.get(groep);
+        if (!klasId || !Array.isArray(leerlingList) || leerlingList.length === 0) continue;
 
-        // Check bestaande leerlingen in deze klas
         const { data: bestaandeLeerlingen } = await supabase
           .from('leerlingen')
           .select('voornaam, achternaam')
-          .eq('klas_id', klas.id);
+          .eq('klas_id', klasId);
 
         const bestaandeNamen = new Set(
           (bestaandeLeerlingen || []).map(l => `${l.voornaam}|${l.achternaam}`.toLowerCase())
@@ -280,7 +341,7 @@ export async function POST(req: Request) {
         const nieuweLeerlingen = (leerlingList as Array<{ firstName: string; lastName: string }>)
           .filter(s => !bestaandeNamen.has(`${s.firstName}|${s.lastName}`.toLowerCase()))
           .map(s => ({
-            klas_id: klas.id,
+            klas_id: klasId,
             voornaam: s.firstName || '',
             achternaam: s.lastName || '',
           }));
@@ -292,7 +353,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Maak roosterperiode aan
+    // 4. Maak roosterperiode aan
     const { data: periode, error: periodeError } = await supabase
       .from('rooster_periodes')
       .insert({
@@ -308,15 +369,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: periodeError?.message || 'Periode aanmaken mislukt' }, { status: 500 });
     }
 
-    // 6. Importeer rooster slots
+    // 5. Importeer rooster slots
     const roosterSlots = [];
     const onbekend: string[] = [];
 
     for (const slot of slots) {
-      const klas = klasMap.get(slot.groep?.toLowerCase());
-      if (klas) {
+      const klasId = groepToKlasId.get(slot.groep);
+      if (klasId) {
         roosterSlots.push({
-          klas_id: klas.id,
+          klas_id: klasId,
           dag: slot.dag,
           uur: slot.uur,
           vak: slot.vak || '',
@@ -324,6 +385,12 @@ export async function POST(req: Request) {
           is_blokuur: false,
           periode_id: periode.id,
         });
+      } else if (hasMapping) {
+        // In mapping mode: slot is overgeslagen (skip), geen fout
+        const mappingValue = mapping[slot.groep];
+        if (mappingValue !== 0 && mappingValue !== '0') {
+          onbekend.push(`${slot.groep} (${slot.vak})`);
+        }
       } else {
         onbekend.push(`${slot.groep} (${slot.vak})`);
       }
@@ -339,14 +406,14 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       periode,
-      klassen_aangemaakt: nieuweKlassen.length,
+      klassen_aangemaakt: klassenAangemaakt,
       leerlingen_imported: leerlingenImported,
       rooster_imported: roosterSlots.length,
       onbekend: [...new Set(onbekend)],
     });
   }
 
-  // ─── Legacy: eenvoudige import (zonder klassen/leerlingen) ───
+  // ‚îÄ‚îÄ‚îÄ Legacy: eenvoudige import (zonder klassen/leerlingen) ‚îÄ‚îÄ‚îÄ
   if (body.action === 'import') {
     const { slots, periode_naam, start_datum, eind_datum } = body;
     if (!slots || !Array.isArray(slots) || !start_datum || !eind_datum) {
@@ -401,3 +468,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ error: 'Onbekende actie' }, { status: 400 });
 }
+

@@ -6,7 +6,7 @@ import { Editor } from '@tiptap/react';
 
 const InlineEditor = dynamic(() => import('@/components/InlineEditor'), { ssr: false });
 
-/* ───── Types ───── */
+/* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Types ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
 interface Klas { id: number; naam: string; vak: string; jaarlaag: string; lokaal: string; }
 interface RoosterSlot { id?: number; klas_id: number; dag: number; uur: number; vak: string; lokaal: string; is_blokuur: boolean; periode_id?: number; }
 interface Les { id?: number; klas_id: number; datum: string; uur: number | null; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; }
@@ -53,7 +53,7 @@ const emptyLes = (klas_id: number, datum: string, uur: number | null): Les => ({
   klas_id, datum, uur, startopdracht: '', terugkijken: '', programma: '', leerdoelen: '', huiswerk: '', niet_vergeten: '', notities: '',
 });
 
-/* ───── Component ───── */
+/* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Component ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
 export default function PlannerPage() {
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [allRooster, setAllRooster] = useState<RoosterSlot[]>([]);
@@ -90,7 +90,8 @@ export default function PlannerPage() {
   const [zermeloStatus, setZermeloStatus] = useState('');
   const [zermeloPreview, setZermeloPreview] = useState<Array<{ dag: number; uur: number; vak: string; lokaal: string; groep: string; groepen?: string[]; start_time: string; end_time: string }> | null>(null);
   const [zermeloStudents, setZermeloStudents] = useState<Record<string, Array<{ firstName: string; lastName: string }>> | null>(null);
-  const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview' | 'students'>('auth');
+  const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview' | 'mapping' | 'students'>('auth');
+  const [zermeloMapping, setZermeloMapping] = useState<Record<string, number | 'new'>>({});
 
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
@@ -99,7 +100,7 @@ export default function PlannerPage() {
   const klasKleurMap: Record<number, string> = {};
   klassen.forEach((k, i) => { klasKleurMap[k.id] = klasKleuren[i % klasKleuren.length]; });
 
-  /* ───── Fetching ───── */
+  /* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Fetching ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
   const fetchPeriodes = useCallback(() => {
     fetch('/api/rooster-periodes').then(r => r.json()).then((data: RoosterPeriode[]) => {
       setPeriodes(data);
@@ -157,7 +158,7 @@ export default function PlannerPage() {
   useEffect(() => { if (klassen.length > 0 && !selectedKlasId) setSelectedKlasId(klassen[0].id); }, [klassen, selectedKlasId]);
   useEffect(() => { if (klassen.length > 0 && !selectedJaarlaag) setSelectedJaarlaag([...new Set(klassen.map(k => k.jaarlaag))][0] || ''); }, [klassen, selectedJaarlaag]);
 
-  /* ───── Helpers ───── */
+  /* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Helpers ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
   const getSlot = (dag: number, uur: number): RoosterSlot | undefined => allRooster.find(r => r.dag === dag && r.uur === uur);
   const getLes = (klas_id: number, datum: string, uur: number): Les | undefined => lessen.find(l => l.klas_id === klas_id && l.datum === datum && l.uur === uur);
   const getToetsenForDateKlas = (datum: string, klas_id: number): Toets[] => toetsen.filter(t => t.datum === datum && t.klas_id === klas_id);
@@ -165,7 +166,7 @@ export default function PlannerPage() {
   const isBlokuurSecond = (dag: number, uur: number): boolean => { const s = getSlot(dag, uur); const p = getSlot(dag, uur - 1); return !!(s && p && s.klas_id === p.klas_id && p.is_blokuur); };
   const canBeBlokuur = (dag: number, uur: number): boolean => { const s = getSlot(dag, uur); const n = getSlot(dag, uur + 1); return !!(s && n && s.klas_id === n.klas_id); };
 
-  /* ───── Rooster actions ───── */
+  /* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Rooster actions ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
   async function setRoosterKlas(dag: number, uur: number, klasId: number | null) {
     const existing = getSlot(dag, uur);
     if (existing?.id) await fetch(`/api/roosters?id=${existing.id}`, { method: 'DELETE' });
@@ -185,7 +186,7 @@ export default function PlannerPage() {
     fetchAllRooster();
   }
 
-  /* ───── Cell helpers ───── */
+  /* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Cell helpers ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
   function getCellLes(klas_id: number, datum: string, uur: number): Les {
     const key = `${klas_id}-${datum}-${uur}`;
     return editState[key] || getLes(klas_id, datum, uur) || emptyLes(klas_id, datum, uur);
@@ -215,11 +216,11 @@ export default function PlannerPage() {
     const week = getWeekNumber(datum);
     const rows = jp.data.filter(r => r.week === week);
     if (rows.length === 0) return null;
-    const parts = rows.map(r => { let t = ''; if (r.planning) t += stripHtml(r.planning); if (r.toetsen) t += (t ? ' · ' : '') + '📝 ' + stripHtml(r.toetsen); return t; }).filter(Boolean);
+    const parts = rows.map(r => { let t = ''; if (r.planning) t += stripHtml(r.planning); if (r.toetsen) t += (t ? ' ¬∑ ' : '') + 'üìù ' + stripHtml(r.toetsen); return t; }).filter(Boolean);
     return parts.length > 0 ? parts.join(' | ') : null;
   }
 
-  /* ───── Reusable cell renderer ───── */
+  /* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Reusable cell renderer ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
   function renderCell(slot: RoosterSlot, datum: string, isBlok: boolean) {
     const klas = klassen.find(k => k.id === slot.klas_id);
     const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
@@ -230,12 +231,12 @@ export default function PlannerPage() {
 
     /* Content indicators: welke extra velden zijn ingevuld? */
     const extraFields: Array<{ key: keyof Les; icon: string; label: string }> = [
-      { key: 'startopdracht', icon: '🚀', label: 'Start' },
-      { key: 'terugkijken', icon: '🔄', label: 'Terugkijken' },
-      { key: 'leerdoelen', icon: '🎯', label: 'Doelen' },
-      { key: 'huiswerk', icon: '📝', label: 'Huiswerk' },
-      { key: 'niet_vergeten', icon: '⚡', label: 'Onthoud' },
-      { key: 'notities', icon: '💬', label: 'Notities' },
+      { key: 'startopdracht', icon: 'üöÄ', label: 'Start' },
+      { key: 'terugkijken', icon: 'üîÑ', label: 'Terugkijken' },
+      { key: 'leerdoelen', icon: 'üéØ', label: 'Doelen' },
+      { key: 'huiswerk', icon: 'üìù', label: 'Huiswerk' },
+      { key: 'niet_vergeten', icon: '‚ö°', label: 'Onthoud' },
+      { key: 'notities', icon: 'üí¨', label: 'Notities' },
     ];
     const filledExtras = extraFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; });
 
@@ -250,7 +251,7 @@ export default function PlannerPage() {
           {cellToetsen.map(t => (
             <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '0 3px', borderRadius: 3, fontSize: '0.58rem', fontWeight: 700 }}>
               {t.type}: {t.naam.length > 10 ? t.naam.slice(0, 10) + '..' : t.naam}
-              <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.5rem', padding: 0 }}>✕</button>
+              <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.5rem', padding: 0 }}>‚úï</button>
             </span>
           ))}
         </div>
@@ -259,7 +260,7 @@ export default function PlannerPage() {
           <div onClick={(e) => { e.stopPropagation(); updateCell(cellKey, les, 'programma', `<p>${jpSuggestion}</p>`); }}
             style={{ padding: '2px 6px', fontSize: '0.62rem', color: '#2d8a4e', background: '#f0fdf4', borderBottom: '1px dashed #bbf7d0', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="Klik om jaarplanner suggestie over te nemen">
-            📅 {jpSuggestion.slice(0, 60)}{jpSuggestion.length > 60 ? '...' : ''}
+            üìÖ {jpSuggestion.slice(0, 60)}{jpSuggestion.length > 60 ? '...' : ''}
           </div>
         )}
         {/* Editor - flex:1 vult rest van cel */}
@@ -277,12 +278,12 @@ export default function PlannerPage() {
     );
   }
 
-  /* ───── Styles ───── */
+  /* ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ Styles ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ */
   const th: React.CSSProperties = { padding: '0.4rem 0.3rem', fontWeight: 700, fontSize: '0.85rem', borderBottom: '2px solid #d1d5db', textAlign: 'center', background: '#f9fafb' };
   const td: React.CSSProperties = { padding: 0, borderBottom: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb', verticalAlign: 'top' };
   const navBtn: React.CSSProperties = { padding: '0.35rem 0.6rem', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '0.82rem' };
 
-  /* ═══ Two-week data for klas/jaarlaag views ═══ */
+  /* ‚ïê‚ïê‚ïê Two-week data for klas/jaarlaag views ‚ïê‚ïê‚ïê */
   function getTwoWeeks(ws: string) {
     const w1Days = getDaysOfWeek(ws);
     const w2Start = new Date(ws + 'T12:00:00'); w2Start.setDate(w2Start.getDate() + 7);
@@ -293,11 +294,11 @@ export default function PlannerPage() {
     ];
   }
 
-  /* ═══════════════════════════════════════════════════════ */
+  /* ‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê */
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: '#f7f8fa' }}>
 
-      {/* ═══ TOP BAR ═══ */}
+      {/* ‚ïê‚ïê‚ïê TOP BAR ‚ïê‚ïê‚ïê */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: '#eef4f0', borderRadius: 8, overflow: 'hidden' }}>
           {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
@@ -315,7 +316,7 @@ export default function PlannerPage() {
 
         <div style={{ flex: 1 }} />
 
-        {saving && <span style={{ fontSize: '0.7rem', color: '#2d8a4e', fontWeight: 600 }}>💾 Opslaan...</span>}
+        {saving && <span style={{ fontSize: '0.7rem', color: '#2d8a4e', fontWeight: 600 }}>üíæ Opslaan...</span>}
 
         {/* Overzicht nav */}
         {view === 'overzicht' && (
@@ -324,19 +325,19 @@ export default function PlannerPage() {
 
         {/* Week nav */}
         {view === 'week' && (<>
-          <button onClick={() => changeWeek(-1)} style={navBtn}>◀</button>
+          <button onClick={() => changeWeek(-1)} style={navBtn}>‚óÄ</button>
           <span style={{ fontWeight: 700, color: '#2d8a4e', minWidth: 55, textAlign: 'center', fontSize: '0.88rem' }}>Wk {getWeekNumber(weekStart)}</span>
-          <button onClick={() => changeWeek(1)} style={navBtn}>▶</button>
+          <button onClick={() => changeWeek(1)} style={navBtn}>‚ñ∂</button>
           <button onClick={() => setWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
         {/* Dag nav */}
         {view === 'dag' && (<>
-          <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
+          <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>‚óÄ</button>
           <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.88rem' }}>
             {dagNamen[new Date(selectedDate + 'T12:00:00').getDay() - 1] || 'Weekend'} {formatDate(selectedDate)}
           </span>
-          <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
+          <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>‚ñ∂</button>
           <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
@@ -346,9 +347,9 @@ export default function PlannerPage() {
             style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 600 }}>
             {klassen.map((k, i) => <option key={k.id} value={k.id}>{k.naam}</option>)}
           </select>
-          <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(klasWeekStart)}–{getWeekNumber(klasWeekStart) + 1}</span>
-          <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
+          <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>‚óÄ</button>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(klasWeekStart)}‚Äì{getWeekNumber(klasWeekStart) + 1}</span>
+          <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>‚ñ∂</button>
           <button onClick={() => setKlasWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
@@ -358,19 +359,19 @@ export default function PlannerPage() {
             style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 600 }}>
             {[...new Set(klassen.map(k => k.jaarlaag))].map(j => <option key={j} value={j}>{j}</option>)}
           </select>
-          <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)}–{getWeekNumber(jaarlaagWeekStart) + 1}</span>
-          <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
+          <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>‚óÄ</button>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)}‚Äì{getWeekNumber(jaarlaagWeekStart) + 1}</span>
+          <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>‚ñ∂</button>
           <button onClick={() => setJaarlaagWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
 
         {view !== 'rooster' && (
           <button onClick={() => setShowToetsForm(!showToetsForm)}
-            style={{ ...navBtn, background: showToetsForm ? '#D97706' : 'white', color: showToetsForm ? 'white' : '#D97706', borderColor: '#D97706' }}>📝 Toets</button>
+            style={{ ...navBtn, background: showToetsForm ? '#D97706' : 'white', color: showToetsForm ? 'white' : '#D97706', borderColor: '#D97706' }}>üìù Toets</button>
         )}
       </div>
 
-      {/* ═══ SHARED TOOLBAR ═══ */}
+      {/* ‚ïê‚ïê‚ïê SHARED TOOLBAR ‚ïê‚ïê‚ïê */}
       {view !== 'rooster' && view !== 'overzicht' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', padding: '0.25rem 0.8rem', background: '#fafafa', borderBottom: '1px solid #e0e0e0', alignItems: 'center', flexShrink: 0 }}>
           <TBtn active={activeEditor?.isActive('bold') || false} onClick={() => activeEditor?.chain().focus().toggleBold().run()} title="Dikgedrukt"><strong>B</strong></TBtn>
@@ -399,11 +400,11 @@ export default function PlannerPage() {
           </div>
           <Sep />
           <div style={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.65rem', color: '#9CA3AF', marginRight: 2 }}>🖍</span>
+            <span style={{ fontSize: '0.65rem', color: '#9CA3AF', marginRight: 2 }}>üñç</span>
             {HIGHLIGHTS.map(c => (
               <button key={c} onClick={() => { if (c === 'transparent') activeEditor?.chain().focus().unsetHighlight().run(); else activeEditor?.chain().focus().setHighlight({ color: c }).run(); }}
                 style={{ width: 16, height: 16, borderRadius: 3, border: `1px solid ${c === 'transparent' ? '#d1d5db' : c}`, background: c === 'transparent' ? 'white' : c, cursor: 'pointer', padding: 0, position: 'relative' }}>
-                {c === 'transparent' && <span style={{ position: 'absolute', top: -1, left: 3, fontSize: '0.6rem', color: '#DC2626' }}>✕</span>}
+                {c === 'transparent' && <span style={{ position: 'absolute', top: -1, left: 3, fontSize: '0.6rem', color: '#DC2626' }}>‚úï</span>}
               </button>
             ))}
           </div>
@@ -411,10 +412,10 @@ export default function PlannerPage() {
         </div>
       )}
 
-      {/* ═══ TOETS FORM ═══ */}
+      {/* ‚ïê‚ïê‚ïê TOETS FORM ‚ïê‚ïê‚ïê */}
       {view !== 'rooster' && showToetsForm && (
         <div style={{ display: 'flex', gap: '0.4rem', padding: '0.35rem 0.8rem', background: '#FEF3C7', borderBottom: '1px solid #F59E0B', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#92400E' }}>📝</span>
+          <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#92400E' }}>üìù</span>
           <select value={newToets.type} onChange={e => setNewToets({ ...newToets, type: e.target.value })}
             style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.15rem', fontSize: '0.75rem', fontWeight: 600, color: toetsKleuren[newToets.type] }}>
             {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k}</option>)}
@@ -434,15 +435,15 @@ export default function PlannerPage() {
               body: JSON.stringify({ klas_id: newToets.klas_id, naam: newToets.naam, type: newToets.type, datum: newToets.datum, kleur: toetsKleuren[newToets.type] || '#6B7280' }) });
             setNewToets({ naam: '', type: 'SO', klas_id: 0, datum: '' }); fetchToetsen();
           }} style={{ background: '#D97706', color: 'white', border: 'none', borderRadius: 4, padding: '0.2rem 0.5rem', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>+</button>
-          <button onClick={() => setShowToetsForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400E' }}>✕</button>
+          <button onClick={() => setShowToetsForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400E' }}>‚úï</button>
         </div>
       )}
 
-      {/* ═══ CONTENT ═══ */}
+      {/* ‚ïê‚ïê‚ïê CONTENT ‚ïê‚ïê‚ïê */}
       <div style={{ flex: 1, overflow: 'auto', display: 'flex' }}>
         <div style={{ flex: 1, overflow: 'auto' }}>
 
-        {/* ═══ DASHBOARD ═══ */}
+        {/* ‚ïê‚ïê‚ïê DASHBOARD ‚ïê‚ïê‚ïê */}
         {view === 'overzicht' && (() => {
           const today = new Date().toISOString().split('T')[0];
           const todayDag = new Date(today + 'T12:00:00').getDay();
@@ -495,12 +496,12 @@ export default function PlannerPage() {
                       const klas = klassen.find(k => k.id === slot.klas_id);
                       const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
                       const overzichtFields: Array<{ key: keyof Les; icon: string; label: string }> = [
-                        { key: 'startopdracht', icon: '🚀', label: 'Start' },
-                        { key: 'terugkijken', icon: '🔄', label: 'Terugkijken' },
-                        { key: 'leerdoelen', icon: '🎯', label: 'Doelen' },
-                        { key: 'huiswerk', icon: '📝', label: 'Huiswerk' },
-                        { key: 'niet_vergeten', icon: '⚡', label: 'Onthoud' },
-                        { key: 'notities', icon: '💬', label: 'Notities' },
+                        { key: 'startopdracht', icon: 'üöÄ', label: 'Start' },
+                        { key: 'terugkijken', icon: 'üîÑ', label: 'Terugkijken' },
+                        { key: 'leerdoelen', icon: 'üéØ', label: 'Doelen' },
+                        { key: 'huiswerk', icon: 'üìù', label: 'Huiswerk' },
+                        { key: 'niet_vergeten', icon: '‚ö°', label: 'Onthoud' },
+                        { key: 'notities', icon: 'üí¨', label: 'Notities' },
                       ];
                       const filledFields = les ? overzichtFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; }) : [];
                       return (
@@ -574,7 +575,7 @@ export default function PlannerPage() {
           );
         })()}
 
-        {/* ═══ ROOSTER ═══ */}
+        {/* ‚ïê‚ïê‚ïê ROOSTER ‚ïê‚ïê‚ïê */}
         {view === 'rooster' && (
           <div style={{ padding: '1rem', maxWidth: 1200, margin: '0 auto' }}>
 
@@ -673,9 +674,9 @@ export default function PlannerPage() {
                   <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e' }}>Importeer vanuit Zermelo</span>
                   {zermeloToken && (
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {['auth', 'fetch', 'preview', 'students'].map((s, i) => (
+                      {['auth', 'fetch', 'preview', 'mapping', 'students'].map((s, i) => (
                         <div key={s} style={{ width: 8, height: 8, borderRadius: '50%',
-                          background: (['auth', 'fetch', 'preview', 'students'].indexOf(zermeloStep) >= i) ? '#c4892e' : '#e5e7eb' }} />
+                          background: (['auth', 'fetch', 'preview', 'mapping', 'students'].indexOf(zermeloStep) >= i) ? '#c4892e' : '#e5e7eb' }} />
                       ))}
                     </div>
                   )}
@@ -700,7 +701,7 @@ export default function PlannerPage() {
                       Verbinden
                     </button>
                     <div style={{ fontSize: '0.72rem', color: '#92400e', marginTop: 4, width: '100%' }}>
-                      Maak een koppelcode aan in Zermelo: Instellingen → Koppel apps → Nieuwe koppeling
+                      Maak een koppelcode aan in Zermelo: Instellingen ‚Üí Koppel apps ‚Üí Nieuwe koppeling
                     </div>
                   </div>
                 )}
@@ -708,7 +709,7 @@ export default function PlannerPage() {
                 {/* Stap 2: Week kiezen en rooster ophalen */}
                 {zermeloToken && zermeloStep === 'fetch' && (
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#2d8a4e', fontWeight: 600 }}>✓ Verbonden</span>
+                    <span style={{ fontSize: '0.82rem', color: '#2d8a4e', fontWeight: 600 }}>‚úì Verbonden</span>
                     <input id="z-week" type="date" defaultValue={getMonday(new Date()).toISOString().split('T')[0]}
                       style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
                     <button onClick={async () => {
@@ -743,7 +744,7 @@ export default function PlannerPage() {
                           <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#fefce8' }}>
                             <td style={{ padding: '3px 8px' }}>{dagNamen[s.dag - 1] || s.dag}</td>
                             <td style={{ padding: '3px 8px' }}>{s.uur}</td>
-                            <td style={{ padding: '3px 8px' }}>{s.start_time}–{s.end_time}</td>
+                            <td style={{ padding: '3px 8px' }}>{s.start_time}‚Äì{s.end_time}</td>
                             <td style={{ padding: '3px 8px', fontWeight: 600 }}>{s.vak}</td>
                             <td style={{ padding: '3px 8px' }}>{s.groep}</td>
                             <td style={{ padding: '3px 8px' }}>{s.lokaal}</td>
@@ -752,34 +753,112 @@ export default function PlannerPage() {
                       </tbody>
                     </table>
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button onClick={async () => {
-                        const groepen = [...new Set(zermeloPreview.map(s => s.groep).filter(Boolean))];
-                        setZermeloStatus(`Leerlingen ophalen voor ${groepen.length} groepen...`);
-                        const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'fetch_students', school: zermeloSchool, token: zermeloToken, groepen }) });
-                        const data = await res.json();
-                        if (data.students) {
-                          setZermeloStudents(data.students);
-                          const total = Object.values(data.students as Record<string, unknown[]>).reduce((sum, arr) => sum + arr.length, 0);
-                          setZermeloStep('students');
-                          setZermeloStatus(`${total} leerlingen gevonden in ${groepen.length} groepen`);
-                        } else { setZermeloStatus(data.error || 'Leerlingen ophalen mislukt. Ga door met alleen rooster.'); }
+                      <button onClick={() => {
+                        // Initialize mapping: try to auto-match by name (case-insensitive)
+                        const uniqueGroepen = [...new Set(zermeloPreview.map(s => s.groep).filter(Boolean))];
+                        const autoMap: Record<string, number | 'new'> = {};
+                        for (const g of uniqueGroepen) {
+                          const match = klassen.find(k => k.naam.toLowerCase() === g.toLowerCase());
+                          autoMap[g] = match ? match.id : 'new';
+                        }
+                        setZermeloMapping(autoMap);
+                        setZermeloStep('mapping');
+                        const matched = Object.values(autoMap).filter(v => v !== 'new').length;
+                        setZermeloStatus(`${matched} van ${uniqueGroepen.length} groepen automatisch gekoppeld`);
                       }} style={{ background: '#4a80d4', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
-                        Leerlingen ophalen
-                      </button>
-                      <button onClick={() => setZermeloStep('students')}
-                        style={{ background: 'white', color: '#6B7280', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        Overslaan, alleen rooster
+                        Groepen koppelen ‚Üí
                       </button>
                       <button onClick={() => { setZermeloPreview(null); setZermeloStep('fetch'); setZermeloStatus(''); }}
                         style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        ← Terug
+                        ‚Üê Terug
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Stap 4: Leerlingen preview + importeren */}
+                {/* Stap 3b: Groepen koppelen aan klassen */}
+                {zermeloToken && zermeloStep === 'mapping' && zermeloPreview && (
+                  <div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Koppel Zermelo-groepen aan je klassen</div>
+                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginBottom: '0.5rem' }}>
+                      Kies bij elke groep de juiste klas, of kies &quot;Nieuwe klas aanmaken&quot; om automatisch een klas aan te maken.
+                      Groepen die je op &quot;Overslaan&quot; zet worden niet ge√Ømporteerd.
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: 300, overflow: 'auto', marginBottom: '0.75rem' }}>
+                      {Object.entries(zermeloMapping).map(([groep, value]) => {
+                        const slotInfo = zermeloPreview.find(s => s.groep === groep);
+                        const isMatched = value !== 'new' && value !== 0;
+                        const isSkipped = value === 0;
+                        return (
+                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.35rem 0.5rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 6, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
+                            <div style={{ minWidth: 100, fontSize: '0.78rem' }}>
+                              <span style={{ fontWeight: 700, color: '#374151' }}>{groep}</span>
+                              {slotInfo && <span style={{ color: '#94a3b8', marginLeft: 4, fontSize: '0.7rem' }}>({slotInfo.vak})</span>}
+                            </div>
+                            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>‚Üí</span>
+                            <select
+                              value={value === 'new' ? 'new' : (value === 0 ? 'skip' : String(value))}
+                              onChange={e => {
+                                const v = e.target.value;
+                                setZermeloMapping(prev => ({
+                                  ...prev,
+                                  [groep]: v === 'new' ? 'new' : (v === 'skip' ? 0 as unknown as number : Number(v))
+                                }));
+                              }}
+                              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '0.25rem 0.4rem', fontSize: '0.78rem', background: 'white' }}
+                            >
+                              <option value="new">+ Nieuwe klas aanmaken</option>
+                              <option value="skip">‚äò Overslaan</option>
+                              <optgroup label="Bestaande klassen">
+                                {klassen.map(k => (
+                                  <option key={k.id} value={String(k.id)}>{k.naam} ({k.vak})</option>
+                                ))}
+                              </optgroup>
+                            </select>
+                            {isMatched && <span style={{ color: '#2d8a4e', fontSize: '0.8rem' }}>‚úì</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginBottom: '0.5rem', padding: '0.3rem 0.5rem', background: '#f8fafc', borderRadius: 4 }}>
+                      {(() => {
+                        const mapped = Object.values(zermeloMapping).filter(v => v !== 'new' && v !== 0).length;
+                        const newOnes = Object.values(zermeloMapping).filter(v => v === 'new').length;
+                        const skipped = Object.values(zermeloMapping).filter(v => v === 0).length;
+                        return `${mapped} gekoppeld ¬∑ ${newOnes} nieuw aan te maken ¬∑ ${skipped} overslaan`;
+                      })()}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button onClick={async () => {
+                        // Fetch students for mapped groups
+                        const activeGroepen = Object.entries(zermeloMapping).filter(([, v]) => v !== 0).map(([g]) => g);
+                        if (activeGroepen.length === 0) { setZermeloStatus('Koppel minstens 1 groep aan een klas'); return; }
+                        setZermeloStatus(`Leerlingen ophalen voor ${activeGroepen.length} groepen...`);
+                        const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'fetch_students', school: zermeloSchool, token: zermeloToken, groepen: activeGroepen }) });
+                        const data = await res.json();
+                        if (data.students) {
+                          setZermeloStudents(data.students);
+                          const total = Object.values(data.students as Record<string, unknown[]>).reduce((sum, arr) => sum + arr.length, 0);
+                          setZermeloStep('students');
+                          setZermeloStatus(`${total} leerlingen gevonden in ${activeGroepen.length} groepen`);
+                        } else { setZermeloStatus(data.error || 'Leerlingen ophalen mislukt. Ga door met alleen rooster.'); }
+                      }} style={{ background: '#4a80d4', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                        Leerlingen ophalen ‚Üí
+                      </button>
+                      <button onClick={() => { setZermeloStep('students'); setZermeloStudents(null); }}
+                        style={{ background: 'white', color: '#6B7280', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        Overslaan, alleen rooster
+                      </button>
+                      <button onClick={() => { setZermeloStep('preview'); setZermeloStatus(''); }}
+                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        ‚Üê Terug
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Stap 5: Leerlingen preview + importeren */}
                 {zermeloToken && zermeloStep === 'students' && zermeloPreview && (
                   <div>
                     {/* Leerlingen preview */}
@@ -790,7 +869,13 @@ export default function PlannerPage() {
                           {Object.entries(zermeloStudents).map(([groep, leerlingen]) => (
                             <div key={groep} style={{ flex: '1 1 200px', maxWidth: 300, background: 'white', borderRadius: 6, border: '1px solid #e5e7eb', padding: '0.4rem 0.6rem' }}>
                               <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#374151', marginBottom: '0.25rem' }}>
-                                {groep} <span style={{ fontWeight: 400, color: '#94a3b8' }}>({leerlingen.length})</span>
+                                {groep} ‚Üí {(() => {
+                                  const mapped = zermeloMapping[groep];
+                                  if (!mapped || mapped === 'new') return <span style={{ color: '#c4892e' }}>nieuw</span>;
+                                  const klas = klassen.find(k => k.id === mapped);
+                                  return <span style={{ color: '#2d8a4e' }}>{klas?.naam || '?'}</span>;
+                                })()}
+                                <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>({leerlingen.length})</span>
                               </div>
                               {leerlingen.length > 0 ? (
                                 <div style={{ fontSize: '0.7rem', color: '#6B7280', lineHeight: 1.5 }}>
@@ -807,6 +892,19 @@ export default function PlannerPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Samenvatting mapping */}
+                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginBottom: '0.5rem', padding: '0.3rem 0.5rem', background: '#f0fdf4', borderRadius: 4, border: '1px solid #bbf7d0' }}>
+                      <strong>Koppeling:</strong>{' '}
+                      {Object.entries(zermeloMapping).filter(([, v]) => v !== 0).map(([g, v]) => {
+                        if (v === 'new') return `${g} ‚Üí nieuw`;
+                        const klas = klassen.find(k => k.id === v);
+                        return `${g} ‚Üí ${klas?.naam || '?'}`;
+                      }).join(' ¬∑ ')}
+                      {Object.values(zermeloMapping).some(v => v === 0) && (
+                        <span style={{ color: '#94a3b8' }}>{' '}¬∑ overgeslagen: {Object.entries(zermeloMapping).filter(([, v]) => v === 0).map(([g]) => g).join(', ')}</span>
+                      )}
+                    </div>
 
                     {/* Import formulier */}
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid #f59e0b40' }}>
@@ -826,6 +924,7 @@ export default function PlannerPage() {
                             action: 'import_full',
                             slots: zermeloPreview,
                             students: zermeloStudents || {},
+                            mapping: zermeloMapping,
                             periode_naam: naam,
                             start_datum: start,
                             eind_datum: eind,
@@ -837,19 +936,19 @@ export default function PlannerPage() {
                           if (data.leerlingen_imported > 0) parts.push(`${data.leerlingen_imported} leerlingen`);
                           parts.push(`${data.rooster_imported} roosterslots`);
                           if (data.onbekend?.length) parts.push(`Onbekend: ${data.onbekend.join(', ')}`);
-                          setZermeloStatus(`Geimporteerd: ${parts.join(' · ')}`);
+                          setZermeloStatus(`Ge√Ømporteerd: ${parts.join(' ¬∑ ')}`);
                           setZermeloPreview(null); setZermeloStudents(null); setZermeloStep('auth'); setZermeloToken('');
+                          setZermeloMapping({});
                           setSelectedPeriodeId(data.periode.id);
                           fetchPeriodes(); fetchAllRooster();
-                          // Refresh klassen
                           fetch('/api/klassen').then(r => r.json()).then(setKlassen);
                         } else { setZermeloStatus(data.error || 'Import mislukt'); }
                       }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.35rem 0.8rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
                         Importeer alles
                       </button>
-                      <button onClick={() => { setZermeloStep('preview'); }}
+                      <button onClick={() => { setZermeloStep('mapping'); }}
                         style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        ← Terug
+                        ‚Üê Terug
                       </button>
                     </div>
                   </div>
@@ -873,10 +972,10 @@ export default function PlannerPage() {
                         background: isActive ? '#f0fdf4' : 'white',
                         color: isActive ? '#2d8a4e' : '#6B7280' }}>
                       {p.naam}
-                      {isCurrent && <span style={{ marginLeft: 4, color: '#2d8a4e' }}>●</span>}
+                      {isCurrent && <span style={{ marginLeft: 4, color: '#2d8a4e' }}>‚óè</span>}
                       <div style={{ fontSize: '0.6rem', fontWeight: 400, color: '#94a3b8' }}>
-                        {p.start_datum.slice(5)} → {p.eind_datum.slice(5)}
-                        {p.bron !== 'handmatig' && ` · ${p.bron}`}
+                        {p.start_datum.slice(5)} ‚Üí {p.eind_datum.slice(5)}
+                        {p.bron !== 'handmatig' && ` ¬∑ ${p.bron}`}
                       </div>
                     </button>
                   );
@@ -903,14 +1002,14 @@ export default function PlannerPage() {
                         <td key={`${dag}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, borderLeft: slot ? `3px solid ${kleur}` : undefined, background: slot ? kleur + '06' : '#fcfcfc', padding: '0.3rem' }}>
                           <select value={slot?.klas_id || ''} onChange={e => setRoosterKlas(dag, uur, e.target.value ? Number(e.target.value) : null)}
                             style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', color: kleur || '#c4c4c4' }}>
-                            <option value="">—</option>
+                            <option value="">‚Äî</option>
                             {klassen.map((k, i) => <option key={k.id} value={k.id} style={{ color: klasKleuren[i % klasKleuren.length] }}>{k.naam} ({k.lokaal})</option>)}
                           </select>
                           {slot && klas && <div style={{ fontSize: '0.68rem', color: '#9CA3AF', marginTop: 2 }}>{klas.vak} - {klas.lokaal}</div>}
                           {canBeBlokuur(dag, uur) && (
                             <button onClick={() => toggleBlokuur(dag, uur)} style={{ marginTop: 3, fontSize: '0.62rem', padding: '1px 5px', borderRadius: 3,
                               border: `1px solid ${isBlok ? kleur : '#d1d5db'}`, background: isBlok ? kleur + '20' : '#f9fafb', color: isBlok ? kleur : '#9CA3AF', cursor: 'pointer', fontWeight: 600 }}>
-                              {isBlok ? '✓ Blokuur' : 'Maak blokuur'}
+                              {isBlok ? '‚úì Blokuur' : 'Maak blokuur'}
                             </button>
                           )}
                         </td>
@@ -923,7 +1022,7 @@ export default function PlannerPage() {
           </div>
         )}
 
-        {/* ═══ WEEKPLANNER ═══ */}
+        {/* ‚ïê‚ïê‚ïê WEEKPLANNER ‚ïê‚ïê‚ïê */}
         {view === 'week' && (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
             <thead><tr>
@@ -945,7 +1044,7 @@ export default function PlannerPage() {
                   <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem' }}>{uur}</td>
                   {days.map((d, idx) => {
                     const dag = idx + 1; const slot = getSlot(dag, uur); const vakantie = isInVakantie(d, vakanties);
-                    /* Exact zelfde patroon als rooster: blokuur-second → null */
+                    /* Exact zelfde patroon als rooster: blokuur-second ‚Üí null */
                     if (isBlokuurSecond(dag, uur)) return null;
                     const isBlok = isBlokuurStart(dag, uur);
                     const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
@@ -953,7 +1052,7 @@ export default function PlannerPage() {
                     if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
                     /* Leeg uur */
                     if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top' }}><div style={{ minHeight: isBlok ? 160 : 80 }} /></td>;
-                    /* Les cel — height:1px trick zodat height:100% in kinderen werkt */
+                    /* Les cel ‚Äî height:1px trick zodat height:100% in kinderen werkt */
                     return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, height: '1px' }}>{renderCell(slot, d, isBlok)}</td>;
                   })}
                 </tr>
@@ -962,7 +1061,7 @@ export default function PlannerPage() {
           </table>
         )}
 
-        {/* ═══ DAGPLANNER (alle lesvelden direct zichtbaar per les) ═══ */}
+        {/* ‚ïê‚ïê‚ïê DAGPLANNER (alle lesvelden direct zichtbaar per les) ‚ïê‚ïê‚ïê */}
         {view === 'dag' && (() => {
           const dagIdx = new Date(selectedDate + 'T12:00:00').getDay();
           const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
@@ -973,13 +1072,13 @@ export default function PlannerPage() {
           if (dagSlots.length === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lessen op deze dag.</div>;
 
           const dagFields: Array<{ key: keyof Les; label: string; placeholder: string }> = [
-            { key: 'startopdracht', label: '🚀 Start', placeholder: 'Startopdracht...' },
-            { key: 'terugkijken', label: '🔄 Terugkijken', placeholder: 'Wat bespreken we?' },
-            { key: 'programma', label: '📋 Programma', placeholder: 'Plan les...' },
-            { key: 'leerdoelen', label: '🎯 Leerdoelen', placeholder: 'Wat moeten ze leren?' },
-            { key: 'huiswerk', label: '📝 Huiswerk', placeholder: 'Huiswerk opgave...' },
-            { key: 'niet_vergeten', label: '⚡ Onthoud', placeholder: 'Niet vergeten...' },
-            { key: 'notities', label: '💬 Notities', placeholder: 'Notities...' },
+            { key: 'startopdracht', label: 'üöÄ Start', placeholder: 'Startopdracht...' },
+            { key: 'terugkijken', label: 'üîÑ Terugkijken', placeholder: 'Wat bespreken we?' },
+            { key: 'programma', label: 'üìã Programma', placeholder: 'Plan les...' },
+            { key: 'leerdoelen', label: 'üéØ Leerdoelen', placeholder: 'Wat moeten ze leren?' },
+            { key: 'huiswerk', label: 'üìù Huiswerk', placeholder: 'Huiswerk opgave...' },
+            { key: 'niet_vergeten', label: '‚ö° Onthoud', placeholder: 'Niet vergeten...' },
+            { key: 'notities', label: 'üí¨ Notities', placeholder: 'Notities...' },
           ];
 
           return (
@@ -997,9 +1096,9 @@ export default function PlannerPage() {
                     {/* Header - klik opent zijpaneel voor snelle tab-navigatie */}
                     <div onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur })}
                       style={{ padding: '0.5rem 0.75rem', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', cursor: 'pointer' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur }}>Uur {slot.uur}{isBlok ? `–${slot.uur + 1}` : ''}</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur }}>Uur {slot.uur}{isBlok ? `‚Äì${slot.uur + 1}` : ''}</span>
                       <span style={{ fontWeight: 700, fontSize: '0.78rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 4 }}>{klas?.naam}</span>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{klas?.vak} · {klas?.lokaal}</span>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{klas?.vak} ¬∑ {klas?.lokaal}</span>
                       {isBlok && <span style={{ fontSize: '0.62rem', color: kleur, fontWeight: 600, background: kleur + '15', padding: '1px 6px', borderRadius: 3 }}>blokuur</span>}
                       {cellToetsen.map(t => (
                         <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 6px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 700 }}>
@@ -1039,7 +1138,7 @@ export default function PlannerPage() {
           );
         })()}
 
-        {/* ═══ KLASPLANNER (2 weken als kolommen, zelfde tabel-stijl als weekplanner) ═══ */}
+        {/* ‚ïê‚ïê‚ïê KLASPLANNER (2 weken als kolommen, zelfde tabel-stijl als weekplanner) ‚ïê‚ïê‚ïê */}
         {view === 'klas' && selectedKlasId && (() => {
           const klas = klassen.find(k => k.id === selectedKlasId);
           if (!klas) return null;
@@ -1072,7 +1171,7 @@ export default function PlannerPage() {
                   return (
                     <th key={wi} colSpan={1} style={{ ...th, background: isCurrentWeek ? '#f0fdf4' : '#f9fafb', color: isCurrentWeek ? kleur : '#374151' }}>
                       <div style={{ fontSize: '0.85rem' }}>Week {week.weekNum}</div>
-                      <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(week.days[0])} – {formatDate(week.days[4])}</div>
+                      <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(week.days[0])} ‚Äì {formatDate(week.days[4])}</div>
                     </th>
                   );
                 })}
@@ -1108,7 +1207,7 @@ export default function PlannerPage() {
           );
         })()}
 
-        {/* ═══ JAARLAAGPLANNER (klassen als kolommen, 2 weken als rijen) ═══ */}
+        {/* ‚ïê‚ïê‚ïê JAARLAAGPLANNER (klassen als kolommen, 2 weken als rijen) ‚ïê‚ïê‚ïê */}
         {view === 'jaarlaag' && (() => {
           const jlKlassen = klassen.filter(k => k.jaarlaag === selectedJaarlaag);
           if (jlKlassen.length === 0) return <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF' }}>Geen klassen in deze jaarlaag.</div>;
@@ -1148,7 +1247,7 @@ export default function PlannerPage() {
                     return (
                       <tr key={`wh-${ri}`}>
                         <td colSpan={1 + jlKlassen.length} style={{ padding: '0.4rem 0.6rem', background: row.isCurrentWeek ? '#f0fdf4' : '#f9fafb', fontWeight: 700, fontSize: '0.82rem', color: row.isCurrentWeek ? '#2d8a4e' : '#374151', borderBottom: '2px solid #e5e7eb', textAlign: 'center' }}>
-                          Week {row.week.weekNum} <span style={{ fontWeight: 400, fontSize: '0.72rem', color: '#94a3b8', marginLeft: 6 }}>{formatDate(row.week.days[0])} – {formatDate(row.week.days[4])}</span>
+                          Week {row.week.weekNum} <span style={{ fontWeight: 400, fontSize: '0.72rem', color: '#94a3b8', marginLeft: 6 }}>{formatDate(row.week.days[0])} ‚Äì {formatDate(row.week.days[4])}</span>
                         </td>
                       </tr>
                     );
@@ -1181,20 +1280,20 @@ export default function PlannerPage() {
         {/* jaarlaag view ends above */}
         </div>
 
-        {/* ═══ LESSON DETAIL PANEL (tabbed) ═══ */}
+        {/* ‚ïê‚ïê‚ïê LESSON DETAIL PANEL (tabbed) ‚ïê‚ïê‚ïê */}
         {selectedLesPanel && (() => {
           const panelLes = getCellLes(selectedLesPanel.klas_id, selectedLesPanel.datum, selectedLesPanel.uur || 0);
           const panelKlas = klassen.find(k => k.id === selectedLesPanel.klas_id);
           const panelKleur = klasKleurMap[selectedLesPanel.klas_id] || '#6B7280';
           const panelKey = `${selectedLesPanel.klas_id}-${selectedLesPanel.datum}-${selectedLesPanel.uur}`;
           const tabs: Array<{ key: keyof Les; label: string; placeholder: string; icon: string }> = [
-            { key: 'programma', label: 'Programma', placeholder: 'Plan les...', icon: '📋' },
-            { key: 'startopdracht', label: 'Start', placeholder: 'Startopdracht...', icon: '🚀' },
-            { key: 'terugkijken', label: 'Terugkijken', placeholder: 'Wat bespreken we?', icon: '🔄' },
-            { key: 'leerdoelen', label: 'Doelen', placeholder: 'Wat moeten ze leren?', icon: '🎯' },
-            { key: 'huiswerk', label: 'Huiswerk', placeholder: 'Huiswerk opgave...', icon: '📝' },
-            { key: 'niet_vergeten', label: 'Onthoud', placeholder: 'Niet vergeten...', icon: '⚡' },
-            { key: 'notities', label: 'Notities', placeholder: 'Notities...', icon: '💬' },
+            { key: 'programma', label: 'Programma', placeholder: 'Plan les...', icon: 'üìã' },
+            { key: 'startopdracht', label: 'Start', placeholder: 'Startopdracht...', icon: 'üöÄ' },
+            { key: 'terugkijken', label: 'Terugkijken', placeholder: 'Wat bespreken we?', icon: 'üîÑ' },
+            { key: 'leerdoelen', label: 'Doelen', placeholder: 'Wat moeten ze leren?', icon: 'üéØ' },
+            { key: 'huiswerk', label: 'Huiswerk', placeholder: 'Huiswerk opgave...', icon: 'üìù' },
+            { key: 'niet_vergeten', label: 'Onthoud', placeholder: 'Niet vergeten...', icon: '‚ö°' },
+            { key: 'notities', label: 'Notities', placeholder: 'Notities...', icon: 'üí¨' },
           ];
           const activeTab = tabs.find(t => t.key === panelTab) || tabs[0];
           const hasContent = (key: keyof Les) => { const v = panelLes[key]; return typeof v === 'string' && stripHtml(v).length > 0; };
@@ -1205,10 +1304,10 @@ export default function PlannerPage() {
               <div style={{ padding: '0.75rem 1rem', borderBottom: `3px solid ${panelKleur}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: panelKleur + '08' }}>
                 <div>
                   <span style={{ fontWeight: 700, fontSize: '0.85rem', color: panelKleur }}>{panelKlas?.naam}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: 8 }}>Uur {selectedLesPanel.uur || '—'} · {formatDate(selectedLesPanel.datum)}</span>
-                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 2 }}>{panelKlas?.vak} · {panelKlas?.lokaal}</div>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: 8 }}>Uur {selectedLesPanel.uur || '‚Äî'} ¬∑ {formatDate(selectedLesPanel.datum)}</span>
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 2 }}>{panelKlas?.vak} ¬∑ {panelKlas?.lokaal}</div>
                 </div>
-                <button onClick={() => setSelectedLesPanel(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8', padding: '4px 8px', borderRadius: 4 }}>✕</button>
+                <button onClick={() => setSelectedLesPanel(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8', padding: '4px 8px', borderRadius: 4 }}>‚úï</button>
               </div>
 
               {/* Tab bar */}
@@ -1256,3 +1355,4 @@ function TBtn({ active, onClick, title, children }: { active: boolean; onClick: 
   );
 }
 function Sep() { return <div style={{ width: 1, height: 20, background: '#e5e7eb', margin: '0 4px' }} />; }
+
