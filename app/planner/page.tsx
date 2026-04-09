@@ -92,6 +92,7 @@ export default function PlannerPage() {
   const [zermeloStudents, setZermeloStudents] = useState<Record<string, Array<{ firstName: string; lastName: string }>> | null>(null);
   const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview' | 'mapping' | 'students'>('auth');
   const [zermeloMapping, setZermeloMapping] = useState<Record<string, number | 'new'>>({});
+  const [zermeloWeekStart, setZermeloWeekStart] = useState('');
 
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
@@ -718,7 +719,7 @@ export default function PlannerPage() {
                       const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'fetch', school: zermeloSchool, token: zermeloToken, week_start: weekStart }) });
                       const data = await res.json();
-                      if (data.slots) { setZermeloPreview(data.slots); setZermeloStep('preview'); setZermeloStatus(`${data.slots.length} lessen gevonden`); }
+                      if (data.slots) { setZermeloPreview(data.slots); setZermeloWeekStart(weekStart); setZermeloStep('preview'); setZermeloStatus(`${data.slots.length} lessen gevonden`); }
                       else { setZermeloStatus(data.error || 'Ophalen mislukt'); }
                     }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
                       Rooster ophalen
@@ -754,10 +755,13 @@ export default function PlannerPage() {
                     </table>
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                       <button onClick={() => {
-                        const uniqueGroepen = [...new Set(zermeloPreview.map(s => s.groep).filter(Boolean))];
+                        const uniqueGroepen = [...new Set(zermeloPreview.map(s => s.groep?.trim()).filter(Boolean))];
                         const autoMap: Record<string, number | 'new'> = {};
                         for (const g of uniqueGroepen) {
-                          const match = klassen.find(k => k.naam.toLowerCase() === g.toLowerCase());
+                          const gClean = g.trim().toLowerCase();
+                          // Probeer exacte match, dan zonder punten/underscores
+                          const match = klassen.find(k => k.naam.trim().toLowerCase() === gClean)
+                            || klassen.find(k => k.naam.trim().toLowerCase().replace(/[._-]/g, '') === gClean.replace(/[._-]/g, ''));
                           autoMap[g] = match ? match.id : 'new';
                         }
                         setZermeloMapping(autoMap);
@@ -838,7 +842,7 @@ export default function PlannerPage() {
                           setZermeloStudents(data.students);
                           const total = Object.values(data.students as Record<string, unknown[]>).reduce((sum, arr) => sum + arr.length, 0);
                           setZermeloStep('students');
-                          setZermeloStatus(`${total} leerlingen gevonden in ${activeGroepen.length} groepen`);
+                          setZermeloStatus(`${total} leerlingen gevonden in ${activeGroepen.length} groepen${data.debug ? ` (${data.debug})` : ''}`);
                         } else { setZermeloStatus(data.error || 'Leerlingen ophalen mislukt. Ga door met alleen rooster.'); }
                       }} style={{ background: '#4a80d4', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
                         Leerlingen ophalen →
@@ -907,9 +911,15 @@ export default function PlannerPage() {
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid #f59e0b40' }}>
                       <input id="z-naam" placeholder="Naam periode..." defaultValue={`Zermelo ${new Date().toLocaleDateString('nl-NL')}`}
                         style={{ flex: '1 1 140px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                      <input id="z-start" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
+                      <input id="z-start" type="date" defaultValue={zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0]}
+                        style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
                       <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>t/m</span>
-                      <input id="z-eind" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
+                      <input id="z-eind" type="date" defaultValue={(() => {
+                        // Standaard: einde schooljaar (eerste vrijdag van juli)
+                        const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+                        return `${yr}-07-17`;
+                      })()}
+                        style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
                       <button onClick={async () => {
                         const naam = (document.getElementById('z-naam') as HTMLInputElement).value;
                         const start = (document.getElementById('z-start') as HTMLInputElement).value;

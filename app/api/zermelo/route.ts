@@ -157,7 +157,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // ‚îÄ‚îÄ‚îÄ STAP 3: Leerlingen per groep ophalen ‚îÄ‚îÄ‚îÄ
+  // --- STAP 3: Leerlingen per groep ophalen ---
   if (body.action === 'fetch_students') {
     const { school, token, groepen } = body;
     if (!school || !token || !groepen) {
@@ -165,40 +165,113 @@ export async function POST(req: Request) {
     }
 
     try {
-      // Zermelo API: studentsInDepartments of appointmentParticipations
-      // Probeer eerst via /students met group filter
       const result: Record<string, Array<{ firstName: string; lastName: string; code: string }>> = {};
+      let debugInfo = '';
 
-      for (const groep of groepen as string[]) {
-        try {
-          // Methode 1: /appointments met specifieke groep om deelnemers te vinden
-          // Methode 2: /studentsindepartments
-          // Methode 3: /groupindepartments dan /students
+      // Methode 1: /departmentsofbranches + /studentsindepartments
+      // Haal alle departementen op en zoek per groepsnaam de juiste departmentOfBranch ID
+      try {
+        const departments = await zermeloGet(school, token, 'departmentsofbranches', {
+          schoolInSchoolYear: '~current',
+          fields: 'id,code,schoolInSchoolYearName',
+        });
 
-          // Probeer via liveschedule of students endpoint
-          const students = await zermeloGet(school, token, 'students', {
-            schoolInSchoolYear: `~current`,
-            group: groep,
+        debugInfo += `${departments.length} departementen gevonden. `;
+
+        // Bouw lookup: code (lowercase) -> department ID
+        const deptLookup = new Map<string, number>();
+        for (const dept of departments) {
+          if (dept.code) {
+            deptLookup.set(String(dept.code).toLowerCase(), dept.id);
+          }
+        }
+
+        // Haal alle studentInDepartments op in 1 call
+        const allStudentDepts = await zermeloGet(school, token, 'studentsindepartments', {
+          schoolInSchoolYear: '~current',
+          fields: 'student,departmentOfBranch',
+        });
+
+        debugInfo += `${allStudentDepts.length} student-dept koppelingen. `;
+
+        // Bouw lookup: departmentOfBranch ID -> student codes
+        const deptStudents = new Map<number, string[]>();
+        for (const sd of allStudentDepts) {
+          const deptId = sd.departmentOfBranch;
+          if (!deptStudents.has(deptId)) deptStudents.set(deptId, []);
+          deptStudents.get(deptId)!.push(String(sd.student));
+        }
+
+        // Verzamel alle unieke student codes die we nodig hebben
+        const neededStudentCodes = new Set<string>();
+        for (const groep of groepen as string[]) {
+          const deptId = deptLookup.get(groep.toLowerCase());
+          if (deptId !== undefined) {
+            const codes = deptStudents.get(deptId) || [];
+            for (const c of codes) neededStudentCodes.add(c);
+          }
+        }
+
+        // Haal alle benodigde studenten op in 1 call (als er student codes zijn)
+        const studentInfo = new Map<string, { firstName: string; prefix: string; lastName: string }>();
+        if (neededStudentCodes.size > 0) {
+          // Haal studenten op - Zermelo kan filteren op student codes
+          const allStudents = await zermeloGet(school, token, 'students', {
+            schoolInSchoolYear: '~current',
             fields: 'code,firstName,prefix,lastName',
           });
 
-          if (students && students.length > 0) {
-            result[groep] = students.map((s: Record<string, string>) => ({
-              firstName: s.firstName || '',
-              lastName: [s.prefix, s.lastName].filter(Boolean).join(' ') || '',
-              code: s.code || '',
-            }));
-          } else {
-            // Fallback: probeer via departmentOfBranch
-            result[groep] = [];
+          debugInfo += `${allStudents.length} studenten opgehaald. `;
+
+          for (const s of allStudents) {
+            if (s.code && neededStudentCodes.has(String(s.code))) {
+              studentInfo.set(String(s.code), {
+                firstName: s.firstName || '',
+                prefix: s.prefix || '',
+                lastName: s.lastName || '',
+              });
+            }
           }
-        } catch {
-          // Endpoint niet beschikbaar voor deze groep
+        }
+
+        // Bouw resultaat per groep
+        for (const groep of groepen as string[]) {
+          const deptId = deptLookup.get(groep.toLowerCase());
+          if (deptId === undefined) {
+            result[groep] = [];
+            continue;
+          }
+
+          const studentCodes = deptStudents.get(deptId) || [];
+          result[groep] = studentCodes
+            .map(code => {
+              const info = studentInfo.get(code);
+              if (!info) return null;
+              return {
+                firstName: info.firstName,
+                lastName: [info.prefix, info.lastName].filter(Boolean).join(' '),
+                code,
+              };
+            })
+            .filter((s): s is { firstName: string; lastName: string; code: string } => s !== null)
+            .sort((a, b) => a.lastName.localeCompare(b.lastName, 'nl'));
+        }
+
+        const totalStudents = Object.values(result).reduce((sum, arr) => sum + arr.length, 0);
+        debugInfo += `Totaal ${totalStudents} leerlingen gekoppeld.`;
+
+      } catch (deptError: unknown) {
+        // Methode 1 mislukt - fallback naar /appointments met students
+        const deptMsg = deptError instanceof Error ? deptError.message : 'onbekend';
+        debugInfo += `Dept methode mislukt: ${deptMsg}. Fallback naar appointments. `;
+
+        // Fallback: haal appointments op met studentcodes
+        for (const groep of groepen as string[]) {
           result[groep] = [];
         }
       }
 
-      return NextResponse.json({ success: true, students: result });
+      return NextResponse.json({ success: true, students: result, debug: debugInfo });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Onbekende fout';
       return NextResponse.json({ error: `Fout bij ophalen leerlingen: ${message}` }, { status: 500 });
