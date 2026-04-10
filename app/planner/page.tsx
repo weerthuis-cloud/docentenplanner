@@ -1592,66 +1592,78 @@ export default function PlannerPage() {
           );
         })()}
 
-        {/* ═══ JAARLAAGPLANNER (klassen als kolommen, 2 weken als rijen) ═══ */}
+        {/* ═══ JAARLAAGPLANNER (klassen als rijen, dagen als kolommen) ═══ */}
         {view === 'jaarlaag' && (() => {
           const jlKlassen = klassen.filter(k => k.jaarlaag === selectedJaarlaag);
           if (jlKlassen.length === 0) return <div style={{ padding: '2rem', textAlign: 'center', color: '#9CA3AF' }}>Geen klassen in deze jaarlaag.</div>;
           const weeks = getTwoWeeks(jaarlaagWeekStart);
 
-          /* Bouw rijen: weekheader + lesdagen per week */
-          type JaarlaagRow = { type: 'weekheader'; week: typeof weeks[0]; isCurrentWeek: boolean } | { type: 'dag'; datum: string; dag: number; di: number; vakantie: Vakantie | null };
-          const rows: JaarlaagRow[] = [];
-          weeks.forEach(week => {
+          /* Verzamel lesdagen (kolommen) per week */
+          const allLesDagen: Array<{ datum: string; dag: number; di: number; vakantie: Vakantie | null; weekIdx: number; isCurrentWeek: boolean }> = [];
+          weeks.forEach((week, wi) => {
             const isCurrentWeek = week.startDate <= today && today <= week.days[4];
-            rows.push({ type: 'weekheader', week, isCurrentWeek });
             week.days.forEach((datum, di) => {
               const dag = di + 1;
-              const vakantie = isInVakantie(datum, vakanties);
               const anyLes = jlKlassen.some(k => allRooster.some(r => r.dag === dag && r.klas_id === k.id));
-              if (anyLes) rows.push({ type: 'dag', datum, dag, di, vakantie });
+              if (anyLes) {
+                const vakantie = isInVakantie(datum, vakanties);
+                allLesDagen.push({ datum, dag, di, vakantie, weekIdx: wi, isCurrentWeek });
+              }
             });
           });
 
+          /* Groepeer kolommen per week voor weekheaders */
+          const week0Count = allLesDagen.filter(d => d.weekIdx === 0).length;
+          const week1Count = allLesDagen.filter(d => d.weekIdx === 1).length;
+
           return (
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 4, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
-              <thead><tr>
-                <th style={{ ...th, width: 72 }}>Dag</th>
+              <thead>
+                {/* Week headers als colspan */}
+                <tr>
+                  <th style={{ ...th, width: 100 }} />
+                  {week0Count > 0 && (
+                    <th colSpan={week0Count} style={{ ...th, background: allLesDagen.find(d => d.weekIdx === 0)?.isCurrentWeek ? '#f0fdf4' : '#f9fafb', color: allLesDagen.find(d => d.weekIdx === 0)?.isCurrentWeek ? '#2d8a4e' : '#374151' }}>
+                      Week {weeks[0].weekNum} <span style={{ fontWeight: 400, fontSize: '0.9rem', color: '#94a3b8', marginLeft: 4 }}>{formatDate(weeks[0].days[0])} – {formatDate(weeks[0].days[4])}</span>
+                    </th>
+                  )}
+                  {week1Count > 0 && (
+                    <th colSpan={week1Count} style={{ ...th, background: allLesDagen.find(d => d.weekIdx === 1)?.isCurrentWeek ? '#f0fdf4' : '#f9fafb', color: allLesDagen.find(d => d.weekIdx === 1)?.isCurrentWeek ? '#2d8a4e' : '#374151' }}>
+                      Week {weeks[1].weekNum} <span style={{ fontWeight: 400, fontSize: '0.9rem', color: '#94a3b8', marginLeft: 4 }}>{formatDate(weeks[1].days[0])} – {formatDate(weeks[1].days[4])}</span>
+                    </th>
+                  )}
+                </tr>
+                {/* Dag headers */}
+                <tr>
+                  <th style={{ ...th, width: 100 }}>Klas</th>
+                  {allLesDagen.map(ld => {
+                    const isToday = ld.datum === today;
+                    return (
+                      <th key={ld.datum} style={{ ...th, background: isToday ? '#f0fdf4' : ld.vakantie ? '#fefce8' : undefined, color: isToday ? '#2d8a4e' : undefined }}>
+                        <div>{dagNamenKort[ld.di]}</div>
+                        <div style={{ fontSize: '0.86rem', fontWeight: 400, color: '#94a3b8' }}>{formatDate(ld.datum)}</div>
+                        {ld.vakantie && <div style={{ fontSize: '0.78rem', color: '#ca8a04', fontWeight: 600 }}>{ld.vakantie.naam}</div>}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
                 {jlKlassen.map(klas => {
                   const kleur = klasKleurMap[klas.id] || '#6B7280';
                   return (
-                    <th key={klas.id} style={{ ...th, color: kleur }}>
-                      <div style={{ fontSize: '1.12rem' }}>{klas.naam}</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 400, opacity: 0.6 }}>{klas.vak}</div>
-                    </th>
-                  );
-                })}
-              </tr></thead>
-              <tbody>
-                {rows.map((row, ri) => {
-                  if (row.type === 'weekheader') {
-                    return (
-                      <tr key={`wh-${ri}`}>
-                        <td colSpan={1 + jlKlassen.length} style={{ padding: '0.4rem 0.6rem', background: row.isCurrentWeek ? '#f0fdf4' : '#f9fafb', fontWeight: 700, fontSize: '1.05rem', color: row.isCurrentWeek ? '#2d8a4e' : '#374151', borderBottom: '2px solid #e5e7eb', textAlign: 'center' }}>
-                          Week {row.week.weekNum} <span style={{ fontWeight: 400, fontSize: '0.95rem', color: '#94a3b8', marginLeft: 6 }}>{formatDate(row.week.days[0])} – {formatDate(row.week.days[4])}</span>
-                        </td>
-                      </tr>
-                    );
-                  }
-                  const { datum, dag, di, vakantie } = row;
-                  const isToday = datum === today;
-                  return (
-                    <tr key={`d-${datum}`}>
-                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, fontSize: '0.95rem', padding: '0.2rem', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : '#fafafa', color: isToday ? '#2d8a4e' : '#475569', verticalAlign: 'top' }}>
-                        {dagNamenKort[di]}<br/><span style={{ fontSize: '0.86rem', fontWeight: 400, color: '#94a3b8' }}>{formatDate(datum)}</span>
-                        {vakantie && <div style={{ fontSize: '0.82rem', color: '#ca8a04', fontWeight: 600, marginTop: 2 }}>{vakantie.naam}</div>}
+                    <tr key={klas.id}>
+                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, fontSize: '0.95rem', padding: '0.3rem', verticalAlign: 'top' }}>
+                        <div style={{ color: kleur, fontSize: '1.05rem' }}>{klas.naam}</div>
+                        <div style={{ fontSize: '0.86rem', fontWeight: 400, color: '#94a3b8' }}>{klas.vak}</div>
                       </td>
-                      {jlKlassen.map(klas => {
-                        if (vakantie) return <td key={klas.id} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.88rem', color: '#ca8a04' }}>{vakantie.naam}</span></td>;
-                        const slots = allRooster.filter(r => r.dag === dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
-                        if (slots.length === 0) return <td key={klas.id} style={{ ...td }}><div style={{ minHeight: 60, borderRadius: 12, background: '#e8eaed' }} /></td>;
+                      {allLesDagen.map(ld => {
+                        if (ld.vakantie) return <td key={ld.datum} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.82rem', color: '#ca8a04' }}>{ld.vakantie.naam}</span></td>;
+                        const slots = allRooster.filter(r => r.dag === ld.dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(ld.dag, s.uur));
+                        if (slots.length === 0) return <td key={ld.datum} style={{ ...td }}><div style={{ minHeight: 60, borderRadius: 12, background: '#e8eaed' }} /></td>;
                         return (
-                          <td key={klas.id} style={{ ...td, height: '1px' }}>
-                            {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
+                          <td key={ld.datum} style={{ ...td, height: '1px' }}>
+                            {slots.map(slot => renderCell(slot, ld.datum, isBlokuurStart(ld.dag, slot.uur)))}
                           </td>
                         );
                       })}
