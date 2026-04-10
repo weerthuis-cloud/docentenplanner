@@ -257,22 +257,22 @@ export default function PlannerPage() {
     const filledExtras = extraFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; });
 
     return (
-      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 160 : 80, borderLeft: `3px solid ${kleur}`, background: 'white', cursor: 'pointer', position: 'relative' }}
+      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 190 : 95, borderLeft: `3px solid ${kleur}`, background: 'white', cursor: 'pointer', position: 'relative' }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 6px', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, flexWrap: 'wrap', flexShrink: 0 }}>
-          <span style={{ fontWeight: 700, fontSize: '0.68rem', color: 'white', background: kleur, padding: '0 0.35rem', borderRadius: 3 }}>{klas?.naam}</span>
-          <span style={{ fontSize: '0.6rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
-          {isBlok && <span style={{ fontSize: '0.58rem', color: kleur, fontWeight: 600 }}>blok</span>}
+          <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'white', background: kleur, padding: '0 0.35rem', borderRadius: 3 }}>{klas?.naam}</span>
+          <span style={{ fontSize: '0.76rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
+          {isBlok && <span style={{ fontSize: '0.74rem', color: kleur, fontWeight: 600 }}>blok</span>}
           {cellToetsen.map(t => (
-            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '0 3px', borderRadius: 3, fontSize: '0.58rem', fontWeight: 700 }}>
+            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '0 5px', borderRadius: 3, fontSize: '0.74rem', fontWeight: 700 }}>
               {t.type}: {t.naam.length > 10 ? t.naam.slice(0, 10) + '..' : t.naam}
-              <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.5rem', padding: 0 }}>✕</button>
+              <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.68rem', padding: 0 }}>✕</button>
             </span>
           ))}
           <button onClick={(e) => { e.stopPropagation(); const tk = `${slot.klas_id}-${datum}`; setInlineToetsCell(inlineToetsCell === tk ? null : tk); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
             title="Toets inplannen"
-            style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.6 }}>
+            style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.6 }}>
             +T
           </button>
         </div>
@@ -280,7 +280,7 @@ export default function PlannerPage() {
         {inlineToetsCell === `${slot.klas_id}-${datum}` && (
           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 3, padding: '3px 6px', background: '#fef3c7', borderBottom: '1px solid #f59e0b40', alignItems: 'center', flexShrink: 0 }}>
             <select value={inlineToetsType} onChange={e => setInlineToetsType(e.target.value)}
-              style={{ border: '1px solid #d1d5db', borderRadius: 3, padding: '1px 2px', fontSize: '0.65rem', fontWeight: 700 }}>
+              style={{ border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 4px', fontSize: '0.8rem', fontWeight: 700 }}>
               {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k}</option>)}
             </select>
             <input value={inlineToetsNaam} onChange={e => setInlineToetsNaam(e.target.value)} placeholder="Naam..."
@@ -294,24 +294,24 @@ export default function PlannerPage() {
                 }
                 if (e.key === 'Escape') { setInlineToetsCell(null); setInlineToetsNaam(''); }
               }}
-              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 3, padding: '1px 4px', fontSize: '0.65rem', minWidth: 50 }} />
+              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 6px', fontSize: '0.8rem', minWidth: 50 }} />
             <button onClick={async () => {
               if (!inlineToetsNaam.trim()) return;
               await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ klas_id: slot.klas_id, naam: inlineToetsNaam.trim(), type: inlineToetsType, datum, kleur: toetsKleuren[inlineToetsType] || '#6B7280' }) });
               fetch('/api/toetsen').then(r => r.json()).then(setToetsen);
               setInlineToetsCell(null); setInlineToetsNaam('');
-            }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 3, padding: '1px 6px', fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer' }}>
+            }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 3, padding: '2px 8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>
               ✓
             </button>
             <button onClick={() => { setInlineToetsCell(null); setInlineToetsNaam(''); }}
-              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.6rem', padding: 0 }}>✕</button>
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.76rem', padding: 0 }}>✕</button>
           </div>
         )}
         {/* JP suggestie */}
         {jpSuggestion && !les.programma && (
           <div onClick={(e) => { e.stopPropagation(); updateCell(cellKey, les, 'programma', `<p>${jpSuggestion}</p>`); }}
-            style={{ padding: '2px 6px', fontSize: '0.62rem', color: '#2d8a4e', background: '#f0fdf4', borderBottom: '1px dashed #bbf7d0', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ padding: '2px 6px', fontSize: '0.78rem', color: '#2d8a4e', background: '#f0fdf4', borderBottom: '1px dashed #bbf7d0', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="Klik om jaarplanner suggestie over te nemen">
             📅 {jpSuggestion.slice(0, 60)}{jpSuggestion.length > 60 ? '...' : ''}
           </div>
@@ -323,7 +323,7 @@ export default function PlannerPage() {
         {filledExtras.length > 0 && (
           <div style={{ display: 'flex', gap: 2, padding: '2px 6px 3px', flexShrink: 0, flexWrap: 'wrap' }}>
             {filledExtras.map(f => (
-              <span key={f.key} title={f.label} style={{ fontSize: '0.52rem', lineHeight: 1, opacity: 0.7 }}>{f.icon}</span>
+              <span key={f.key} title={f.label} style={{ fontSize: '0.7rem', lineHeight: 1, opacity: 0.7 }}>{f.icon}</span>
             ))}
           </div>
         )}
@@ -332,9 +332,9 @@ export default function PlannerPage() {
   }
 
   /* ───── Styles ───── */
-  const th: React.CSSProperties = { padding: '0.4rem 0.3rem', fontWeight: 700, fontSize: '0.85rem', borderBottom: '2px solid #d1d5db', textAlign: 'center', background: '#f9fafb' };
+  const th: React.CSSProperties = { padding: '0.5rem 0.4rem', fontWeight: 700, fontSize: '1.0rem', borderBottom: '2px solid #d1d5db', textAlign: 'center', background: '#f9fafb' };
   const td: React.CSSProperties = { padding: 0, borderBottom: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb', verticalAlign: 'top' };
-  const navBtn: React.CSSProperties = { padding: '0.35rem 0.6rem', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '0.82rem' };
+  const navBtn: React.CSSProperties = { padding: '0.45rem 0.75rem', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '0.95rem' };
 
   /* ═══ Two-week data for klas/jaarlaag views ═══ */
   function getTwoWeeks(ws: string) {
@@ -356,20 +356,20 @@ export default function PlannerPage() {
         <div style={{ display: 'flex', background: '#eef4f0', borderRadius: 8, overflow: 'hidden' }}>
           {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
-              padding: '0.35rem 0.7rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem',
+              padding: '0.45rem 0.85rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.92rem',
               background: view === v ? '#2d8a4e' : 'transparent', color: view === v ? 'white' : '#2d8a4e',
             }}>{{ overzicht: 'Overzicht', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster' }[v]}</button>
           ))}
         </div>
 
         {klassen.map((k, i) => (
-          <span key={k.id} style={{ padding: '0.1rem 0.35rem', borderRadius: 4, fontSize: '0.68rem', fontWeight: 700,
+          <span key={k.id} style={{ padding: '0.1rem 0.35rem', borderRadius: 4, fontSize: '0.82rem', fontWeight: 700,
             background: klasKleuren[i % klasKleuren.length] + '15', color: klasKleuren[i % klasKleuren.length] }}>{k.naam}</span>
         ))}
 
         <div style={{ flex: 1 }} />
 
-        {saving && <span style={{ fontSize: '0.7rem', color: '#2d8a4e', fontWeight: 600 }}>💾 Opslaan...</span>}
+        {saving && <span style={{ fontSize: '0.84rem', color: '#2d8a4e', fontWeight: 600 }}>💾 Opslaan...</span>}
 
         {/* Overzicht nav */}
         {view === 'overzicht' && (
@@ -379,7 +379,7 @@ export default function PlannerPage() {
         {/* Week nav */}
         {view === 'week' && (<>
           <button onClick={() => changeWeek(-1)} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#2d8a4e', minWidth: 55, textAlign: 'center', fontSize: '0.88rem' }}>Wk {getWeekNumber(weekStart)}</span>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', minWidth: 55, textAlign: 'center', fontSize: '1.05rem' }}>Wk {getWeekNumber(weekStart)}</span>
           <button onClick={() => changeWeek(1)} style={navBtn}>▶</button>
           <button onClick={() => setWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
@@ -387,7 +387,7 @@ export default function PlannerPage() {
         {/* Dag nav */}
         {view === 'dag' && (<>
           <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.88rem' }}>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '1.05rem' }}>
             {dagNamen[new Date(selectedDate + 'T12:00:00').getDay() - 1] || 'Weekend'} {formatDate(selectedDate)}
           </span>
           <button onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
@@ -397,11 +397,11 @@ export default function PlannerPage() {
         {/* Klas nav */}
         {view === 'klas' && (<>
           <select value={selectedKlasId || ''} onChange={e => setSelectedKlasId(Number(e.target.value))}
-            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 600 }}>
+            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.95rem', fontWeight: 600 }}>
             {klassen.map((k, i) => <option key={k.id} value={k.id}>{k.naam}</option>)}
           </select>
           <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(klasWeekStart)}–{getWeekNumber(klasWeekStart) + 1}</span>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '1.0rem' }}>Wk {getWeekNumber(klasWeekStart)}–{getWeekNumber(klasWeekStart) + 1}</span>
           <button onClick={() => { const d = new Date(klasWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setKlasWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
           <button onClick={() => setKlasWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
@@ -409,11 +409,11 @@ export default function PlannerPage() {
         {/* Jaarlaag nav */}
         {view === 'jaarlaag' && (<>
           <select value={selectedJaarlaag} onChange={e => setSelectedJaarlaag(e.target.value)}
-            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 600 }}>
+            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.95rem', fontWeight: 600 }}>
             {[...new Set(klassen.map(k => k.jaarlaag))].map(j => <option key={j} value={j}>{j}</option>)}
           </select>
           <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
-          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '0.85rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)}–{getWeekNumber(jaarlaagWeekStart) + 1}</span>
+          <span style={{ fontWeight: 700, color: '#2d8a4e', fontSize: '1.0rem' }}>Wk {getWeekNumber(jaarlaagWeekStart)}–{getWeekNumber(jaarlaagWeekStart) + 1}</span>
           <button onClick={() => { const d = new Date(jaarlaagWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setJaarlaagWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
           <button onClick={() => setJaarlaagWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2d8a4e', color: 'white', border: 'none' }}>Vandaag</button>
         </>)}
@@ -440,54 +440,54 @@ export default function PlannerPage() {
           </TBtn>
           <Sep />
           <select onChange={e => { if (e.target.value && activeEditor) activeEditor.chain().focus().setFontSize(e.target.value).run(); }} defaultValue=""
-            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 4px', fontSize: '0.72rem', background: 'white', cursor: 'pointer' }}>
+            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 4px', fontSize: '0.86rem', background: 'white', cursor: 'pointer' }}>
             <option value="" disabled>Grootte</option>
             {FONTS.map(s => <option key={s} value={s}>{parseInt(s)}pt</option>)}
           </select>
           <Sep />
           <div style={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.65rem', color: '#9CA3AF', marginRight: 2 }}>A</span>
+            <span style={{ fontSize: '0.8rem', color: '#9CA3AF', marginRight: 2 }}>A</span>
             {COLORS.map(c => (
               <button key={c} onClick={() => activeEditor?.chain().focus().setColor(c).run()} style={{ width: 16, height: 16, borderRadius: 3, border: '1px solid #d1d5db', background: c, cursor: 'pointer', padding: 0 }} />
             ))}
           </div>
           <Sep />
           <div style={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.65rem', color: '#9CA3AF', marginRight: 2 }}>🖍</span>
+            <span style={{ fontSize: '0.8rem', color: '#9CA3AF', marginRight: 2 }}>🖍</span>
             {HIGHLIGHTS.map(c => (
               <button key={c} onClick={() => { if (c === 'transparent') activeEditor?.chain().focus().unsetHighlight().run(); else activeEditor?.chain().focus().setHighlight({ color: c }).run(); }}
                 style={{ width: 16, height: 16, borderRadius: 3, border: `1px solid ${c === 'transparent' ? '#d1d5db' : c}`, background: c === 'transparent' ? 'white' : c, cursor: 'pointer', padding: 0, position: 'relative' }}>
-                {c === 'transparent' && <span style={{ position: 'absolute', top: -1, left: 3, fontSize: '0.6rem', color: '#DC2626' }}>✕</span>}
+                {c === 'transparent' && <span style={{ position: 'absolute', top: -1, left: 3, fontSize: '0.76rem', color: '#DC2626' }}>✕</span>}
               </button>
             ))}
           </div>
-          {!activeEditor && <span style={{ fontSize: '0.7rem', color: '#b0b0b0', marginLeft: '0.5rem' }}>Klik in een cel om te bewerken</span>}
+          {!activeEditor && <span style={{ fontSize: '0.84rem', color: '#b0b0b0', marginLeft: '0.5rem' }}>Klik in een cel om te bewerken</span>}
         </div>
       )}
 
       {/* ═══ TOETS FORM ═══ */}
       {view !== 'rooster' && showToetsForm && (
         <div style={{ display: 'flex', gap: '0.4rem', padding: '0.35rem 0.8rem', background: '#FEF3C7', borderBottom: '1px solid #F59E0B', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#92400E' }}>📝</span>
+          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#92400E' }}>📝</span>
           <select value={newToets.type} onChange={e => setNewToets({ ...newToets, type: e.target.value })}
-            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.15rem', fontSize: '0.75rem', fontWeight: 600, color: toetsKleuren[newToets.type] }}>
+            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.25rem', fontSize: '0.9rem', fontWeight: 600, color: toetsKleuren[newToets.type] }}>
             {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k}</option>)}
           </select>
           <input value={newToets.naam} onChange={e => setNewToets({ ...newToets, naam: e.target.value })} placeholder="Naam..."
-            style={{ flex: '1 1 100px', minWidth: 80, border: '1px solid #d1d5db', borderRadius: 4, padding: '0.15rem 0.3rem', fontSize: '0.75rem' }} />
+            style={{ flex: '1 1 100px', minWidth: 80, border: '1px solid #d1d5db', borderRadius: 4, padding: '0.15rem 0.3rem', fontSize: '0.9rem' }} />
           <select value={newToets.klas_id || ''} onChange={e => setNewToets({ ...newToets, klas_id: Number(e.target.value) })}
-            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.15rem', fontSize: '0.75rem' }}>
+            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.25rem', fontSize: '0.9rem' }}>
             <option value="">Klas</option>
             {klassen.map(k => <option key={k.id} value={k.id}>{k.naam}</option>)}
           </select>
           <input type="date" value={newToets.datum} onChange={e => setNewToets({ ...newToets, datum: e.target.value })}
-            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.15rem', fontSize: '0.75rem' }} />
+            style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.25rem', fontSize: '0.9rem' }} />
           <button onClick={async () => {
             if (!newToets.naam.trim() || !newToets.klas_id || !newToets.datum) return;
             await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ klas_id: newToets.klas_id, naam: newToets.naam, type: newToets.type, datum: newToets.datum, kleur: toetsKleuren[newToets.type] || '#6B7280' }) });
             setNewToets({ naam: '', type: 'SO', klas_id: 0, datum: '' }); fetchToetsen();
-          }} style={{ background: '#D97706', color: 'white', border: 'none', borderRadius: 4, padding: '0.2rem 0.5rem', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>+</button>
+          }} style={{ background: '#D97706', color: 'white', border: 'none', borderRadius: 4, padding: '0.2rem 0.5rem', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>+</button>
           <button onClick={() => setShowToetsForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400E' }}>✕</button>
         </div>
       )}
@@ -537,11 +537,11 @@ export default function PlannerPage() {
             <div style={{ padding: '1.5rem', maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {/* Vandaag */}
               <div>
-                <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#2d8a4e', marginBottom: '0.75rem' }}>Vandaag ({dagNamen[todayDagNum - 1] || 'Weekend'})</h2>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#2d8a4e', marginBottom: '0.75rem' }}>Vandaag ({dagNamen[todayDagNum - 1] || 'Weekend'})</h2>
                 {todayVakantie ? (
-                  <div style={{ padding: '1rem', background: '#fef2f2', borderRadius: 8, color: '#b91c1c', fontSize: '0.9rem', fontWeight: 600 }}>{todayVakantie.naam}</div>
+                  <div style={{ padding: '1rem', background: '#fef2f2', borderRadius: 8, color: '#b91c1c', fontSize: '1.05rem', fontWeight: 600 }}>{todayVakantie.naam}</div>
                 ) : todaySlots.length === 0 ? (
-                  <div style={{ padding: '1rem', background: '#f3f4f6', borderRadius: 8, color: '#9CA3AF', fontSize: '0.9rem' }}>Geen lessen vandaag</div>
+                  <div style={{ padding: '1rem', background: '#f3f4f6', borderRadius: 8, color: '#9CA3AF', fontSize: '1.05rem' }}>Geen lessen vandaag</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {todaySlots.map(slot => {
@@ -563,20 +563,20 @@ export default function PlannerPage() {
                         <div key={slot.uur} onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: today, uur: slot.uur })}
                           style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${kleur}30`, borderLeft: `3px solid ${kleur}`, borderRadius: 6, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur, minWidth: 30 }}>Uur {slot.uur}</span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>{klas?.naam}</span>
-                            <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>({klas?.lokaal})</span>
+                            <span style={{ fontWeight: 700, fontSize: '1.05rem', color: kleur, minWidth: 30 }}>Uur {slot.uur}</span>
+                            <span style={{ fontSize: '1.0rem', fontWeight: 600, color: '#374151' }}>{klas?.naam}</span>
+                            <span style={{ fontSize: '0.9rem', color: '#9CA3AF' }}>({klas?.lokaal})</span>
                             {ovToetsen.map(t => (
-                              <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 5px', borderRadius: 3, fontSize: '0.68rem', fontWeight: 700 }}>
+                              <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '2px 7px', borderRadius: 3, fontSize: '0.82rem', fontWeight: 700 }}>
                                 {t.type}: {t.naam}
-                                <button onClick={(e) => { e.stopPropagation(); deleteToets(t.id); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.55rem', padding: 0 }}>✕</button>
+                                <button onClick={(e) => { e.stopPropagation(); deleteToets(t.id); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.72rem', padding: 0 }}>✕</button>
                               </span>
                             ))}
                             <button onClick={(e) => { e.stopPropagation(); setInlineToetsCell(inlineToetsCell === ovToetsKey ? null : ovToetsKey); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
-                              title="Toets inplannen" style={{ background: '#fef3c7', border: '1px solid #f59e0b40', color: '#c4892e', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>+T</button>
+                              title="Toets inplannen" style={{ background: '#fef3c7', border: '1px solid #f59e0b40', color: '#c4892e', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>+T</button>
                             {filledFields.length > 0 && (
                               <span style={{ display: 'flex', gap: 3, marginLeft: 'auto' }}>
-                                {filledFields.map(f => <span key={f.key} title={f.label} style={{ fontSize: '0.6rem', opacity: 0.7 }}>{f.icon}</span>)}
+                                {filledFields.map(f => <span key={f.key} title={f.label} style={{ fontSize: '0.76rem', opacity: 0.7 }}>{f.icon}</span>)}
                               </span>
                             )}
                           </div>
@@ -584,7 +584,7 @@ export default function PlannerPage() {
                           {inlineToetsCell === ovToetsKey && (
                             <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 4, padding: '4px 0', alignItems: 'center' }}>
                               <select value={inlineToetsType} onChange={e => setInlineToetsType(e.target.value)}
-                                style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 4px', fontSize: '0.75rem', fontWeight: 700 }}>
+                                style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 4px', fontSize: '0.9rem', fontWeight: 700 }}>
                                 {Object.entries(toetsLabels).map(([k]) => <option key={k} value={k}>{k}</option>)}
                               </select>
                               <input value={inlineToetsNaam} onChange={e => setInlineToetsNaam(e.target.value)} placeholder="Naam toets..."
@@ -598,20 +598,20 @@ export default function PlannerPage() {
                                   }
                                   if (e.key === 'Escape') { setInlineToetsCell(null); setInlineToetsNaam(''); }
                                 }}
-                                style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 6px', fontSize: '0.75rem' }} />
+                                style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 6px', fontSize: '0.9rem' }} />
                               <button onClick={async () => {
                                 if (!inlineToetsNaam.trim()) return;
                                 await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ klas_id: slot.klas_id, naam: inlineToetsNaam.trim(), type: inlineToetsType, datum: today, kleur: toetsKleuren[inlineToetsType] || '#6B7280' }) });
                                 fetch('/api/toetsen').then(r => r.json()).then(setToetsen);
                                 setInlineToetsCell(null); setInlineToetsNaam('');
-                              }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>✓</button>
+                              }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer' }}>✓</button>
                               <button onClick={() => { setInlineToetsCell(null); setInlineToetsNaam(''); }}
-                                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
+                                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.84rem' }}>✕</button>
                             </div>
                           )}
-                          {les?.programma && <div style={{ fontSize: '0.82rem', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stripHtml(les.programma).slice(0, 80)}</div>}
-                          {!les?.programma && <div style={{ fontSize: '0.82rem', color: '#d1d5db', fontStyle: 'italic' }}>Niet gepland...</div>}
+                          {les?.programma && <div style={{ fontSize: '0.95rem', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stripHtml(les.programma).slice(0, 80)}</div>}
+                          {!les?.programma && <div style={{ fontSize: '0.95rem', color: '#d1d5db', fontStyle: 'italic' }}>Niet gepland...</div>}
                         </div>
                       );
                     })}
@@ -622,7 +622,7 @@ export default function PlannerPage() {
               {/* Lege lessen */}
               {emptyLessons.length > 0 && (
                 <div>
-                  <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#d97706', marginBottom: '0.75rem' }}>Lege lessen deze week</h2>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#d97706', marginBottom: '0.75rem' }}>Lege lessen deze week</h2>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {emptyLessons.slice(0, 10).map((item, idx) => {
                       const kleur = klasKleurMap[item.klas.id] || '#6B7280';
@@ -630,9 +630,9 @@ export default function PlannerPage() {
                         <div key={idx} onClick={() => setSelectedLesPanel({ klas_id: item.slot.klas_id, datum: item.datum, uur: item.slot.uur })}
                           style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${kleur}30`, borderLeft: `3px solid ${kleur}`, borderRadius: 6, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.3rem' }}>
-                            <span style={{ fontSize: '0.75rem', color: '#9CA3AF', minWidth: 60 }}>{dagNamenKort[new Date(item.datum + 'T12:00:00').getDay() - 1]} {formatDate(item.datum)}</span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>Uur {item.slot.uur}</span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: kleur }}>{item.klas.naam}</span>
+                            <span style={{ fontSize: '0.9rem', color: '#9CA3AF', minWidth: 60 }}>{dagNamenKort[new Date(item.datum + 'T12:00:00').getDay() - 1]} {formatDate(item.datum)}</span>
+                            <span style={{ fontSize: '1.0rem', fontWeight: 600, color: '#374151' }}>Uur {item.slot.uur}</span>
+                            <span style={{ fontSize: '1.0rem', fontWeight: 600, color: kleur }}>{item.klas.naam}</span>
                           </div>
                         </div>
                       );
@@ -644,7 +644,7 @@ export default function PlannerPage() {
               {/* Komende toetsen */}
               {upcomingToetsen.length > 0 && (
                 <div>
-                  <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#c95555', marginBottom: '0.75rem' }}>Komende toetsen</h2>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#c95555', marginBottom: '0.75rem' }}>Komende toetsen</h2>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {upcomingToetsen.map(t => {
                       const klas = klassen.find(k => k.id === t.klas_id);
@@ -653,10 +653,10 @@ export default function PlannerPage() {
                       return (
                         <div key={t.id} style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${tKleur}30`, borderLeft: `3px solid ${tKleur}`, borderRadius: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.3rem' }}>
-                            <span style={{ fontSize: '0.75rem', color: '#9CA3AF', minWidth: 60 }}>{formatDate(t.datum)}</span>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700, background: tKleur + '20', color: tKleur, padding: '0 0.35rem', borderRadius: 3 }}>{t.type}</span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>{t.naam}</span>
-                            <span style={{ fontSize: '0.8rem', color: kleur, marginLeft: 'auto' }}>{klas?.naam}</span>
+                            <span style={{ fontSize: '0.9rem', color: '#9CA3AF', minWidth: 60 }}>{formatDate(t.datum)}</span>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 700, background: tKleur + '20', color: tKleur, padding: '0 0.35rem', borderRadius: 3 }}>{t.type}</span>
+                            <span style={{ fontSize: '1.0rem', fontWeight: 600, color: '#374151' }}>{t.naam}</span>
+                            <span style={{ fontSize: '0.95rem', color: kleur, marginLeft: 'auto' }}>{klas?.naam}</span>
                           </div>
                         </div>
                       );
@@ -674,9 +674,9 @@ export default function PlannerPage() {
 
             {/* Periode bar */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#374151' }}>Periode:</span>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#374151' }}>Periode:</span>
               <select value={selectedPeriodeId || ''} onChange={e => setSelectedPeriodeId(Number(e.target.value))}
-                style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.82rem', fontWeight: 600 }}>
+                style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.95rem', fontWeight: 600 }}>
                 {periodes.map(p => (
                   <option key={p.id} value={p.id}>{p.naam} ({p.start_datum} t/m {p.eind_datum})</option>
                 ))}
@@ -688,7 +688,7 @@ export default function PlannerPage() {
                 if (!cur) return null;
                 return (
                   <>
-                    <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>van</span>
+                    <span style={{ fontSize: '0.9rem', color: '#6B7280' }}>van</span>
                     <input type="date" value={cur.start_datum}
                       onChange={async (e) => {
                         const val = e.target.value;
@@ -697,8 +697,8 @@ export default function PlannerPage() {
                           body: JSON.stringify({ id: selectedPeriodeId, start_datum: val }) });
                         fetchPeriodes();
                       }}
-                      style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
-                    <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>t/m</span>
+                      style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.92rem' }} />
+                    <span style={{ fontSize: '0.9rem', color: '#6B7280' }}>t/m</span>
                     <input type="date" value={cur.eind_datum}
                       onChange={async (e) => {
                         const val = e.target.value;
@@ -707,20 +707,20 @@ export default function PlannerPage() {
                           body: JSON.stringify({ id: selectedPeriodeId, eind_datum: val }) });
                         fetchPeriodes();
                       }}
-                      style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
+                      style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.92rem' }} />
                   </>
                 );
               })()}
 
               {/* Nieuw leeg rooster */}
               <button onClick={() => setShowPeriodeForm(!showPeriodeForm)}
-                style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid #8b5ec0', background: showPeriodeForm ? '#8b5ec0' : '#faf5ff', color: showPeriodeForm ? 'white' : '#8b5ec0', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
+                style={{ padding: '0.4rem 0.75rem', borderRadius: 6, border: '1px solid #8b5ec0', background: showPeriodeForm ? '#8b5ec0' : '#faf5ff', color: showPeriodeForm ? 'white' : '#8b5ec0', fontWeight: 600, fontSize: '0.92rem', cursor: 'pointer' }}>
                 + Nieuw rooster
               </button>
 
               {/* Zermelo import */}
               <button onClick={() => setShowZermeloForm(!showZermeloForm)}
-                style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid #c4892e', background: showZermeloForm ? '#c4892e' : '#fef3c7', color: showZermeloForm ? 'white' : '#c4892e', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
+                style={{ padding: '0.4rem 0.75rem', borderRadius: 6, border: '1px solid #c4892e', background: showZermeloForm ? '#c4892e' : '#fef3c7', color: showZermeloForm ? 'white' : '#c4892e', fontWeight: 600, fontSize: '0.92rem', cursor: 'pointer' }}>
                 Zermelo import
               </button>
 
@@ -731,7 +731,7 @@ export default function PlannerPage() {
                   await fetch(`/api/rooster-periodes?id=${selectedPeriodeId}`, { method: 'DELETE' });
                   setSelectedPeriodeId(null);
                   fetchPeriodes(); fetchAllRooster();
-                }} style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid #c95555', background: 'white', color: '#c95555', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', marginLeft: 'auto' }}>
+                }} style={{ padding: '0.4rem 0.75rem', borderRadius: 6, border: '1px solid #c95555', background: 'white', color: '#c95555', fontWeight: 600, fontSize: '0.92rem', cursor: 'pointer', marginLeft: 'auto' }}>
                   Verwijder
                 </button>
               )}
@@ -740,10 +740,10 @@ export default function PlannerPage() {
             {/* Nieuwe periode form */}
             {showPeriodeForm && (
               <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', padding: '0.75rem', background: '#faf5ff', borderRadius: 8, border: '1px solid #d8b4fe', alignItems: 'center', flexWrap: 'wrap' }}>
-                <input id="np-naam" placeholder="Naam..." style={{ flex: '1 1 120px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                <input id="np-start" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>t/m</span>
-                <input id="np-eind" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
+                <input id="np-naam" placeholder="Naam..." style={{ flex: '1 1 120px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.4rem 0.65rem', fontSize: '0.95rem' }} />
+                <input id="np-start" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.95rem' }} />
+                <span style={{ fontSize: '0.95rem', color: '#94a3b8' }}>t/m</span>
+                <input id="np-eind" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.95rem' }} />
                 <button onClick={async () => {
                   const naam = (document.getElementById('np-naam') as HTMLInputElement).value;
                   const start = (document.getElementById('np-start') as HTMLInputElement).value;
@@ -754,7 +754,7 @@ export default function PlannerPage() {
                   const data = await res.json();
                   if (data.id) setSelectedPeriodeId(data.id);
                   fetchPeriodes(); setShowPeriodeForm(false);
-                }} style={{ background: '#8b5ec0', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                }} style={{ background: '#8b5ec0', color: 'white', border: 'none', borderRadius: 6, padding: '0.45rem 0.85rem', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>
                   Aanmaken
                 </button>
               </div>
@@ -764,7 +764,7 @@ export default function PlannerPage() {
             {showZermeloForm && (
               <div style={{ marginBottom: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: 8, border: '1px solid #f59e0b' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e' }}>Rooster importeren vanuit Zermelo</span>
+                  <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#92400e' }}>Rooster importeren vanuit Zermelo</span>
                   {zermeloToken && (
                     <div style={{ display: 'flex', gap: 4 }}>
                       {['auth', 'fetch', 'preview'].map((s, i) => (
@@ -779,10 +779,10 @@ export default function PlannerPage() {
                 {!zermeloToken && (
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <input value={zermeloSchool} onChange={e => setZermeloSchool(e.target.value)} placeholder="Schoolnaam (bijv. mijnschool)"
-                      style={{ flex: '1 1 140px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>.zportal.nl</span>
+                      style={{ flex: '1 1 140px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.4rem 0.65rem', fontSize: '0.95rem' }} />
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>.zportal.nl</span>
                     <input value={zermeloCode} onChange={e => setZermeloCode(e.target.value)} placeholder="Koppelcode" type="password"
-                      style={{ flex: '1 1 100px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
+                      style={{ flex: '1 1 100px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.4rem 0.65rem', fontSize: '0.95rem' }} />
                     <button onClick={async () => {
                       setZermeloStatus('Verbinden...');
                       const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -790,10 +790,10 @@ export default function PlannerPage() {
                       const data = await res.json();
                       if (data.token) { setZermeloToken(data.token); setZermeloStep('fetch'); setZermeloStatus('Verbonden! Kies een week.'); }
                       else { setZermeloStatus(data.error || 'Authenticatie mislukt'); }
-                    }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                    }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 6, padding: '0.45rem 0.85rem', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>
                       Verbinden
                     </button>
-                    <div style={{ fontSize: '0.72rem', color: '#92400e', marginTop: 4, width: '100%' }}>
+                    <div style={{ fontSize: '0.86rem', color: '#92400e', marginTop: 4, width: '100%' }}>
                       Maak een koppelcode aan in Zermelo: Instellingen → Koppel apps → Nieuwe koppeling
                     </div>
                   </div>
@@ -802,10 +802,10 @@ export default function PlannerPage() {
                 {/* Stap 2: Week kiezen en rooster ophalen */}
                 {zermeloToken && zermeloStep === 'fetch' && (
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#2d8a4e', fontWeight: 600 }}>✓ Verbonden</span>
-                    <span style={{ fontSize: '0.78rem', color: '#6B7280' }}>Kies een lesweek:</span>
+                    <span style={{ fontSize: '0.95rem', color: '#2d8a4e', fontWeight: 600 }}>✓ Verbonden</span>
+                    <span style={{ fontSize: '0.92rem', color: '#6B7280' }}>Kies een lesweek:</span>
                     <input id="z-week" type="date" defaultValue={getMonday(new Date()).toISOString().split('T')[0]}
-                      style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
+                      style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.95rem' }} />
                     <button onClick={async () => {
                       const ws = (document.getElementById('z-week') as HTMLInputElement).value;
                       setZermeloStatus('Rooster ophalen...');
@@ -835,7 +835,7 @@ export default function PlannerPage() {
                         const matched = Object.values(autoMap).filter(v => v !== 'new').length;
                         setZermeloStatus(`${data.slots.length} lessen gevonden, ${matched}/${uniqueGroepen.length} groepen herkend`);
                       } else { setZermeloStatus(data.error || 'Ophalen mislukt'); }
-                    }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                    }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 6, padding: '0.45rem 0.85rem', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>
                       Ophalen
                     </button>
                   </div>
@@ -845,7 +845,7 @@ export default function PlannerPage() {
                 {zermeloToken && zermeloStep === 'preview' && zermeloPreview && (
                   <div>
                     {/* Compact rooster preview */}
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
                       {zermeloPreview.length} lessen gevonden
                     </div>
                     <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
@@ -854,11 +854,11 @@ export default function PlannerPage() {
                         if (dagSlots.length === 0) return null;
                         return (
                           <div key={dag} style={{ flex: '1 1 100px', background: '#fefce8', borderRadius: 6, padding: '0.3rem 0.4rem', border: '1px solid #fde68a', minWidth: 90 }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.72rem', color: '#92400e', marginBottom: 2 }}>{dagNamenKort[dag - 1]}</div>
+                            <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#92400e', marginBottom: 2 }}>{dagNamenKort[dag - 1]}</div>
                             {dagSlots.map((s, i) => (
-                              <div key={i} style={{ fontSize: '0.68rem', color: '#374151', lineHeight: 1.4 }}>
+                              <div key={i} style={{ fontSize: '0.82rem', color: '#374151', lineHeight: 1.4 }}>
                                 <span style={{ fontWeight: 700, color: '#92400e' }}>u{s.uur}</span> {s.vak} <span style={{ color: '#94a3b8' }}>({s.groep})</span>
-                                <div style={{ fontSize: '0.62rem', color: '#b08040', marginLeft: 16 }}>
+                                <div style={{ fontSize: '0.78rem', color: '#b08040', marginLeft: 16 }}>
                                   {s.start_time}-{s.end_time} ({String((s as Record<string, unknown>).duur ?? '?')}min)
                                 </div>
                               </div>
@@ -869,19 +869,19 @@ export default function PlannerPage() {
                     </div>
 
                     {/* Groepen koppelen */}
-                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Koppel Zermelo-groepen aan je klassen:</div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Koppel Zermelo-groepen aan je klassen:</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.6rem' }}>
                       {Object.entries(zermeloMapping).map(([groep, value]) => {
                         const slotInfo = zermeloPreview.find(s => s.groep === groep);
                         const isMatched = value !== 'new' && value !== 0;
                         const isSkipped = value === 0;
                         return (
-                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.25rem 0.5rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 6, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
-                            <div style={{ minWidth: 90, fontSize: '0.78rem' }}>
+                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.45rem 0.75rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 6, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
+                            <div style={{ minWidth: 90, fontSize: '0.92rem' }}>
                               <span style={{ fontWeight: 700, color: '#374151' }}>{groep}</span>
-                              {slotInfo && <span style={{ color: '#94a3b8', marginLeft: 4, fontSize: '0.68rem' }}>({slotInfo.vak})</span>}
+                              {slotInfo && <span style={{ color: '#94a3b8', marginLeft: 4, fontSize: '0.82rem' }}>({slotInfo.vak})</span>}
                             </div>
-                            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>→</span>
+                            <span style={{ fontSize: '0.86rem', color: '#94a3b8' }}>→</span>
                             <select
                               value={value === 'new' ? 'new' : (value === 0 ? 'skip' : String(value))}
                               onChange={e => {
@@ -891,7 +891,7 @@ export default function PlannerPage() {
                                   [groep]: v === 'new' ? 'new' : (v === 'skip' ? 0 as unknown as number : Number(v))
                                 }));
                               }}
-                              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '0.2rem 0.4rem', fontSize: '0.78rem', background: 'white' }}
+                              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '0.4rem 0.65rem', fontSize: '0.92rem', background: 'white' }}
                             >
                               <option value="new">+ Nieuwe klas aanmaken</option>
                               <option value="skip">Overslaan</option>
@@ -901,7 +901,7 @@ export default function PlannerPage() {
                                 ))}
                               </optgroup>
                             </select>
-                            {isMatched && <span style={{ color: '#2d8a4e', fontSize: '0.8rem' }}>✓</span>}
+                            {isMatched && <span style={{ color: '#2d8a4e', fontSize: '0.95rem' }}>✓</span>}
                           </div>
                         );
                       })}
@@ -909,11 +909,11 @@ export default function PlannerPage() {
 
                     {/* Periode keuze + Importeer knop */}
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid #f59e0b40' }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151' }}>Periode:</label>
+                      <label style={{ fontSize: '0.92rem', fontWeight: 600, color: '#374151' }}>Periode:</label>
                       <select
                         value={zermeloImportPeriodeId === 'new' ? 'new' : String(zermeloImportPeriodeId)}
                         onChange={e => setZermeloImportPeriodeId(e.target.value === 'new' ? 'new' : Number(e.target.value))}
-                        style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem', background: 'white', minWidth: 200 }}
+                        style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.92rem', background: 'white', minWidth: 200 }}
                       >
                         {periodes.map(p => (
                           <option key={p.id} value={String(p.id)}>{p.naam} ({p.start_datum} t/m {p.eind_datum})</option>
@@ -922,12 +922,12 @@ export default function PlannerPage() {
                       </select>
                       {zermeloImportPeriodeId === 'new' && (
                         <>
-                          <span style={{ fontSize: '0.72rem', color: '#6B7280' }}>van</span>
+                          <span style={{ fontSize: '0.86rem', color: '#6B7280' }}>van</span>
                           <input type="date" value={zermeloNieuwStart} onChange={e => setZermeloNieuwStart(e.target.value)}
-                            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
-                          <span style={{ fontSize: '0.72rem', color: '#6B7280' }}>t/m</span>
+                            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.92rem' }} />
+                          <span style={{ fontSize: '0.86rem', color: '#6B7280' }}>t/m</span>
                           <input type="date" value={zermeloNieuwEind} onChange={e => setZermeloNieuwEind(e.target.value)}
-                            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
+                            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.5rem', fontSize: '0.92rem' }} />
                         </>
                       )}
                     </div>
@@ -966,18 +966,18 @@ export default function PlannerPage() {
                           fetch('/api/klassen').then(r => r.json()).then(setKlassen);
                           fetchPeriodes(data.periode.id);
                         } else { setZermeloStatus(data.error || 'Import mislukt'); }
-                      }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.4rem 1rem', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+                      }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.5rem 1.2rem', fontWeight: 700, fontSize: '1.0rem', cursor: 'pointer' }}>
                         Importeer rooster
                       </button>
                       <button onClick={() => { setZermeloPreview(null); setZermeloStep('fetch'); setZermeloStatus(''); }}
-                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer', marginLeft: 'auto' }}>
+                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.92rem', cursor: 'pointer', marginLeft: 'auto' }}>
                         ← Terug
                       </button>
                     </div>
                   </div>
                 )}
 
-                {zermeloStatus && <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#92400e', fontWeight: 500 }}>{zermeloStatus}</div>}
+                {zermeloStatus && <div style={{ marginTop: '0.5rem', fontSize: '0.92rem', color: '#92400e', fontWeight: 500 }}>{zermeloStatus}</div>}
               </div>
             )}
 
@@ -990,13 +990,13 @@ export default function PlannerPage() {
                   const isCurrent = p.start_datum <= today && p.eind_datum >= today;
                   return (
                     <button key={p.id} onClick={() => setSelectedPeriodeId(p.id)}
-                      style={{ padding: '0.3rem 0.6rem', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem',
+                      style={{ padding: '0.4rem 0.75rem', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.86rem',
                         border: isActive ? '2px solid #2d8a4e' : '1px solid #d1d5db',
                         background: isActive ? '#f0fdf4' : 'white',
                         color: isActive ? '#2d8a4e' : '#6B7280' }}>
                       {p.naam}
                       {isCurrent && <span style={{ marginLeft: 4, color: '#2d8a4e' }}>●</span>}
-                      <div style={{ fontSize: '0.6rem', fontWeight: 400, color: '#94a3b8' }}>
+                      <div style={{ fontSize: '0.76rem', fontWeight: 400, color: '#94a3b8' }}>
                         {p.start_datum.slice(5)} → {p.eind_datum.slice(5)}
                         {p.bron !== 'handmatig' && ` · ${p.bron}`}
                       </div>
@@ -1008,7 +1008,7 @@ export default function PlannerPage() {
 
             {/* Klassen info */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>
+              <span style={{ fontSize: '0.84rem', color: '#9CA3AF' }}>
                 {klassen.length} klassen: {klassen.map(k => k.naam).join(', ')}
               </span>
             </div>
@@ -1022,9 +1022,9 @@ export default function PlannerPage() {
               <tbody>
                 {[1,2,3,4,5,6,7,8,9,10].map(uur => (
                   <tr key={uur}>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.85rem', padding: '0.2rem 0.15rem' }}>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '1.0rem', padding: '0.3rem 0.25rem' }}>
                       {uur}
-                      <div style={{ fontSize: '0.55rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
                     </td>
                     {[1,2,3,4,5].map(dag => {
                       const slot = getSlot(dag, uur); const klas = slot ? klassen.find(k => k.id === slot.klas_id) : null;
@@ -1034,13 +1034,13 @@ export default function PlannerPage() {
                       return (
                         <td key={`${dag}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, borderLeft: slot ? `3px solid ${kleur}` : undefined, background: slot ? kleur + '06' : '#fcfcfc', padding: '0.3rem' }}>
                           <select value={slot?.klas_id || ''} onChange={e => setRoosterKlas(dag, uur, e.target.value ? Number(e.target.value) : null)}
-                            style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', color: kleur || '#c4c4c4' }}>
+                            style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', color: kleur || '#c4c4c4' }}>
                             <option value="">—</option>
                             {klassen.map((k, i) => <option key={k.id} value={k.id} style={{ color: klasKleuren[i % klasKleuren.length] }}>{k.naam} ({k.lokaal})</option>)}
                           </select>
-                          {slot && klas && <div style={{ fontSize: '0.68rem', color: '#9CA3AF', marginTop: 2 }}>{klas.vak} - {klas.lokaal}</div>}
+                          {slot && klas && <div style={{ fontSize: '0.82rem', color: '#9CA3AF', marginTop: 2 }}>{klas.vak} - {klas.lokaal}</div>}
                           {canBeBlokuur(dag, uur) && (
-                            <button onClick={() => toggleBlokuur(dag, uur)} style={{ marginTop: 3, fontSize: '0.62rem', padding: '1px 5px', borderRadius: 3,
+                            <button onClick={() => toggleBlokuur(dag, uur)} style={{ marginTop: 3, fontSize: '0.78rem', padding: '2px 7px', borderRadius: 3,
                               border: `1px solid ${isBlok ? kleur : '#d1d5db'}`, background: isBlok ? kleur + '20' : '#f9fafb', color: isBlok ? kleur : '#9CA3AF', cursor: 'pointer', fontWeight: 600 }}>
                               {isBlok ? '✓ Blokuur' : 'Maak blokuur'}
                             </button>
@@ -1064,9 +1064,9 @@ export default function PlannerPage() {
                 const vak = isInVakantie(d, vakanties);
                 return (
                   <th key={d} style={{ ...th, background: d === today ? '#dcfce7' : vak ? '#fef2f2' : '#f9fafb', color: d === today ? '#2d8a4e' : vak ? '#b91c1c' : '#374151', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                    <div style={{ fontSize: '0.82rem' }}>{dagNamen[idx]}</div>
-                    <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(d)}</div>
-                    {vak && <div style={{ fontSize: '0.58rem', color: '#DC2626', fontWeight: 600 }}>{vak.naam}</div>}
+                    <div style={{ fontSize: '0.95rem' }}>{dagNamen[idx]}</div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(d)}</div>
+                    {vak && <div style={{ fontSize: '0.74rem', color: '#DC2626', fontWeight: 600 }}>{vak.naam}</div>}
                   </th>
                 );
               })}
@@ -1074,9 +1074,9 @@ export default function PlannerPage() {
             <tbody>
               {[1,2,3,4,5,6,7,8,9,10].map(uur => (
                 <tr key={uur}>
-                  <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.2rem 0.15rem' }}>
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.95rem', padding: '0.3rem 0.25rem' }}>
                     {uur}
-                    <div style={{ fontSize: '0.55rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
                   </td>
                   {days.map((d, idx) => {
                     const dag = idx + 1; const slot = getSlot(dag, uur); const vakantie = isInVakantie(d, vakanties);
@@ -1085,9 +1085,9 @@ export default function PlannerPage() {
                     const isBlok = isBlokuurStart(dag, uur);
                     const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
                     /* Vakantie */
-                    if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
+                    if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
                     /* Leeg uur */
-                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top' }}><div style={{ minHeight: isBlok ? 160 : 80 }} /></td>;
+                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top' }}><div style={{ minHeight: isBlok ? 190 : 95 }} /></td>;
                     /* Les cel — height:1px trick zodat height:100% in kinderen werkt */
                     return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, height: '1px' }}>{renderCell(slot, d, isBlok)}</td>;
                   })}
@@ -1132,16 +1132,16 @@ export default function PlannerPage() {
                     {/* Header - klik opent zijpaneel voor snelle tab-navigatie */}
                     <div onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur })}
                       style={{ padding: '0.5rem 0.75rem', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', cursor: 'pointer' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur }}>Uur {slot.uur}{isBlok ? `–${slot.uur + 1}` : ''}</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.78rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 4 }}>{klas?.naam}</span>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{klas?.vak} · {klas?.lokaal}</span>
-                      {isBlok && <span style={{ fontSize: '0.62rem', color: kleur, fontWeight: 600, background: kleur + '15', padding: '1px 6px', borderRadius: 3 }}>blokuur</span>}
+                      <span style={{ fontWeight: 700, fontSize: '1.05rem', color: kleur }}>Uur {slot.uur}{isBlok ? `–${slot.uur + 1}` : ''}</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'white', background: kleur, padding: '2px 10px', borderRadius: 4 }}>{klas?.naam}</span>
+                      <span style={{ fontSize: '0.84rem', color: '#94a3b8' }}>{klas?.vak} · {klas?.lokaal}</span>
+                      {isBlok && <span style={{ fontSize: '0.78rem', color: kleur, fontWeight: 600, background: kleur + '15', padding: '2px 8px', borderRadius: 3 }}>blokuur</span>}
                       {cellToetsen.map(t => (
-                        <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 6px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 700 }}>
+                        <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '2px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 700 }}>
                           {t.type}: {t.naam}
                         </span>
                       ))}
-                      <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: '#b0b8c4' }}>&#9654;</span>
+                      <span style={{ marginLeft: 'auto', fontSize: '0.76rem', color: '#b0b8c4' }}>&#9654;</span>
                     </div>
                     {/* Velden grid: 2 kolommen, 7 velden (laatste rij krijgt colspan via gridColumn) */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
@@ -1152,10 +1152,10 @@ export default function PlannerPage() {
                           <div key={field.key} style={{
                             borderBottom: isInLastRow ? 'none' : '1px solid #f1f5f9',
                             borderRight: fi % 2 === 0 && !isLast ? '1px solid #f1f5f9' : 'none',
-                            padding: '0.25rem 0.5rem', minHeight: 60,
+                            padding: '0.45rem 0.75rem', minHeight: 60,
                             ...(isLast ? { gridColumn: '1 / -1' } : {}),
                           }}>
-                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{field.label}</div>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{field.label}</div>
                             <InlineEditor
                               content={(les[field.key] as string) || ''}
                               onChange={(val) => updateCell(cellKey, les, field.key, val)}
@@ -1206,8 +1206,8 @@ export default function PlannerPage() {
                   const isCurrentWeek = week.startDate <= today && today <= week.days[4];
                   return (
                     <th key={wi} colSpan={1} style={{ ...th, background: isCurrentWeek ? '#f0fdf4' : '#f9fafb', color: isCurrentWeek ? kleur : '#374151' }}>
-                      <div style={{ fontSize: '0.85rem' }}>Week {week.weekNum}</div>
-                      <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(week.days[0])} – {formatDate(week.days[4])}</div>
+                      <div style={{ fontSize: '1.0rem' }}>Week {week.weekNum}</div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(week.days[0])} – {formatDate(week.days[4])}</div>
                     </th>
                   );
                 })}
@@ -1218,9 +1218,9 @@ export default function PlannerPage() {
                   return (
                     <tr key={rowIdx}>
                       {/* Dag label van week 1 als rij-identifier */}
-                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.72rem', padding: '0.2rem', verticalAlign: 'top' }}>
+                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.86rem', padding: '0.2rem', verticalAlign: 'top' }}>
                         {weekColumns[0].lesDagen[rowIdx] ? (
-                          <>{dagNamenKort[weekColumns[0].lesDagen[rowIdx].di]}<br/><span style={{ fontSize: '0.6rem', fontWeight: 400 }}>{formatDate(weekColumns[0].lesDagen[rowIdx].datum)}</span></>
+                          <>{dagNamenKort[weekColumns[0].lesDagen[rowIdx].di]}<br/><span style={{ fontSize: '0.76rem', fontWeight: 400 }}>{formatDate(weekColumns[0].lesDagen[rowIdx].datum)}</span></>
                         ) : ''}
                       </td>
                       {weekColumns.map((week, wi) => {
@@ -1228,7 +1228,7 @@ export default function PlannerPage() {
                         if (!lesdag) return <td key={wi} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: 80 }} /></td>;
                         const { datum, dag, vakantie, slots } = lesdag;
                         const isToday = datum === today;
-                        if (vakantie) return <td key={wi} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center', padding: '0.5rem' }}><span style={{ fontSize: '0.68rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</span></td>;
+                        if (vakantie) return <td key={wi} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center', padding: '0.5rem' }}><span style={{ fontSize: '0.82rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</span></td>;
                         return (
                           <td key={wi} style={{ ...td, padding: 0, height: '1px', background: isToday ? '#f0fdf408' : undefined }}>
                             {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
@@ -1271,8 +1271,8 @@ export default function PlannerPage() {
                   const kleur = klasKleurMap[klas.id] || '#6B7280';
                   return (
                     <th key={klas.id} style={{ ...th, color: kleur }}>
-                      <div style={{ fontSize: '0.85rem' }}>{klas.naam}</div>
-                      <div style={{ fontSize: '0.66rem', fontWeight: 400, opacity: 0.6 }}>{klas.vak}</div>
+                      <div style={{ fontSize: '1.0rem' }}>{klas.naam}</div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 400, opacity: 0.6 }}>{klas.vak}</div>
                     </th>
                   );
                 })}
@@ -1282,8 +1282,8 @@ export default function PlannerPage() {
                   if (row.type === 'weekheader') {
                     return (
                       <tr key={`wh-${ri}`}>
-                        <td colSpan={1 + jlKlassen.length} style={{ padding: '0.4rem 0.6rem', background: row.isCurrentWeek ? '#f0fdf4' : '#f9fafb', fontWeight: 700, fontSize: '0.82rem', color: row.isCurrentWeek ? '#2d8a4e' : '#374151', borderBottom: '2px solid #e5e7eb', textAlign: 'center' }}>
-                          Week {row.week.weekNum} <span style={{ fontWeight: 400, fontSize: '0.72rem', color: '#94a3b8', marginLeft: 6 }}>{formatDate(row.week.days[0])} – {formatDate(row.week.days[4])}</span>
+                        <td colSpan={1 + jlKlassen.length} style={{ padding: '0.4rem 0.6rem', background: row.isCurrentWeek ? '#f0fdf4' : '#f9fafb', fontWeight: 700, fontSize: '0.95rem', color: row.isCurrentWeek ? '#2d8a4e' : '#374151', borderBottom: '2px solid #e5e7eb', textAlign: 'center' }}>
+                          Week {row.week.weekNum} <span style={{ fontWeight: 400, fontSize: '0.86rem', color: '#94a3b8', marginLeft: 6 }}>{formatDate(row.week.days[0])} – {formatDate(row.week.days[4])}</span>
                         </td>
                       </tr>
                     );
@@ -1292,12 +1292,12 @@ export default function PlannerPage() {
                   const isToday = datum === today;
                   return (
                     <tr key={`d-${datum}`}>
-                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, fontSize: '0.72rem', padding: '0.2rem', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : '#fafafa', color: isToday ? '#2d8a4e' : '#475569', verticalAlign: 'top' }}>
-                        {dagNamenKort[di]}<br/><span style={{ fontSize: '0.6rem', fontWeight: 400, color: '#94a3b8' }}>{formatDate(datum)}</span>
-                        {vakantie && <div style={{ fontSize: '0.56rem', color: '#ca8a04', fontWeight: 600, marginTop: 2 }}>{vakantie.naam}</div>}
+                      <td style={{ ...td, textAlign: 'center', fontWeight: 700, fontSize: '0.86rem', padding: '0.2rem', background: isToday ? '#f0fdf4' : vakantie ? '#fefce8' : '#fafafa', color: isToday ? '#2d8a4e' : '#475569', verticalAlign: 'top' }}>
+                        {dagNamenKort[di]}<br/><span style={{ fontSize: '0.76rem', fontWeight: 400, color: '#94a3b8' }}>{formatDate(datum)}</span>
+                        {vakantie && <div style={{ fontSize: '0.72rem', color: '#ca8a04', fontWeight: 600, marginTop: 2 }}>{vakantie.naam}</div>}
                       </td>
                       {jlKlassen.map(klas => {
-                        if (vakantie) return <td key={klas.id} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.62rem', color: '#ca8a04' }}>{vakantie.naam}</span></td>;
+                        if (vakantie) return <td key={klas.id} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.78rem', color: '#ca8a04' }}>{vakantie.naam}</span></td>;
                         const slots = allRooster.filter(r => r.dag === dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
                         if (slots.length === 0) return <td key={klas.id} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: 60 }} /></td>;
                         return (
@@ -1339,9 +1339,9 @@ export default function PlannerPage() {
               {/* Panel header */}
               <div style={{ padding: '0.75rem 1rem', borderBottom: `3px solid ${panelKleur}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: panelKleur + '08' }}>
                 <div>
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: panelKleur }}>{panelKlas?.naam}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: 8 }}>Uur {selectedLesPanel.uur || '—'} · {formatDate(selectedLesPanel.datum)}</span>
-                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 2 }}>{panelKlas?.vak} · {panelKlas?.lokaal}</div>
+                  <span style={{ fontWeight: 700, fontSize: '1.0rem', color: panelKleur }}>{panelKlas?.naam}</span>
+                  <span style={{ fontSize: '0.9rem', color: '#94a3b8', marginLeft: 8 }}>Uur {selectedLesPanel.uur || '—'} · {formatDate(selectedLesPanel.datum)}</span>
+                  <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: 2 }}>{panelKlas?.vak} · {panelKlas?.lokaal}</div>
                 </div>
                 <button onClick={() => setSelectedLesPanel(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8', padding: '4px 8px', borderRadius: 4 }}>✕</button>
               </div>
@@ -1350,7 +1350,7 @@ export default function PlannerPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, padding: '0.4rem 0.5rem', background: '#f8fafc', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
                 {tabs.map(tab => (
                   <button key={tab.key} onClick={() => setPanelTab(tab.key)}
-                    style={{ padding: '0.25rem 0.5rem', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600,
+                    style={{ padding: '0.45rem 0.75rem', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600,
                       background: panelTab === tab.key ? panelKleur : 'transparent',
                       color: panelTab === tab.key ? 'white' : hasContent(tab.key) ? '#334155' : '#b0b8c4',
                       position: 'relative'
@@ -1385,7 +1385,7 @@ function TBtn({ active, onClick, title, children }: { active: boolean; onClick: 
   return (
     <button onClick={onClick} title={title} style={{
       width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.8rem',
+      border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.95rem',
       background: active ? '#2d8a4e20' : 'transparent', color: active ? '#2d8a4e' : '#374151', fontWeight: active ? 700 : 400,
     }}>{children}</button>
   );
