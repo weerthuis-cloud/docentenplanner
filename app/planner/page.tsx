@@ -65,7 +65,7 @@ export default function PlannerPage() {
   const [vakanties, setVakanties] = useState<Vakantie[]>([]);
   const [jaarplanners, setJaarplanners] = useState<Jaarplanner[]>([]);
 
-  const [view, setView] = useState<'overzicht' | 'week' | 'dag' | 'klas' | 'jaarlaag' | 'rooster'>('overzicht');
+  const [view, setView] = useState<'overzicht' | 'week' | 'dag' | 'klas' | 'jaarlaag' | 'rooster' | 'instellingen'>('overzicht');
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedKlasId, setSelectedKlasId] = useState<number | null>(null);
@@ -434,11 +434,12 @@ export default function PlannerPage() {
       {/* ═══ TOP BAR ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: '#eef4f0', borderRadius: 8, overflow: 'hidden' }}>
-          {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
+          {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster', 'instellingen'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
               padding: '0.45rem 0.85rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '1.02rem',
-              background: view === v ? '#2d8a4e' : 'transparent', color: view === v ? 'white' : '#2d8a4e',
-            }}>{{ overzicht: 'Overzicht', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster' }[v]}</button>
+              background: view === v ? (v === 'instellingen' ? '#6B7280' : '#2d8a4e') : 'transparent',
+              color: view === v ? 'white' : (v === 'instellingen' ? '#6B7280' : '#2d8a4e'),
+            }}>{{ overzicht: 'Overzicht', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster', instellingen: '⚙ Instellingen' }[v]}</button>
           ))}
         </div>
 
@@ -619,39 +620,6 @@ export default function PlannerPage() {
 
           return (
             <div style={{ padding: '1.5rem', maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-              {/* Instellingen knop */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-1rem' }}>
-                <button onClick={() => setShowOverzichtSettings(!showOverzichtSettings)}
-                  style={{ background: showOverzichtSettings ? '#f3f4f6' : 'transparent', border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '1.0rem', color: '#6B7280' }}>
-                  ⚙ Aanpassen
-                </button>
-              </div>
-
-              {/* Blokken toggle panel */}
-              {showOverzichtSettings && (
-                <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '0.75rem 1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#374151' }}>Blokken tonen:</span>
-                  {[
-                    { key: 'vandaag', label: 'Vandaag' },
-                    { key: 'lege_lessen', label: 'Lege lessen' },
-                    { key: 'komende_toetsen', label: 'Komende toetsen' },
-                    { key: 'notities', label: 'Notities' },
-                    { key: 'agenda', label: 'Agenda' },
-                  ].map(b => (
-                    <label key={b.key} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: '0.95rem' }}>
-                      <input type="checkbox" checked={blokZichtbaar(b.key)}
-                        onChange={async () => {
-                          const newVal = !blokZichtbaar(b.key);
-                          setOverzichtInstellingen(prev => ({ ...prev, [b.key]: newVal }));
-                          await fetch('/api/overzicht', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'toggle_blok', blok: b.key, zichtbaar: newVal }) });
-                        }} />
-                      {b.label}
-                    </label>
-                  ))}
-                </div>
-              )}
 
               {/* Vandaag */}
               {blokZichtbaar('vandaag') && <div>
@@ -1653,6 +1621,127 @@ export default function PlannerPage() {
           );
         })()}
         {/* jaarlaag view ends above */}
+
+        {/* ═══ INSTELLINGEN ═══ */}
+        {view === 'instellingen' && (
+          <div style={{ padding: '1.5rem', maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* Lesvelden */}
+            <div>
+              <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#374151', marginBottom: '0.75rem' }}>Lesvelden</h2>
+              <p style={{ fontSize: '1.0rem', color: '#6B7280', marginBottom: '1rem' }}>Pas de velden aan die je per les wilt invullen. Je kunt velden hernoemen, verbergen, de volgorde wijzigen en eigen velden toevoegen.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {lesveldConfig.sort((a, b) => a.volgorde - b.volgorde).map((f, idx) => (
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'white', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                    <input value={f.icoon} onChange={e => {
+                      setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, icoon: e.target.value } : p));
+                    }}
+                      onBlur={async () => {
+                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: f.id, icoon: f.icoon }) });
+                      }}
+                      style={{ width: 40, border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '1.18rem', textAlign: 'center', padding: '4px' }} />
+                    <input value={f.label} onChange={e => {
+                      setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, label: e.target.value } : p));
+                    }}
+                      onBlur={async () => {
+                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: f.id, label: f.label }) });
+                      }}
+                      style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '1.05rem', fontWeight: 600, padding: '6px 10px' }} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', minWidth: 80 }}>
+                      <input type="checkbox" checked={f.zichtbaar} style={{ width: 18, height: 18 }} onChange={async () => {
+                        const newVal = !f.zichtbaar;
+                        setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, zichtbaar: newVal } : p));
+                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: f.id, zichtbaar: newVal }) });
+                      }} />
+                      <span style={{ fontSize: '1.0rem', color: f.zichtbaar ? '#2d8a4e' : '#9CA3AF', fontWeight: 600 }}>{f.zichtbaar ? 'Aan' : 'Uit'}</span>
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {idx > 0 && <button onClick={async () => {
+                        const sorted = [...lesveldConfig].sort((a, b) => a.volgorde - b.volgorde);
+                        const curIdx = sorted.findIndex(s => s.id === f.id);
+                        if (curIdx <= 0) return;
+                        const items = [{ id: sorted[curIdx].id, volgorde: sorted[curIdx - 1].volgorde }, { id: sorted[curIdx - 1].id, volgorde: sorted[curIdx].volgorde }];
+                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reorder', items }) });
+                        fetchLesveldConfig();
+                      }} style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', fontSize: '0.92rem', color: '#6B7280', padding: '0 6px', lineHeight: '20px' }}>▲</button>}
+                      {idx < lesveldConfig.length - 1 && <button onClick={async () => {
+                        const sorted = [...lesveldConfig].sort((a, b) => a.volgorde - b.volgorde);
+                        const curIdx = sorted.findIndex(s => s.id === f.id);
+                        if (curIdx >= sorted.length - 1) return;
+                        const items = [{ id: sorted[curIdx].id, volgorde: sorted[curIdx + 1].volgorde }, { id: sorted[curIdx + 1].id, volgorde: sorted[curIdx].volgorde }];
+                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reorder', items }) });
+                        fetchLesveldConfig();
+                      }} style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', fontSize: '0.92rem', color: '#6B7280', padding: '0 6px', lineHeight: '20px' }}>▼</button>}
+                    </div>
+                    {f.is_custom && <button onClick={async () => {
+                      if (!confirm(`Weet je zeker dat je "${f.label}" wilt verwijderen?`)) return;
+                      await fetch(`/api/lesvelden?id=${f.id}`, { method: 'DELETE' });
+                      fetchLesveldConfig();
+                    }} style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer', fontSize: '1.0rem', color: '#DC2626', padding: '4px 8px' }}>Verwijder</button>}
+                  </div>
+                ))}
+              </div>
+              {/* Nieuw veld toevoegen */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', alignItems: 'center', padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px dashed #86efac' }}>
+                <input value={newLesveldIcoon} onChange={e => setNewLesveldIcoon(e.target.value)}
+                  style={{ width: 40, border: '1px solid #d1d5db', borderRadius: 6, fontSize: '1.18rem', textAlign: 'center', padding: '4px' }} />
+                <input value={newLesveldLabel} onChange={e => setNewLesveldLabel(e.target.value)} placeholder="Naam nieuw veld..."
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter' && newLesveldLabel.trim()) {
+                      await fetch('/api/lesvelden', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ label: newLesveldLabel.trim(), icoon: newLesveldIcoon || '📌' }) });
+                      setNewLesveldLabel(''); setNewLesveldIcoon('📌');
+                      fetchLesveldConfig();
+                    }
+                  }}
+                  style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 6, padding: '6px 10px', fontSize: '1.05rem' }} />
+                <button onClick={async () => {
+                  if (!newLesveldLabel.trim()) return;
+                  await fetch('/api/lesvelden', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label: newLesveldLabel.trim(), icoon: newLesveldIcoon || '📌' }) });
+                  setNewLesveldLabel(''); setNewLesveldIcoon('📌');
+                  fetchLesveldConfig();
+                }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer' }}>+ Toevoegen</button>
+              </div>
+            </div>
+
+            {/* Overzicht blokken */}
+            <div>
+              <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#374151', marginBottom: '0.75rem' }}>Overzicht blokken</h2>
+              <p style={{ fontSize: '1.0rem', color: '#6B7280', marginBottom: '1rem' }}>Kies welke blokken zichtbaar zijn op het overzicht.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {[
+                  { key: 'vandaag', label: 'Vandaag', beschrijving: 'Lessen van vandaag met programma' },
+                  { key: 'lege_lessen', label: 'Lege lessen', beschrijving: 'Lessen deze week zonder programma' },
+                  { key: 'komende_toetsen', label: 'Komende toetsen', beschrijving: 'Toetsen in de komende 14 dagen' },
+                  { key: 'notities', label: 'Notities', beschrijving: 'Vrije notities en memo\'s' },
+                  { key: 'agenda', label: 'Agenda', beschrijving: 'Eigen agenda-items met datum' },
+                ].map(b => (
+                  <div key={b.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', background: 'white', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1 }}>
+                      <input type="checkbox" checked={overzichtInstellingen[b.key] !== false} style={{ width: 18, height: 18 }}
+                        onChange={async () => {
+                          const newVal = !(overzichtInstellingen[b.key] !== false);
+                          setOverzichtInstellingen(prev => ({ ...prev, [b.key]: newVal }));
+                          await fetch('/api/overzicht', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'toggle_blok', blok: b.key, zichtbaar: newVal }) });
+                        }} />
+                      <div>
+                        <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#374151' }}>{b.label}</div>
+                        <div style={{ fontSize: '0.92rem', color: '#9CA3AF' }}>{b.beschrijving}</div>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
         </div>
 
         {/* ═══ LESSON DETAIL PANEL (tabbed) ═══ */}
@@ -1690,72 +1779,8 @@ export default function PlannerPage() {
                     {hasContent(tab.key) && panelTab !== tab.key && <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: panelKleur, marginLeft: 3, verticalAlign: 'middle' }} />}
                   </button>
                 ))}
-                <button onClick={() => setShowLesveldSettings(!showLesveldSettings)}
-                  style={{ padding: '0.45rem 0.6rem', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.92rem', color: '#94a3b8', background: showLesveldSettings ? '#f1f5f9' : 'transparent', marginLeft: 'auto' }}>⚙</button>
-              </div>
 
-              {/* Lesveld instellingen */}
-              {showLesveldSettings && (
-                <div style={{ padding: '0.5rem 0.75rem', background: '#f1f5f9', borderBottom: '1px solid #e5e7eb', flexShrink: 0, fontSize: '0.92rem' }}>
-                  <div style={{ fontWeight: 700, color: '#374151', marginBottom: '0.4rem' }}>Velden instellen</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                    {lesveldConfig.sort((a, b) => a.volgorde - b.volgorde).map((f, idx) => (
-                      <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '2px 4px', background: 'white', borderRadius: 4, border: '1px solid #e5e7eb' }}>
-                        <span style={{ fontSize: '1.0rem', cursor: 'grab' }}>{f.icoon}</span>
-                        <input value={f.label} onChange={e => {
-                          setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, label: e.target.value } : p));
-                        }}
-                          onBlur={async () => {
-                            await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ id: f.id, label: f.label }) });
-                          }}
-                          style={{ flex: 1, border: 'none', fontSize: '0.92rem', fontWeight: 600, padding: '2px 4px', background: 'transparent' }} />
-                        <input value={f.icoon} onChange={e => {
-                          setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, icoon: e.target.value } : p));
-                        }}
-                          onBlur={async () => {
-                            await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ id: f.id, icoon: f.icoon }) });
-                          }}
-                          style={{ width: 32, border: '1px solid #e5e7eb', borderRadius: 3, fontSize: '1.0rem', textAlign: 'center', padding: '2px' }} />
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={f.zichtbaar} onChange={async () => {
-                            const newVal = !f.zichtbaar;
-                            setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, zichtbaar: newVal } : p));
-                            await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ id: f.id, zichtbaar: newVal }) });
-                          }} />
-                          <span style={{ fontSize: '0.86rem', color: '#6B7280' }}>Aan</span>
-                        </label>
-                        {idx > 0 && <button onClick={async () => {
-                          const sorted = [...lesveldConfig].sort((a, b) => a.volgorde - b.volgorde);
-                          const curIdx = sorted.findIndex(s => s.id === f.id);
-                          if (curIdx <= 0) return;
-                          const items = [{ id: sorted[curIdx].id, volgorde: sorted[curIdx - 1].volgorde }, { id: sorted[curIdx - 1].id, volgorde: sorted[curIdx].volgorde }];
-                          await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reorder', items }) });
-                          fetchLesveldConfig();
-                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.86rem', color: '#94a3b8' }}>▲</button>}
-                        {f.is_custom && <button onClick={async () => {
-                          await fetch(`/api/lesvelden?id=${f.id}`, { method: 'DELETE' });
-                          fetchLesveldConfig();
-                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.86rem', color: '#DC2626' }}>✕</button>}
-                      </div>
-                    ))}
-                  </div>
-                  {/* Nieuw veld toevoegen */}
-                  <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem', alignItems: 'center' }}>
-                    <input value={newLesveldIcoon} onChange={e => setNewLesveldIcoon(e.target.value)} style={{ width: 32, border: '1px solid #d1d5db', borderRadius: 3, fontSize: '1.0rem', textAlign: 'center', padding: '2px' }} />
-                    <input value={newLesveldLabel} onChange={e => setNewLesveldLabel(e.target.value)} placeholder="Nieuw veld..." style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: '0.92rem' }} />
-                    <button onClick={async () => {
-                      if (!newLesveldLabel.trim()) return;
-                      await fetch('/api/lesvelden', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ label: newLesveldLabel.trim(), icoon: newLesveldIcoon || '📌' }) });
-                      setNewLesveldLabel(''); setNewLesveldIcoon('📌');
-                      fetchLesveldConfig();
-                    }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 4, padding: '4px 10px', fontSize: '0.92rem', fontWeight: 700, cursor: 'pointer' }}>+</button>
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* Active tab content - full height editor */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
