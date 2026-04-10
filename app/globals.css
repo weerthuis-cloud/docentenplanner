@@ -66,3 +66,44 @@ body.fullscreen-dashboard main > div:first-child {
 body.fullscreen-dashboard main > div:first-child > div:first-child {
   display: none;
 }
+
+/* Feature 6: Print styles */
+@media print {
+  /* Hide non-essential UI */
+  nav, .no-print, [data-no-print] {
+    display: none !important;
+  }
+
+  /* Reset backgrounds for printing */
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Make the planner table fill the page */
+  .print-week-table {
+    width: 100% !important;
+    font-size: 10px !important;
+  }
+
+  .print-week-table td {
+    border: 1px solid #e0e0e0 !important;
+    padding: 4px !important;
+  }
+
+  /* Hide interactive elements */
+  button, select, input, [contenteditable] {
+    pointer-events: none;
+  }
+
+  /* Prevent page breaks inside cells */
+  td {
+    page-break-inside: avoid;
+  }
+
+  @page {
+    size: landscape;
+    margin: 1cm;
+  }
+}

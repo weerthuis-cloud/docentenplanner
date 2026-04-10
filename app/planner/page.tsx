@@ -62,6 +62,14 @@ const emptyLes = (klas_id: number, datum: string, uur: number | null): Les => ({
   klas_id, datum, uur, startopdracht: '', terugkijken: '', programma: '', leerdoelen: '', huiswerk: '', niet_vergeten: '', notities: '',
 });
 
+// Helper: build tooltip content preview
+function getTooltipContent(les: Les): {programma: string; leerdoelen: string; huiswerk: string} {
+  const programmaPreview = stripHtml(les.programma || '').slice(0, 120);
+  const leerdoelenPreview = stripHtml(les.leerdoelen || '').slice(0, 120);
+  const huiswerkPreview = stripHtml(les.huiswerk || '').slice(0, 120);
+  return { programma: programmaPreview, leerdoelen: leerdoelenPreview, huiswerk: huiswerkPreview };
+}
+
 /* ───── Component ───── */
 export default function PlannerPage() {
   const [klassen, setKlassen] = useState<Klas[]>([]);
@@ -86,6 +94,18 @@ export default function PlannerPage() {
 
   const [editState, setEditState] = useState<Record<string, Les>>({});
   const saveTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Feature 1: Custom hover tooltips
+  const [tooltipInfo, setTooltipInfo] = useState<{x: number; y: number; content: {programma: string; leerdoelen: string; huiswerk: string}} | null>(null);
+  const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Feature 3: Search in lessons
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{les: Les; klas: Klas; datum: string}>>([]);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Feature 4: Week template copy
+  const [weekCopyStatus, setWeekCopyStatus] = useState('');
 
   // Rooster periodes
   const [periodes, setPeriodes] = useState<RoosterPeriode[]>([]);
@@ -236,6 +256,29 @@ export default function PlannerPage() {
   useEffect(() => { if (klassen.length > 0 && !selectedKlasId) setSelectedKlasId(klassen[0].id); }, [klassen, selectedKlasId]);
   useEffect(() => { if (klassen.length > 0 && !selectedJaarlaag) setSelectedJaarlaag([...new Set(klassen.map(k => k.jaarlaag))][0] || ''); }, [klassen, selectedJaarlaag]);
 
+  // Feature 5: Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+
+      if (e.key === 'Escape') {
+        if (showSearch) { setShowSearch(false); setSearchQuery(''); setSearchResults([]); return; }
+        if (selectedLesPanel) { setSelectedLesPanel(null); return; }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+      if (isTyping) return;
+      if (e.key === 'ArrowLeft') changeWeek(-1);
+      if (e.key === 'ArrowRight') changeWeek(1);
+      if (e.key === 't' && view === 'week') setWeekStart(getMonday(new Date()).toISOString().split('T')[0]);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showSearch, selectedLesPanel, view]);
+
   /* ───── Helpers ───── */
   const getSlot = (dag: number, uur: number): RoosterSlot | undefined => allRooster.find(r => r.dag === dag && r.uur === uur);
   const getLes = (klas_id: number, datum: string, uur: number): Les | undefined => lessen.find(l => l.klas_id === klas_id && l.datum === datum && l.uur === uur);
@@ -366,14 +409,31 @@ export default function PlannerPage() {
     const programmaPreview = stripHtml(les.programma || '').slice(0, 100);
     const tooltipText = programmaPreview ? `${programmaPreview}${programmaPreview.length === 100 ? '...' : ''}` : '';
 
+    const handleCellMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+      if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+      tooltipTimeoutRef.current = setTimeout(() => {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setTooltipInfo({
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+          content: getTooltipContent(les)
+        });
+      }, 200);
+    };
+    const handleCellMouseLeave = () => {
+      if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+      setTooltipInfo(null);
+    };
+
     return (
       <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 12, overflow: 'hidden', background: hasToets ? toetsAccent + '30' : kleur + '30', cursor: 'pointer', position: 'relative' }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}
-        title={tooltipText}>
+        onMouseEnter={handleCellMouseEnter}
+        onMouseLeave={handleCellMouseLeave}>
         {/* Header with prepared indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '5px 8px', flexWrap: 'wrap', flexShrink: 0, position: 'relative' }}>
           {/* Prepared indicator dot */}
-          <span style={{ position: 'absolute', top: 4, left: 4, width: 8, height: 8, borderRadius: '50%', background: hasContent ? '#22c55e' : '#f97316' }} title={hasContent ? 'Les is voorbereid' : 'Les is nog leeg'} />
+          <span style={{ position: 'absolute', top: 4, left: 4, width: 8, height: 8, borderRadius: '50%', background: hasContent ? '#22c55e' : '#f97316' }} />
           <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 7px', borderRadius: 5 }}>{klas?.naam}</span>
           <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
           <button onClick={(e) => { e.stopPropagation(); const tk = `${slot.klas_id}-${datum}`; setInlineToetsCell(inlineToetsCell === tk ? null : tk); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
@@ -469,7 +529,7 @@ export default function PlannerPage() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: '#f7f8fa' }}>
 
       {/* ═══ TOP BAR ═══ */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
+      <div className="no-print" style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: '#eef4f0', borderRadius: 8, overflow: 'hidden' }}>
           {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
@@ -484,6 +544,63 @@ export default function PlannerPage() {
           <span key={k.id} style={{ padding: '0.1rem 0.35rem', borderRadius: 4, fontSize: '0.92rem', fontWeight: 700,
             background: klasKleuren[i % klasKleuren.length] + '15', color: klasKleuren[i % klasKleuren.length] }}>{k.naam}</span>
         ))}
+
+        {/* Search icon button */}
+        <button onClick={() => setShowSearch(!showSearch)} style={{ ...navBtn, position: 'relative' }} title="Zoeken in lessen">🔍</button>
+
+        {/* Search input */}
+        {showSearch && (
+          <div style={{ position: 'relative', display: 'flex', gap: '0.3rem' }}>
+            <input autoFocus value={searchQuery} onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value.length > 0) {
+                const query = e.target.value.toLowerCase();
+                const results = lessen.filter(les => {
+                  const searchFields = [les.programma, les.leerdoelen, les.huiswerk, les.startopdracht, les.notities].join(' ').toLowerCase();
+                  return searchFields.includes(query);
+                }).map(les => {
+                  const klas = klassen.find(k => k.id === les.klas_id);
+                  return { les, klas: klas!, datum: les.datum };
+                }).filter(r => r.klas).slice(0, 10);
+                setSearchResults(results);
+              } else {
+                setSearchResults([]);
+              }
+            }} placeholder="Zoeken..."
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { setShowSearch(false); setSearchQuery(''); setSearchResults([]); }
+              }}
+              style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.35rem 0.6rem', fontSize: '1.0rem', minWidth: 150 }} />
+
+            {/* Search results dropdown */}
+            {searchResults.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, background: 'white', border: '1px solid #d1d5db', borderRadius: 6, maxWidth: 400, zIndex: 1000, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxHeight: 300, overflow: 'auto', marginTop: '0.3rem' }}>
+                {searchResults.map((result, idx) => (
+                  <div key={idx} onClick={() => {
+                    const lesMonday = getMonday(new Date(result.datum + 'T12:00:00')).toISOString().split('T')[0];
+                    setWeekStart(lesMonday);
+                    setView('week');
+                    setTimeout(() => setSelectedLesPanel({ klas_id: result.les.klas_id, datum: result.datum, uur: result.les.uur }), 100);
+                    setShowSearch(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                    style={{ padding: '0.5rem 0.8rem', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f9fafb'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white'; }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
+                      <span style={{ fontWeight: 600, color: 'white', background: klasKleurMap[result.les.klas_id], padding: '0px 6px', borderRadius: 3 }}>{result.klas?.naam}</span>
+                      <span style={{ color: '#6B7280', fontSize: '0.85rem' }}>{formatDate(result.datum)}</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '0.2rem' }}>
+                      {stripHtml(result.les.programma).slice(0, 80)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ flex: 1 }} />
 
@@ -500,6 +617,49 @@ export default function PlannerPage() {
           <span style={{ fontWeight: 700, color: '#2B5BA0', minWidth: 55, textAlign: 'center', fontSize: '1.18rem' }}>Wk {getWeekNumber(weekStart)}</span>
           <button onClick={() => changeWeek(1)} style={navBtn}>▶</button>
           <button onClick={() => setWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, background: '#2B5BA0', color: 'white', border: 'none' }}>Vandaag</button>
+
+          {/* Copy week button */}
+          <button onClick={async () => {
+            const weekNum = getWeekNumber(weekStart);
+            if (confirm(`Alle lessen van week ${weekNum} kopiëren naar week ${weekNum+1}?`)) {
+              setWeekCopyStatus('Bezig met kopiëren...');
+              const nextWeekStart = new Date(weekStart + 'T12:00:00');
+              nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+              const nextWeekStartStr = nextWeekStart.toISOString().split('T')[0];
+              const daysDiff = 7;
+
+              const lessenTosCopy = lessen.filter(les => {
+                const lesDate = new Date(les.datum + 'T12:00:00');
+                const weekStartDate = new Date(weekStart + 'T12:00:00');
+                return lesDate >= weekStartDate && lesDate < new Date(weekStartDate.getTime() + 5 * 24 * 60 * 60 * 1000) && ['programma', 'leerdoelen', 'huiswerk', 'startopdracht', 'terugkijken', 'niet_vergeten', 'notities'].some(k => les[k as keyof Les]);
+              });
+
+              let copiedCount = 0;
+              for (const les of lessenTosCopy) {
+                const newDatum = new Date(les.datum + 'T12:00:00');
+                newDatum.setDate(newDatum.getDate() + daysDiff);
+                const newDatumStr = newDatum.toISOString().split('T')[0];
+
+                await fetch('/api/lessen/kopie', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ...les, datum: newDatumStr, id: undefined })
+                });
+                copiedCount++;
+              }
+
+              setWeekCopyStatus(lessenTosCopy.length > 0 ? `Gekopieerd! ${copiedCount} lessen` : 'Geen lessen om te kopiëren');
+              setTimeout(() => {
+                fetchLessen();
+                setWeekCopyStatus('');
+              }, 500);
+            }
+          }} style={{ ...navBtn, background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>📋 Kopieer week →</button>
+
+          {/* Print button */}
+          <button onClick={() => window.print()} style={navBtn} title="Print weekoverzicht">🖨️</button>
+
+          {weekCopyStatus && <span style={{ fontSize: '0.9rem', color: '#2B5BA0', fontWeight: 600 }}>{weekCopyStatus}</span>}
         </>)}
 
         {/* Dag nav */}
@@ -735,7 +895,12 @@ export default function PlannerPage() {
                     {emptyLessons.slice(0, 10).map((item, idx) => {
                       const kleur = klasKleurMap[item.klas.id] || '#6B7280';
                       return (
-                        <div key={idx} onClick={() => setSelectedLesPanel({ klas_id: item.slot.klas_id, datum: item.datum, uur: item.slot.uur })}
+                        <div key={idx} onClick={() => {
+                          const lesMonday = getMonday(new Date(item.datum + 'T12:00:00')).toISOString().split('T')[0];
+                          setWeekStart(lesMonday);
+                          setView('week');
+                          setTimeout(() => setSelectedLesPanel({ klas_id: item.slot.klas_id, datum: item.datum, uur: item.slot.uur }), 100);
+                        }}
                           style={{ padding: '0.75rem 1rem', background: kleur + '30', borderRadius: 12, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <span style={{ fontSize: '1.0rem', color: '#6B7280', minWidth: 60 }}>{dagNamenKort[new Date(item.datum + 'T12:00:00').getDay() - 1]} {formatDate(item.datum)}</span>
@@ -1395,7 +1560,7 @@ export default function PlannerPage() {
 
         {/* ═══ WEEKPLANNER ═══ */}
         {view === 'week' && (
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 4, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
+          <table className="print-week-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 4, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
             <thead><tr>
               <th style={{ ...th, width: 42 }}>Uur</th>
               {days.map((d, idx) => {
@@ -1736,7 +1901,7 @@ export default function PlannerPage() {
           const hasContent = (key: string) => isFieldFilled(panelLes, key);
 
           return (
-            <div style={{ width: 380, background: 'white', borderLeft: `1px solid #e5e7eb`, display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 12px rgba(0,0,0,0.06)' }}>
+            <div data-no-print style={{ width: 380, background: 'white', borderLeft: `1px solid #e5e7eb`, display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 12px rgba(0,0,0,0.06)' }}>
               {/* Panel header */}
               <div style={{ padding: '0.75rem 1rem', borderBottom: `3px solid ${panelKleur}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: panelKleur + '08' }}>
                 <div>
@@ -1883,7 +2048,7 @@ export default function PlannerPage() {
 
         {/* ═══ WERKLIJST SIDEBAR (zichtbaar in dagweergave) ═══ */}
         {view === 'dag' && !selectedLesPanel && (
-          <div style={{ width: 260, background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+          <div data-no-print style={{ width: 260, background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9' }}>
               {(['werklijst', 'notities'] as const).map(tab => (
@@ -2037,6 +2202,45 @@ export default function PlannerPage() {
         )}
 
       </div>
+
+      {/* Feature 1: Custom tooltip */}
+      {tooltipInfo && tooltipInfo.content && (
+        <div style={{
+          position: 'fixed',
+          left: `${tooltipInfo.x}px`,
+          top: `${tooltipInfo.y - 10}px`,
+          transform: 'translate(-50%, -100%)',
+          background: '#1e293b',
+          color: 'white',
+          padding: '0.75rem 1rem',
+          borderRadius: 8,
+          maxWidth: 300,
+          fontSize: '0.9rem',
+          lineHeight: 1.5,
+          zIndex: 10000,
+          pointerEvents: 'none',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+        }}>
+          {tooltipInfo.content.programma && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Programma:</div>
+              <div style={{ marginBottom: '0.75rem' }}>{tooltipInfo.content.programma}</div>
+            </>
+          )}
+          {tooltipInfo.content.leerdoelen && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Leerdoelen:</div>
+              <div style={{ marginBottom: '0.75rem' }}>{tooltipInfo.content.leerdoelen}</div>
+            </>
+          )}
+          {tooltipInfo.content.huiswerk && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Huiswerk:</div>
+              <div>{tooltipInfo.content.huiswerk}</div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
