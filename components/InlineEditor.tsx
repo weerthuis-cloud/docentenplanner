@@ -66,7 +66,7 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
     <div
       className={grow ? 'editor-grow' : undefined}
       style={{
-        background: 'white',
+        background: 'transparent',
         cursor: 'text',
         position: 'relative',
         ...(grow ? { flex: 1, display: 'flex', flexDirection: 'column' as const } : {}),

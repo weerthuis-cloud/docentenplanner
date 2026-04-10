@@ -430,7 +430,7 @@ export default function PlannerPage() {
 
   /* ───── Styles ───── */
   const th: React.CSSProperties = { padding: '0.5rem 0.4rem', fontWeight: 700, fontSize: '1.05rem', textAlign: 'center', background: '#f1f5f9', color: '#64748b', borderBottom: '1px solid #e2e8f0' };
-  const td: React.CSSProperties = { padding: 3, borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', verticalAlign: 'top' };
+  const td: React.CSSProperties = { padding: '4px 3px', borderBottom: 'none', borderRight: 'none', verticalAlign: 'top' };
   const navBtn: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '1.0rem', color: '#334155' };
 
   /* ═══ Two-week data for klas/jaarlaag views ═══ */
