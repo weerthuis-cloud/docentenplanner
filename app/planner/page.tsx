@@ -292,11 +292,14 @@ export default function PlannerPage() {
     ];
     const filledExtras = extraFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; });
 
+    const hasToets = cellToetsen.length > 0;
+    const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
+
     return (
-      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderLeft: `3px solid ${kleur}`, background: 'white', cursor: 'pointer', position: 'relative' }}
+      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderLeft: `3px solid ${hasToets ? toetsAccent : kleur}`, background: hasToets ? toetsAccent + '08' : 'white', cursor: 'pointer', position: 'relative' }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 6px', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, flexWrap: 'wrap', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 6px', background: hasToets ? toetsAccent + '15' : kleur + '08', borderBottom: `1px solid ${hasToets ? toetsAccent : kleur}15`, flexWrap: 'wrap', flexShrink: 0 }}>
           <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'white', background: kleur, padding: '0 0.35rem', borderRadius: 3 }}>{klas?.naam}</span>
           <span style={{ fontSize: '0.86rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
           {isBlok && <span style={{ fontSize: '0.84rem', color: kleur, fontWeight: 600 }}>blok</span>}
