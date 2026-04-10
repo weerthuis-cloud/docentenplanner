@@ -601,59 +601,35 @@ export default function PlannerPage() {
                 ))}
               </select>
 
-              {/* Verplaats naar andere periode */}
-              {selectedPeriodeId && periodes.length > 1 && (
-                <select
-                  value=""
-                  onChange={async (e) => {
-                    const naarId = Number(e.target.value);
-                    if (!naarId) return;
-                    const naarPeriode = periodes.find(p => p.id === naarId);
-                    if (!confirm(`Rooster verplaatsen naar "${naarPeriode?.naam}"? Bestaande slots in die periode worden overschreven.`)) return;
-                    await fetch('/api/rooster-periodes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ action: 'verplaatsen', van_periode_id: selectedPeriodeId, naar_periode_id: naarId }) });
-                    setSelectedPeriodeId(naarId);
-                    fetchPeriodes();
-                    fetch(`/api/roosters?periode_id=${naarId}`).then(r => r.json()).then(setAllRooster);
-                  }}
-                  style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem', color: '#6B7280' }}
-                >
-                  <option value="">Verplaats naar...</option>
-                  {periodes.filter(p => p.id !== selectedPeriodeId).map(p => (
-                    <option key={p.id} value={p.id}>{p.naam}</option>
-                  ))}
-                </select>
-              )}
-
-              {/* Verlengen */}
-              {selectedPeriodeId && (
-                <button onClick={async () => {
-                  await fetch('/api/rooster-periodes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'verlengen', id: selectedPeriodeId, weken: 1 }) });
-                  fetchPeriodes();
-                }} style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid #2d8a4e', background: '#f0fdf4', color: '#2d8a4e', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
-                  +1 week
-                </button>
-              )}
-
-              {/* Dupliceren als nieuw */}
-              {selectedPeriodeId && (
-                <button onClick={async () => {
-                  const naam = prompt('Naam voor nieuw rooster:', 'Nieuw rooster');
-                  if (!naam) return;
-                  const start = prompt('Startdatum (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-                  if (!start) return;
-                  const eind = prompt('Einddatum (YYYY-MM-DD):');
-                  if (!eind) return;
-                  const res = await fetch('/api/rooster-periodes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'dupliceren', id: selectedPeriodeId, naam, start_datum: start, eind_datum: eind }) });
-                  const data = await res.json();
-                  if (data.periode) { setSelectedPeriodeId(data.periode.id); }
-                  fetchPeriodes();
-                }} style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid #4a80d4', background: '#eff6ff', color: '#4a80d4', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
-                  Dupliceer als nieuw
-                </button>
-              )}
+              {/* Periode datums aanpassen */}
+              {selectedPeriodeId && (() => {
+                const cur = periodes.find(p => p.id === selectedPeriodeId);
+                if (!cur) return null;
+                return (
+                  <>
+                    <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>van</span>
+                    <input type="date" value={cur.start_datum}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        await fetch('/api/rooster-periodes', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: selectedPeriodeId, start_datum: val }) });
+                        fetchPeriodes();
+                      }}
+                      style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
+                    <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>t/m</span>
+                    <input type="date" value={cur.eind_datum}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        await fetch('/api/rooster-periodes', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: selectedPeriodeId, eind_datum: val }) });
+                        fetchPeriodes();
+                      }}
+                      style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
+                  </>
+                );
+              })()}
 
               {/* Nieuw leeg rooster */}
               <button onClick={() => setShowPeriodeForm(!showPeriodeForm)}
