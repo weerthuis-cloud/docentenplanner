@@ -767,6 +767,7 @@ export default function PlannerPage() {
                             {dagSlots.map((s, i) => (
                               <div key={i} style={{ fontSize: '0.68rem', color: '#374151', lineHeight: 1.3 }}>
                                 <span style={{ color: '#94a3b8' }}>u{s.uur}</span> {s.vak} <span style={{ color: '#94a3b8' }}>({s.groep})</span>
+                                <span style={{ color: '#c4b5a0', fontSize: '0.6rem', marginLeft: 2 }}>{s.start_time}-{s.end_time}</span>
                               </div>
                             ))}
                           </div>

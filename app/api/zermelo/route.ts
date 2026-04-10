@@ -156,17 +156,6 @@ export async function POST(req: Request) {
       for (const appt of appointments) {
         if (appt.cancelled || appt.type !== 'lesson') continue;
 
-        const { dag, uur } = epochToHour({
-          start: appt.start,
-          startTimeSlot: appt.startTimeSlot,
-          groups: appt.groups,
-        });
-        if (dag < 1 || dag > 5) continue;
-
-        const key = `${dag}-${uur}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
         const vak = appt.subjects?.[0] || '';
         const lokaal = appt.locations?.[0] || '';
         const groepen: string[] = appt.groups || [];
@@ -176,7 +165,24 @@ export async function POST(req: Request) {
         const startTime = new Date(appt.start * 1000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
         const endTime = new Date(appt.end * 1000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
 
-        slots.push({ dag, uur, vak, lokaal, groep, groepen, start_time: startTime, end_time: endTime });
+        // Bereken hoeveel 40-min periodes deze afspraak duurt
+        const durationMin = (appt.end - appt.start) / 60;
+        const numPeriods = Math.max(1, Math.round(durationMin / 40));
+
+        for (let p = 0; p < numPeriods; p++) {
+          const periodStart = appt.start + (p * 40 * 60);
+          const { dag, uur } = epochToHour({
+            start: periodStart,
+            groups: appt.groups,
+          });
+          if (dag < 1 || dag > 5) continue;
+
+          const key = `${dag}-${uur}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+
+          slots.push({ dag, uur, vak, lokaal, groep, groepen, start_time: startTime, end_time: endTime });
+        }
       }
 
       slots.sort((a, b) => a.dag - b.dag || a.uur - b.uur);
