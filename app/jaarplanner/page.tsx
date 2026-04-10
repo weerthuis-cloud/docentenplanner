@@ -271,7 +271,7 @@ export default function JaarplannerPage() {
       {/* ── Top Navigation ── */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0 }}>
         <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', padding: '0.2rem 0.5rem' }}>☰</button>
-        <span style={{ fontWeight: 700, color: '#1a7a2e', fontSize: '1.1rem' }}>Docentenplanner</span>
+        <span style={{ fontWeight: 700, color: '#1e3a5f', fontSize: '1.1rem' }}>Docentenplanner</span>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
       </div>
@@ -280,14 +280,14 @@ export default function JaarplannerPage() {
       {menuOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', zIndex: 1000 }} onClick={() => setMenuOpen(false)}>
           <div style={{ background: 'white', width: 260, height: '100%', padding: '1rem', boxShadow: '2px 0 12px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#1a7a2e', marginBottom: '1.5rem' }}>Menu</div>
+            <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#1e3a5f', marginBottom: '1.5rem' }}>Menu</div>
             {NAV_ITEMS.map(item => (
               <button key={item.href} onClick={() => { router.push(item.href); setMenuOpen(false); }}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '0.7rem 0.8rem',
                   border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem',
                   background: item.href === '/jaarplanner' ? '#dcfce7' : 'transparent',
-                  color: item.href === '/jaarplanner' ? '#1a7a2e' : '#374151',
+                  color: item.href === '/jaarplanner' ? '#1e3a5f' : '#374151',
                   marginBottom: '0.2rem',
                 }}>
                 {item.label}
@@ -299,14 +299,14 @@ export default function JaarplannerPage() {
 
       {/* ── Header Bar ── */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.6rem 1rem', background: 'white', borderBottom: '1px solid #e5e7eb', gap: '0.5rem', flexWrap: 'wrap', flexShrink: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1a7a2e' }}>
+        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e3a5f' }}>
           {editing ? `✏️ ${editing.naam}` : '📅 Jaarplanner Bouwer'}
         </div>
         <div style={{ flex: 1 }} />
 
         {editing ? (
           <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <button onClick={async () => { await saveJaarplanner(); }} style={{ ...navBtn, background: '#1a7a2e', color: 'white' }}>
+            <button onClick={async () => { await saveJaarplanner(); }} style={{ ...navBtn, background: '#1e3a5f', color: 'white' }}>
               💾 Opslaan
             </button>
             <button onClick={() => setEditing(null)} style={{ ...navBtn, background: '#e5e7eb', color: '#374151' }}>
@@ -316,11 +316,11 @@ export default function JaarplannerPage() {
         ) : (
           <div style={{ display: 'flex', gap: '0.4rem' }}>
             <button onClick={() => setTab('planners')}
-              style={{ ...navBtn, background: tab === 'planners' ? '#1a7a2e' : '#e5e7eb', color: tab === 'planners' ? 'white' : '#374151' }}>
+              style={{ ...navBtn, background: tab === 'planners' ? '#1e3a5f' : '#e5e7eb', color: tab === 'planners' ? 'white' : '#374151' }}>
               Jaarplanners
             </button>
             <button onClick={() => setTab('vakanties')}
-              style={{ ...navBtn, background: tab === 'vakanties' ? '#1a7a2e' : '#e5e7eb', color: tab === 'vakanties' ? 'white' : '#374151' }}>
+              style={{ ...navBtn, background: tab === 'vakanties' ? '#1e3a5f' : '#e5e7eb', color: tab === 'vakanties' ? 'white' : '#374151' }}>
               Vakanties & Vrije dagen
             </button>
           </div>
@@ -381,7 +381,7 @@ export default function JaarplannerPage() {
                 ▲ Alles inklappen
               </button>
               <button onClick={async () => { await saveJaarplanner(); }}
-                style={{ ...navBtn, background: '#1a7a2e', color: 'white', fontSize: '0.78rem', marginLeft: 'auto' }}>
+                style={{ ...navBtn, background: '#1e3a5f', color: 'white', fontSize: '0.78rem', marginLeft: 'auto' }}>
                 💾 Opslaan
               </button>
             </div>
@@ -402,7 +402,7 @@ export default function JaarplannerPage() {
 
                 return (
                   <div key={weekKey} style={{
-                    borderRadius: 10, border: `1px solid ${vakantie ? '#fcd34d' : isExpanded ? '#1a7a2e40' : '#e5e7eb'}`,
+                    borderRadius: 10, border: `1px solid ${vakantie ? '#fcd34d' : isExpanded ? '#1e3a5f40' : '#e5e7eb'}`,
                     background: vakantie ? '#fffbeb' : 'white',
                     overflow: 'hidden',
                   }}>
@@ -417,7 +417,7 @@ export default function JaarplannerPage() {
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', padding: '0.6rem 0.8rem', cursor: 'pointer',
-                        background: vakantie ? '#fef3c7' : isExpanded ? '#1a7a2e' : hasContent ? '#f0fdf4' : '#fafafa',
+                        background: vakantie ? '#fef3c7' : isExpanded ? '#1e3a5f' : hasContent ? '#EEF2FF' : '#fafafa',
                         color: isExpanded && !vakantie ? 'white' : '#374151',
                         gap: '0.5rem',
                       }}>
@@ -461,7 +461,7 @@ export default function JaarplannerPage() {
                             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.4rem', gap: '0.5rem' }}>
                               <span style={{
                                 fontWeight: 700, fontSize: '0.82rem', color: 'white',
-                                background: '#1a7a2e', padding: '0.1rem 0.5rem', borderRadius: 4,
+                                background: '#1e3a5f', padding: '0.1rem 0.5rem', borderRadius: 4,
                               }}>
                                 Les {row.les}
                               </span>
@@ -493,8 +493,8 @@ export default function JaarplannerPage() {
 
                         <button onClick={() => addWeekRow(sw.week)}
                           style={{
-                            marginTop: '0.5rem', ...navBtn, background: '#f0fdf4', color: '#1a7a2e',
-                            border: '1px dashed #1a7a2e80', width: '100%', fontSize: '0.8rem',
+                            marginTop: '0.5rem', ...navBtn, background: '#EEF2FF', color: '#1e3a5f',
+                            border: '1px dashed #1e3a5f80', width: '100%', fontSize: '0.8rem',
                           }}>
                           + Les toevoegen
                         </button>
@@ -508,7 +508,7 @@ export default function JaarplannerPage() {
             {/* Bottom save bar */}
             <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem 0' }}>
               <button onClick={async () => { await saveJaarplanner(); }}
-                style={{ ...navBtn, background: '#1a7a2e', color: 'white', padding: '0.6rem 2rem', fontSize: '1rem' }}>
+                style={{ ...navBtn, background: '#1e3a5f', color: 'white', padding: '0.6rem 2rem', fontSize: '1rem' }}>
                 💾 Jaarplanner opslaan
               </button>
             </div>
@@ -521,15 +521,15 @@ export default function JaarplannerPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.1rem', color: '#374151' }}>Alle jaarplanners</h2>
               <button onClick={() => setShowNewForm(true)}
-                style={{ ...navBtn, background: '#1a7a2e', color: 'white' }}>
+                style={{ ...navBtn, background: '#1e3a5f', color: 'white' }}>
                 + Nieuwe jaarplanner
               </button>
             </div>
 
             {/* New form */}
             {showNewForm && (
-              <div style={{ background: 'white', borderRadius: 12, padding: '1rem', marginBottom: '1rem', border: '2px solid #1a7a2e40' }}>
-                <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1a7a2e', marginBottom: '0.8rem' }}>Nieuwe jaarplanner</div>
+              <div style={{ background: 'white', borderRadius: 12, padding: '1rem', marginBottom: '1rem', border: '2px solid #1e3a5f40' }}>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e3a5f', marginBottom: '0.8rem' }}>Nieuwe jaarplanner</div>
                 <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
                   <div style={{ flex: '1 1 200px' }}>
                     <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', color: '#6B7280', marginBottom: '0.2rem' }}>Naam *</label>
@@ -571,7 +571,7 @@ export default function JaarplannerPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                   <button onClick={() => setShowNewForm(false)} style={{ ...navBtn, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
-                  <button onClick={createJaarplanner} style={{ ...navBtn, background: '#1a7a2e', color: 'white' }}>Aanmaken</button>
+                  <button onClick={createJaarplanner} style={{ ...navBtn, background: '#1e3a5f', color: 'white' }}>Aanmaken</button>
                 </div>
               </div>
             )}
@@ -596,7 +596,7 @@ export default function JaarplannerPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                       <span style={{
                         fontWeight: 700, fontSize: '0.78rem', color: 'white',
-                        background: '#1a7a2e', padding: '0.1rem 0.5rem', borderRadius: 4,
+                        background: '#1e3a5f', padding: '0.1rem 0.5rem', borderRadius: 4,
                       }}>
                         {jp.vak}
                       </span>
@@ -634,15 +634,15 @@ export default function JaarplannerPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.1rem', color: '#374151' }}>Vakanties & Vrije dagen</h2>
               <button onClick={() => { setEditingVakantie(null); setVakantieForm({ naam: '', start_datum: '', eind_datum: '', type: 'vakantie', schooljaar: '2025-2026' }); setShowVakantieForm(true); }}
-                style={{ ...navBtn, background: '#1a7a2e', color: 'white' }}>
+                style={{ ...navBtn, background: '#1e3a5f', color: 'white' }}>
                 + Toevoegen
               </button>
             </div>
 
             {/* Vakantie form */}
             {showVakantieForm && (
-              <div style={{ background: 'white', borderRadius: 12, padding: '1rem', marginBottom: '1rem', border: '2px solid #1a7a2e40' }}>
-                <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1a7a2e', marginBottom: '0.8rem' }}>
+              <div style={{ background: 'white', borderRadius: 12, padding: '1rem', marginBottom: '1rem', border: '2px solid #1e3a5f40' }}>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e3a5f', marginBottom: '0.8rem' }}>
                   {editingVakantie ? 'Bewerken' : 'Nieuwe vakantie / vrije dag'}
                 </div>
                 <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
@@ -674,7 +674,7 @@ export default function JaarplannerPage() {
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                   <button onClick={() => { setShowVakantieForm(false); setEditingVakantie(null); }}
                     style={{ ...navBtn, background: '#e5e7eb', color: '#374151' }}>Annuleren</button>
-                  <button onClick={saveVakantie} style={{ ...navBtn, background: '#1a7a2e', color: 'white' }}>
+                  <button onClick={saveVakantie} style={{ ...navBtn, background: '#1e3a5f', color: 'white' }}>
                     {editingVakantie ? 'Opslaan' : 'Toevoegen'}
                   </button>
                 </div>

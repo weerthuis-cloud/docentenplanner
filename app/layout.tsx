@@ -14,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="nl" className="h-full">
-      <body className="h-full bg-[#f5f9f5]" style={{ display: 'flex', flexDirection: 'column', margin: 0 }}>
+      <body className="h-full bg-[#f5f7fa]" style={{ display: 'flex', flexDirection: 'column', margin: 0 }}>
         <Navigation />
         <main style={{ flex: 1, overflow: 'auto' }}>{children}</main>
       </body>

@@ -262,7 +262,7 @@ export default function Dashboard() {
             <button className="w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold"
               onClick={e => { e.stopPropagation(); addWarning(l.id); }}
               onContextMenu={e => { e.preventDefault(); e.stopPropagation(); resetWarnings(l.id); }}>!</button>
-            <button className="w-7 h-7 rounded-full bg-green-500 text-white text-xs flex items-center justify-center"
+            <button className="w-7 h-7 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center"
               onClick={e => { e.stopPropagation(); addCompliment(l.id); }}
               onContextMenu={e => { e.preventDefault(); e.stopPropagation(); resetCompliments(l.id); }}>&#10003;</button>
             <button className="w-7 h-7 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center"
@@ -411,7 +411,7 @@ export default function Dashboard() {
         className={`w-16 text-center bg-white/10 border border-white/20 rounded px-1 py-0.5 text-sm font-bold tabular-nums ${timerRunning ? 'text-white' : 'text-white/80'}`}
       />
       <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
-        className={`px-2.5 py-0.5 rounded text-[10px] font-semibold ${timerRunning ? 'bg-orange-500' : 'bg-green-500'}`}>
+        className={`px-2.5 py-0.5 rounded text-[10px] font-semibold ${timerRunning ? 'bg-orange-500' : 'bg-blue-600'}`}>
         {timerRunning ? 'Pauze' : 'Start'}
       </button>
       <button onClick={resetTimer} className="px-2.5 py-0.5 rounded text-[10px] bg-white/10 border border-white/20">Reset</button>
@@ -431,13 +431,13 @@ export default function Dashboard() {
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => setNotitieModal(null)}>
             <div className="bg-white rounded-xl shadow-2xl p-5 w-[360px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-[#1a7a2e] mb-3">Notitie — {nl?.voornaam} {nl?.achternaam}</h3>
+              <h3 className="text-base font-bold text-[#1e3a5f] mb-3">Notitie — {nl?.voornaam} {nl?.achternaam}</h3>
               <textarea
                 autoFocus
                 value={notitieText}
                 onChange={e => setNotitieText(e.target.value)}
                 placeholder="Schrijf een notitie..."
-                className="w-full h-32 border border-gray-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full h-32 border border-gray-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <div className="flex justify-end gap-2 mt-3">
                 <button onClick={() => setNotitieModal(null)} className="px-4 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100">Annuleer</button>
@@ -469,7 +469,7 @@ export default function Dashboard() {
       )}
 
       {/* TOP BAR - strak en minimaal */}
-      <div className="text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40" style={{ background: 'linear-gradient(135deg, #1a7a2e 0%, #145f23 100%)' }}>
+      <div className="text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #162d4a 100%)' }}>
         <div className="flex items-center gap-3">
           {/* Hamburger menu */}
           <div className="relative">
@@ -483,8 +483,8 @@ export default function Dashboard() {
                 {NAV_ITEMS.map(item => (
                   <button key={item.label}
                     onClick={() => { router.push(item.href); setMenuOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-green-50 hover:text-[#1a7a2e] transition-colors
-                      ${item.href === '/' ? 'bg-green-50 text-[#1a7a2e] font-semibold' : ''}`}>
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 hover:text-[#1e3a5f] transition-colors
+                      ${item.href === '/' ? 'bg-blue-50 text-[#1e3a5f] font-semibold' : ''}`}>
                     {item.label}
                   </button>
                 ))}
@@ -517,7 +517,7 @@ export default function Dashboard() {
           {/* Mode switch - altijd op dezelfde plek */}
           <div className="flex bg-white/10 rounded p-0.5">
             {(['binnenkomst','les','lezen'] as Mode[]).map(m => (
-              <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded text-xs font-semibold transition-all ${mode === m ? 'bg-white text-[#1a7a2e]' : 'text-white/70'}`}>
+              <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded text-xs font-semibold transition-all ${mode === m ? 'bg-white text-[#1e3a5f]' : 'text-white/70'}`}>
                 {m.charAt(0).toUpperCase() + m.slice(1)}
               </button>
             ))}
@@ -529,17 +529,17 @@ export default function Dashboard() {
       {mode === 'binnenkomst' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond volle hoogte */}
-          <div className="bg-[#f5f9f5] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+          <div className="bg-[#f5f7fa] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
             <div style={{ width: 'fit-content' }}>
-              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1a7a2e', fontSize: '1.6rem' }}>Ga zitten volgens plattegrond</div>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1e3a5f', fontSize: '1.6rem' }}>Ga zitten volgens plattegrond</div>
               {renderGrid()}
             </div>
           </div>
           {/* Rechts: welkom + dynamische velden */}
-          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
+          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f7fa' }}>
             {/* Welkom blok */}
             <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: binnenkomstVelden.length === 0 ? 1 : undefined, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h2 className="font-black uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.6rem', marginBottom: 12 }}>
+              <h2 className="font-black uppercase tracking-wide" style={{ color: '#1e3a5f', fontSize: '1.6rem', marginBottom: 12 }}>
                 Welkom bij {activeKlasObj?.vak || 'de les'}
               </h2>
               {editingWelkom ? (
@@ -549,7 +549,7 @@ export default function Dashboard() {
                   onChange={e => setWelkomTekst(e.target.value)}
                   onBlur={() => setEditingWelkom(false)}
                   onKeyDown={e => { if (e.key === 'Escape') setEditingWelkom(false); }}
-                  className="text-lg leading-relaxed text-gray-700 bg-white border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="text-lg leading-relaxed text-gray-700 bg-white border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                   style={{ minHeight: 60 }}
                 />
               ) : (
@@ -566,7 +566,7 @@ export default function Dashboard() {
             {/* Dynamische velden */}
             {binnenkomstVelden.map(veld => (
               <div key={veld.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>
+                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>
                   {veld.icoon} {veld.label}
                 </h3>
                 <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
@@ -582,17 +582,17 @@ export default function Dashboard() {
       {mode === 'les' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond */}
-          <div className="bg-[#f5f9f5] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+          <div className="bg-[#f5f7fa] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
             <div style={{ width: 'fit-content' }}>
-              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1a7a2e', fontSize: '1.6rem' }}>{activeKlasObj?.vak || 'Les'}</div>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1e3a5f', fontSize: '1.6rem' }}>{activeKlasObj?.vak || 'Les'}</div>
               {renderGrid()}
             </div>
           </div>
           {/* Rechts: dynamische velden */}
-          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
+          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f7fa' }}>
             {lesVelden.map(veld => (
               <div key={veld.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>
+                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>
                   {veld.icoon} {veld.label}
                 </h3>
                 <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
@@ -608,16 +608,16 @@ export default function Dashboard() {
       {mode === 'lezen' && (
         <div className="flex-1 flex">
           {/* Links: plattegrond met boektitels */}
-          <div className="bg-[#f5f9f5] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
+          <div className="bg-[#f5f7fa] p-3 flex-1 min-w-0 flex flex-col items-center justify-center overflow-auto">
             <div style={{ width: 'fit-content' }}>
-              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1a7a2e', fontSize: '1.6rem' }}>Leestijd</div>
+              <div className="font-black uppercase tracking-wide mb-2" style={{ color: '#1e3a5f', fontSize: '1.6rem' }}>Leestijd</div>
               {renderGridLezen()}
             </div>
           </div>
           {/* Rechts: timer */}
-          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
+          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f5f7fa' }}>
             {/* Timer blok */}
-            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '40px 32px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+            <div style={{ background: '#EEF2FF', border: '1.5px solid #b8c4d8', borderRadius: 16, padding: '40px 32px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
               <div className="text-white/40 uppercase tracking-[4px] font-bold text-sm" style={{ color: '#94a3b8' }}>Leestijd</div>
               <div className={`font-black tabular-nums tracking-tighter leading-none ${timerSec <= 0 && !timerRunning ? 'text-red-500 animate-pulse' : ''}`} style={{ fontSize: '6rem', color: '#1e3a5f' }}>{timerDisplay}</div>
               <div className="flex items-center gap-3 mt-2">
@@ -629,7 +629,7 @@ export default function Dashboard() {
                   placeholder="mm:ss"
                   disabled={timerRunning}
                   className="w-20 text-center p-2 border rounded-lg font-bold text-lg tabular-nums"
-                  style={{ borderColor: '#b8d8be', color: '#1e3a5f' }}
+                  style={{ borderColor: '#b8c4d8', color: '#1e3a5f' }}
                 />
               </div>
               <div className="flex gap-3">
@@ -637,7 +637,7 @@ export default function Dashboard() {
                   className={`px-6 py-2.5 rounded-xl font-bold text-base ${timerRunning ? 'bg-orange-500 text-white' : 'bg-green-500 text-white'}`}>
                   {timerRunning ? 'Pauze' : 'Start'}
                 </button>
-                <button onClick={resetTimer} className="px-6 py-2.5 rounded-xl font-bold text-base border" style={{ borderColor: '#b8d8be', color: '#64748b' }}>Reset</button>
+                <button onClick={resetTimer} className="px-6 py-2.5 rounded-xl font-bold text-base border" style={{ borderColor: '#b8c4d8', color: '#64748b' }}>Reset</button>
               </div>
             </div>
           </div>

@@ -92,21 +92,21 @@ export default function InstellingenPage() {
       {/* Zijpaneel */}
       <div style={{ width: 260, background: 'white', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ padding: '1.25rem 1rem 0.75rem' }}>
-          <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1a7a2e', margin: 0 }}>⚙️ Instellingen</h1>
+          <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1e3a5f', margin: 0 }}>⚙️ Instellingen</h1>
         </div>
         <div style={{ flex: 1, overflow: 'auto', padding: '0.5rem' }}>
           {sections.map(s => (
             <button key={s.key} onClick={() => setSection(s.key)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', padding: '0.75rem 1rem',
-                background: section === s.key ? '#f0fdf4' : 'transparent',
-                border: section === s.key ? '1px solid #bbf7d0' : '1px solid transparent',
+                background: section === s.key ? '#EEF2FF' : 'transparent',
+                border: section === s.key ? '1px solid #c7d2fe' : '1px solid transparent',
                 borderRadius: 10, cursor: 'pointer', textAlign: 'left', marginBottom: 4,
                 transition: 'all 0.15s',
               }}>
               <span style={{ fontSize: '1.3rem' }}>{s.icon}</span>
               <div>
-                <div style={{ fontSize: '1.02rem', fontWeight: 700, color: section === s.key ? '#1a7a2e' : '#374151' }}>{s.label}</div>
+                <div style={{ fontSize: '1.02rem', fontWeight: 700, color: section === s.key ? '#1e3a5f' : '#374151' }}>{s.label}</div>
                 <div style={{ fontSize: '0.85rem', color: '#9CA3AF' }}>{s.beschrijving}</div>
               </div>
             </button>
@@ -115,7 +115,7 @@ export default function InstellingenPage() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '2rem', background: '#f8faf8' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '2rem', background: '#f7f8fc' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
 
           {/* ═══ LESVELDEN ═══ */}
@@ -149,7 +149,7 @@ export default function InstellingenPage() {
                         await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ id: f.id, zichtbaar: newVal }) });
                       }} />
-                      <span style={{ fontSize: '1.0rem', color: f.zichtbaar ? '#2d8a4e' : '#9CA3AF', fontWeight: 600 }}>{f.zichtbaar ? 'Aan' : 'Uit'}</span>
+                      <span style={{ fontSize: '1.0rem', color: f.zichtbaar ? '#2B5BA0' : '#9CA3AF', fontWeight: 600 }}>{f.zichtbaar ? 'Aan' : 'Uit'}</span>
                     </label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {idx > 0 && <button onClick={async () => {
@@ -178,7 +178,7 @@ export default function InstellingenPage() {
                 ))}
               </div>
               {/* Nieuw veld toevoegen */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', alignItems: 'center', padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px dashed #86efac' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', alignItems: 'center', padding: '0.5rem 0.75rem', background: '#EEF2FF', borderRadius: 8, border: '1px dashed #a5b4fc' }}>
                 <input value={newLesveldIcoon} onChange={e => setNewLesveldIcoon(e.target.value)}
                   style={{ width: 40, border: '1px solid #d1d5db', borderRadius: 6, fontSize: '1.18rem', textAlign: 'center', padding: '4px' }} />
                 <input value={newLesveldLabel} onChange={e => setNewLesveldLabel(e.target.value)} placeholder="Naam nieuw veld..."
@@ -197,7 +197,7 @@ export default function InstellingenPage() {
                     body: JSON.stringify({ label: newLesveldLabel.trim(), icoon: newLesveldIcoon || '📌' }) });
                   setNewLesveldLabel(''); setNewLesveldIcoon('📌');
                   fetchLesveldConfig();
-                }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer' }}>+ Toevoegen</button>
+                }} style={{ background: '#2B5BA0', color: 'white', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer' }}>+ Toevoegen</button>
               </div>
 
               {/* Dashboard weergave sectie */}
@@ -393,7 +393,7 @@ export default function InstellingenPage() {
                 {/* Stap 2: Week kiezen */}
                 {zermeloToken && zermeloStep === 'fetch' && (
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '1.05rem', color: '#2d8a4e', fontWeight: 600 }}>✓ Verbonden</span>
+                    <span style={{ fontSize: '1.05rem', color: '#2B5BA0', fontWeight: 600 }}>✓ Verbonden</span>
                     <span style={{ fontSize: '1.02rem', color: '#6B7280' }}>Kies een lesweek:</span>
                     <input id="z-week-inst" type="date" defaultValue={getMonday(new Date()).toISOString().split('T')[0]}
                       style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem', fontSize: '1.05rem' }} />
@@ -464,7 +464,7 @@ export default function InstellingenPage() {
                         const isMatched = value !== 'new' && value !== 0;
                         const isSkipped = value === 0;
                         return (
-                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.45rem 0.75rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 8, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
+                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.45rem 0.75rem', background: isSkipped ? '#f9fafb' : isMatched ? '#EEF2FF' : '#fffbeb', borderRadius: 8, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#c7d2fe' : '#fde68a'}` }}>
                             <div style={{ minWidth: 90, fontSize: '1.02rem' }}>
                               <span style={{ fontWeight: 700, color: '#374151' }}>{groep}</span>
                               {slotInfo && <span style={{ color: '#94a3b8', marginLeft: 4, fontSize: '0.92rem' }}>({slotInfo.vak})</span>}
@@ -489,7 +489,7 @@ export default function InstellingenPage() {
                                 ))}
                               </optgroup>
                             </select>
-                            {isMatched && <span style={{ color: '#2d8a4e', fontSize: '1.05rem' }}>✓</span>}
+                            {isMatched && <span style={{ color: '#2B5BA0', fontSize: '1.05rem' }}>✓</span>}
                           </div>
                         );
                       })}
@@ -551,7 +551,7 @@ export default function InstellingenPage() {
                           fetch('/api/klassen').then(r => r.json()).then(setKlassen);
                           fetchPeriodes();
                         } else { setZermeloStatus(data.error || 'Import mislukt'); }
-                      }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 8, padding: '0.5rem 1.2rem', fontWeight: 700, fontSize: '1.12rem', cursor: 'pointer' }}>
+                      }} style={{ background: '#2B5BA0', color: 'white', border: 'none', borderRadius: 8, padding: '0.5rem 1.2rem', fontWeight: 700, fontSize: '1.12rem', cursor: 'pointer' }}>
                         Importeer rooster
                       </button>
                       <button onClick={() => { setZermeloPreview(null); setZermeloStep('fetch'); setZermeloStatus(''); }}
@@ -648,7 +648,7 @@ export default function InstellingenPage() {
                         } else {
                           setJaarkalenderStatus('Import mislukt');
                         }
-                      }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 8, padding: '0.5rem 1.2rem', fontWeight: 700, fontSize: '1.08rem', cursor: 'pointer' }}>
+                      }} style={{ background: '#2B5BA0', color: 'white', border: 'none', borderRadius: 8, padding: '0.5rem 1.2rem', fontWeight: 700, fontSize: '1.08rem', cursor: 'pointer' }}>
                         Importeer {jaarkalenderPreview.length} items
                       </button>
                       <button onClick={() => { setJaarkalenderPreview(null); setJaarkalenderStatus(''); }}
@@ -662,7 +662,7 @@ export default function InstellingenPage() {
                 {jaarkalenderStatus && (
                   <div style={{ marginTop: '0.75rem', fontSize: '1.02rem', fontWeight: 500, padding: '0.5rem 0.75rem', borderRadius: 8,
                     color: jaarkalenderStatus.includes('✓') ? '#166534' : '#92400e',
-                    background: jaarkalenderStatus.includes('✓') ? '#f0fdf4' : '#fef3c7',
+                    background: jaarkalenderStatus.includes('✓') ? '#EEF2FF' : '#fef3c7',
                   }}>{jaarkalenderStatus}</div>
                 )}
               </div>

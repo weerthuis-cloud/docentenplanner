@@ -53,7 +53,7 @@ export default function ResultatenPage() {
 
   const scoreBg = (s: number | null) => {
     if (s === null) return 'transparent';
-    if (s >= 7.5) return '#f0fdf4';
+    if (s >= 7.5) return '#EEF2FF';
     if (s >= 5.5) return 'transparent';
     return '#fef2f2';
   };

@@ -10,8 +10,8 @@ import Highlight from '@tiptap/extension-highlight';
 import { useEffect, useCallback } from 'react';
 
 const FONTS = ['14px', '16px', '18px', '20px', '24px'];
-const COLORS = ['#000000', '#1a7a2e', '#2563EB', '#DC2626', '#D97706', '#7C3AED', '#6B7280'];
-const HIGHLIGHTS = ['transparent', '#FEF08A', '#BBF7D0', '#BFDBFE', '#FECACA', '#FDE68A'];
+const COLORS = ['#000000', '#1e3a5f', '#2563EB', '#DC2626', '#D97706', '#7C3AED', '#6B7280'];
+const HIGHLIGHTS = ['transparent', '#FEF08A', '#c7d2fe', '#BFDBFE', '#FECACA', '#FDE68A'];
 
 interface RichTextEditorProps {
   content: string;
@@ -194,8 +194,8 @@ function ToolBtn({ active, onClick, title, children }: { active: boolean; onClic
     <button onClick={onClick} title={title} style={{
       width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
       border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.8rem',
-      background: active ? '#1a7a2e20' : 'transparent',
-      color: active ? '#1a7a2e' : '#374151',
+      background: active ? '#1e3a5f20' : 'transparent',
+      color: active ? '#1e3a5f' : '#374151',
       fontWeight: active ? 700 : 400,
     }}>
       {children}
