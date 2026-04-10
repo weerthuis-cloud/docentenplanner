@@ -71,7 +71,7 @@ export default function PlannerPage() {
   const [vakanties, setVakanties] = useState<Vakantie[]>([]);
   const [jaarplanners, setJaarplanners] = useState<Jaarplanner[]>([]);
 
-  const [view, setView] = useState<'overzicht' | 'week' | 'dag' | 'klas' | 'jaarlaag' | 'rooster' | 'instellingen'>('overzicht');
+  const [view, setView] = useState<'overzicht' | 'week' | 'dag' | 'klas' | 'jaarlaag' | 'rooster'>('overzicht');
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedKlasId, setSelectedKlasId] = useState<number | null>(null);
@@ -116,14 +116,10 @@ export default function PlannerPage() {
 
   // Lesveld configuratie
   const [lesveldConfig, setLesveldConfig] = useState<LesveldConfig[]>([]);
-  const [showLesveldSettings, setShowLesveldSettings] = useState(false);
-  const [newLesveldLabel, setNewLesveldLabel] = useState('');
-  const [newLesveldIcoon, setNewLesveldIcoon] = useState('📌');
 
   // Overzicht aanpasbaar
   const [overzichtItems, setOverzichtItems] = useState<Array<{ id: number; type: string; titel: string; inhoud: string; datum: string | null; kleur: string }>>([]);
   const [overzichtInstellingen, setOverzichtInstellingen] = useState<Record<string, boolean>>({ vandaag: true, lege_lessen: true, komende_toetsen: true, notities: true, agenda: true });
-  const [showOverzichtSettings, setShowOverzichtSettings] = useState(false);
   const [editOvItemId, setEditOvItemId] = useState<number | null>(null);
 
   // Kopieer/verplaats les
@@ -461,12 +457,12 @@ export default function PlannerPage() {
       {/* ═══ TOP BAR ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.8rem', background: 'white', borderBottom: '1px solid #e0e0e0', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: '#eef4f0', borderRadius: 8, overflow: 'hidden' }}>
-          {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster', 'instellingen'] as const).map(v => (
+          {(['overzicht', 'week', 'dag', 'klas', 'jaarlaag', 'rooster'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
               padding: '0.45rem 0.85rem', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '1.02rem',
-              background: view === v ? (v === 'instellingen' ? '#6B7280' : '#2d8a4e') : 'transparent',
-              color: view === v ? 'white' : (v === 'instellingen' ? '#6B7280' : '#2d8a4e'),
-            }}>{{ overzicht: 'Overzicht', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster', instellingen: '⚙ Instellingen' }[v]}</button>
+              background: view === v ? '#2d8a4e' : 'transparent',
+              color: view === v ? 'white' : '#2d8a4e',
+            }}>{{ overzicht: 'Overzicht', week: 'Week', dag: 'Dag', klas: 'Klas', jaarlaag: 'Jaarlaag', rooster: 'Rooster' }[v]}</button>
           ))}
         </div>
 
@@ -1695,180 +1691,6 @@ export default function PlannerPage() {
           );
         })()}
         {/* jaarlaag view ends above */}
-
-        {/* ═══ INSTELLINGEN ═══ */}
-        {view === 'instellingen' && (
-          <div style={{ padding: '1.5rem', maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-            {/* Lesvelden */}
-            <div>
-              <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#374151', marginBottom: '0.75rem' }}>Lesvelden</h2>
-              <p style={{ fontSize: '1.0rem', color: '#6B7280', marginBottom: '1rem' }}>Pas de velden aan die je per les wilt invullen. Je kunt velden hernoemen, verbergen, de volgorde wijzigen en eigen velden toevoegen.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {lesveldConfig.sort((a, b) => a.volgorde - b.volgorde).map((f, idx) => (
-                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'white', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-                    <input value={f.icoon} onChange={e => {
-                      setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, icoon: e.target.value } : p));
-                    }}
-                      onBlur={async () => {
-                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: f.id, icoon: f.icoon }) });
-                      }}
-                      style={{ width: 40, border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '1.18rem', textAlign: 'center', padding: '4px' }} />
-                    <input value={f.label} onChange={e => {
-                      setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, label: e.target.value } : p));
-                    }}
-                      onBlur={async () => {
-                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: f.id, label: f.label }) });
-                      }}
-                      style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '1.05rem', fontWeight: 600, padding: '6px 10px' }} />
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', minWidth: 80 }}>
-                      <input type="checkbox" checked={f.zichtbaar} style={{ width: 18, height: 18 }} onChange={async () => {
-                        const newVal = !f.zichtbaar;
-                        setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, zichtbaar: newVal } : p));
-                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: f.id, zichtbaar: newVal }) });
-                      }} />
-                      <span style={{ fontSize: '1.0rem', color: f.zichtbaar ? '#2d8a4e' : '#9CA3AF', fontWeight: 600 }}>{f.zichtbaar ? 'Aan' : 'Uit'}</span>
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {idx > 0 && <button onClick={async () => {
-                        const sorted = [...lesveldConfig].sort((a, b) => a.volgorde - b.volgorde);
-                        const curIdx = sorted.findIndex(s => s.id === f.id);
-                        if (curIdx <= 0) return;
-                        const items = [{ id: sorted[curIdx].id, volgorde: sorted[curIdx - 1].volgorde }, { id: sorted[curIdx - 1].id, volgorde: sorted[curIdx].volgorde }];
-                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reorder', items }) });
-                        fetchLesveldConfig();
-                      }} style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', fontSize: '0.92rem', color: '#6B7280', padding: '0 6px', lineHeight: '20px' }}>▲</button>}
-                      {idx < lesveldConfig.length - 1 && <button onClick={async () => {
-                        const sorted = [...lesveldConfig].sort((a, b) => a.volgorde - b.volgorde);
-                        const curIdx = sorted.findIndex(s => s.id === f.id);
-                        if (curIdx >= sorted.length - 1) return;
-                        const items = [{ id: sorted[curIdx].id, volgorde: sorted[curIdx + 1].volgorde }, { id: sorted[curIdx + 1].id, volgorde: sorted[curIdx].volgorde }];
-                        await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reorder', items }) });
-                        fetchLesveldConfig();
-                      }} style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', fontSize: '0.92rem', color: '#6B7280', padding: '0 6px', lineHeight: '20px' }}>▼</button>}
-                    </div>
-                    {f.is_custom && <button onClick={async () => {
-                      if (!confirm(`Weet je zeker dat je "${f.label}" wilt verwijderen?`)) return;
-                      await fetch(`/api/lesvelden?id=${f.id}`, { method: 'DELETE' });
-                      fetchLesveldConfig();
-                    }} style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer', fontSize: '1.0rem', color: '#DC2626', padding: '4px 8px' }}>Verwijder</button>}
-                  </div>
-                ))}
-              </div>
-              {/* Nieuw veld toevoegen */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', alignItems: 'center', padding: '0.5rem 0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px dashed #86efac' }}>
-                <input value={newLesveldIcoon} onChange={e => setNewLesveldIcoon(e.target.value)}
-                  style={{ width: 40, border: '1px solid #d1d5db', borderRadius: 6, fontSize: '1.18rem', textAlign: 'center', padding: '4px' }} />
-                <input value={newLesveldLabel} onChange={e => setNewLesveldLabel(e.target.value)} placeholder="Naam nieuw veld..."
-                  onKeyDown={async e => {
-                    if (e.key === 'Enter' && newLesveldLabel.trim()) {
-                      await fetch('/api/lesvelden', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ label: newLesveldLabel.trim(), icoon: newLesveldIcoon || '📌' }) });
-                      setNewLesveldLabel(''); setNewLesveldIcoon('📌');
-                      fetchLesveldConfig();
-                    }
-                  }}
-                  style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 6, padding: '6px 10px', fontSize: '1.05rem' }} />
-                <button onClick={async () => {
-                  if (!newLesveldLabel.trim()) return;
-                  await fetch('/api/lesvelden', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ label: newLesveldLabel.trim(), icoon: newLesveldIcoon || '📌' }) });
-                  setNewLesveldLabel(''); setNewLesveldIcoon('📌');
-                  fetchLesveldConfig();
-                }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer' }}>+ Toevoegen</button>
-              </div>
-            </div>
-
-            {/* Overzicht blokken */}
-            <div>
-              <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#374151', marginBottom: '0.75rem' }}>Overzicht blokken</h2>
-              <p style={{ fontSize: '1.0rem', color: '#6B7280', marginBottom: '1rem' }}>Kies welke blokken zichtbaar zijn op het overzicht.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {[
-                  { key: 'vandaag', label: 'Vandaag', beschrijving: 'Lessen van vandaag met programma' },
-                  { key: 'lege_lessen', label: 'Lege lessen', beschrijving: 'Lessen deze week zonder programma' },
-                  { key: 'komende_toetsen', label: 'Komende toetsen', beschrijving: 'Toetsen in de komende 14 dagen' },
-                  { key: 'notities', label: 'Notities', beschrijving: 'Vrije notities en memo\'s' },
-                  { key: 'agenda', label: 'Agenda', beschrijving: 'Eigen agenda-items met datum' },
-                ].map(b => (
-                  <div key={b.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', background: 'white', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1 }}>
-                      <input type="checkbox" checked={overzichtInstellingen[b.key] !== false} style={{ width: 18, height: 18 }}
-                        onChange={async () => {
-                          const newVal = !(overzichtInstellingen[b.key] !== false);
-                          setOverzichtInstellingen(prev => ({ ...prev, [b.key]: newVal }));
-                          await fetch('/api/overzicht', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'toggle_blok', blok: b.key, zichtbaar: newVal }) });
-                        }} />
-                      <div>
-                        <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#374151' }}>{b.label}</div>
-                        <div style={{ fontSize: '0.92rem', color: '#9CA3AF' }}>{b.beschrijving}</div>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Schoolkalender */}
-            <div>
-              <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#374151', marginBottom: '0.75rem' }}>Schoolkalender</h2>
-              <p style={{ fontSize: '1.0rem', color: '#6B7280', marginBottom: '1rem' }}>Voeg vakanties, toetsweken en studiedagen toe. Deze worden in alle planners getoond.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-                {vakanties.length === 0 && (
-                  <div style={{ padding: '0.75rem 1rem', background: '#e8eaed', borderRadius: 12, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen items. Voeg hieronder iets toe.</div>
-                )}
-                {vakanties.map(v => {
-                  const typeKleur = v.type === 'toetsweek' ? '#dc2626' : v.type === 'studiedag' ? '#2563EB' : '#ca8a04';
-                  const typeLabel = v.type === 'toetsweek' ? 'Toetsweek' : v.type === 'studiedag' ? 'Studiedag' : 'Vakantie';
-                  return (
-                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 1rem', background: typeKleur + '18', borderRadius: 12 }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'white', background: typeKleur, padding: '2px 8px', borderRadius: 5 }}>{typeLabel}</span>
-                      <span style={{ fontWeight: 600, fontSize: '1.05rem', color: '#374151', flex: 1 }}>{v.naam}</span>
-                      <span style={{ fontSize: '0.92rem', color: '#6B7280' }}>{formatDate(v.start_datum)} – {formatDate(v.eind_datum)}</span>
-                      <button onClick={async () => {
-                        if (!confirm(`"${v.naam}" verwijderen?`)) return;
-                        await fetch(`/api/vakanties?id=${v.id}`, { method: 'DELETE' });
-                        fetch('/api/vakanties').then(r => r.json()).then(setVakanties);
-                      }} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '1.0rem', padding: '2px 6px' }}>✕</button>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Toevoeg formulier */}
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.75rem 1rem', background: 'white', borderRadius: 12, border: '1px solid #e5e7eb' }}>
-                <select id="kalender-type" defaultValue="vakantie" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.5rem', fontSize: '1.0rem', fontWeight: 600 }}>
-                  <option value="vakantie">Vakantie</option>
-                  <option value="toetsweek">Toetsweek</option>
-                  <option value="studiedag">Studiedag</option>
-                </select>
-                <input id="kalender-naam" placeholder="Naam..." style={{ flex: 1, minWidth: 120, border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '1.0rem' }} />
-                <input id="kalender-start" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.5rem', fontSize: '1.0rem' }} />
-                <span style={{ color: '#9CA3AF' }}>t/m</span>
-                <input id="kalender-eind" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.5rem', fontSize: '1.0rem' }} />
-                <button onClick={async () => {
-                  const type = (document.getElementById('kalender-type') as HTMLSelectElement).value;
-                  const naam = (document.getElementById('kalender-naam') as HTMLInputElement).value.trim();
-                  const start = (document.getElementById('kalender-start') as HTMLInputElement).value;
-                  const eind = (document.getElementById('kalender-eind') as HTMLInputElement).value;
-                  if (!naam || !start) return;
-                  await fetch('/api/vakanties', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ naam, start_datum: start, eind_datum: eind || start, type }) });
-                  fetch('/api/vakanties').then(r => r.json()).then(setVakanties);
-                  (document.getElementById('kalender-naam') as HTMLInputElement).value = '';
-                  (document.getElementById('kalender-start') as HTMLInputElement).value = '';
-                  (document.getElementById('kalender-eind') as HTMLInputElement).value = '';
-                }} style={{ background: '#374151', color: 'white', border: 'none', borderRadius: 6, padding: '0.4rem 1rem', fontWeight: 700, fontSize: '1.0rem', cursor: 'pointer' }}>
-                  + Toevoegen
-                </button>
-              </div>
-            </div>
-
-          </div>
-        )}
 
         </div>
 

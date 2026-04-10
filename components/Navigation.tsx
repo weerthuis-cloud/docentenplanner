@@ -12,6 +12,7 @@ const navItems = [
   { href: '/cijfers', label: 'Cijfers', icon: '📝' },
   { href: '/resultaten', label: 'Resultaten', icon: '📈' },
   { href: '/toetsen', label: 'Toetsen', icon: '✅' },
+  { href: '/instellingen', label: 'Instellingen', icon: '⚙️' },
 ];
 
 export default function Navigation() {
