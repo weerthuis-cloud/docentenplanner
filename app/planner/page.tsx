@@ -602,7 +602,7 @@ export default function PlannerPage() {
                         <div key={slot.uur} onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: today, uur: slot.uur })}
                           style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${kleur}30`, borderLeft: `3px solid ${kleur}`, borderRadius: 6, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '1.18rem', color: kleur, minWidth: 30 }}>Uur {slot.uur}</span>
+                            <span style={{ fontWeight: 700, fontSize: '1.18rem', color: kleur, minWidth: 30 }}>{slot.uur}</span>
                             <span style={{ fontSize: '1.12rem', fontWeight: 600, color: '#374151' }}>{klas?.naam}</span>
                             <span style={{ fontSize: '1.0rem', color: '#9CA3AF' }}>({klas?.lokaal})</span>
                             {ovToetsen.map(t => (
