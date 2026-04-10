@@ -52,3 +52,17 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* Fullscreen mode styling */
+body.fullscreen-dashboard nav {
+  display: none;
+}
+
+body.fullscreen-dashboard main > div:first-child {
+  /* Hide topbar */
+  border-bottom: none;
+}
+
+body.fullscreen-dashboard main > div:first-child > div:first-child {
+  display: none;
+}

@@ -9,15 +9,23 @@ interface Leerling { id: number; klas_id: number; voornaam: string; achternaam: 
 interface Les { id: number; klas_id: number; datum: string; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; custom_velden?: Record<string, string>; }
 interface LesveldConfig { id: number; veld_key: string; label: string; icoon: string; zichtbaar: boolean; volgorde: number; is_custom: boolean; dashboard_binnenkomst: boolean; dashboard_les: boolean; }
 interface Layout { layout_data: (number | null)[][]; }
+interface RoosterSlot { id?: number; klas_id: number; dag: number; uur: number; vak: string; lokaal: string; is_blokuur: boolean; periode_id?: number; }
 
 type Mode = 'binnenkomst' | 'les' | 'lezen';
 
 interface LeerlingState { warnings: number; compliments: number; statuses: string[]; materiaal: string[]; notitie: string; }
 
+const uurTijden: Record<number, string> = { 1: '09:00', 2: '09:40', 3: '10:20', 4: '11:00', 5: '12:20', 6: '13:00', 7: '13:40', 8: '14:40', 9: '15:20', 10: '16:00' };
+
 export default function Dashboard() {
   const router = useRouter();
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [activeKlas, setActiveKlas] = useState<number>(1);
+  const [currentUur, setCurrentUur] = useState<number | null>(null);
+  const [todayRooster, setTodayRooster] = useState<RoosterSlot[]>([]);
+  const [manualOverride, setManualOverride] = useState(false);
+  const [lastInteractionTime, setLastInteractionTime] = useState<number>(Date.now());
+  const [fullscreen, setFullscreen] = useState(false);
   const [leerlingen, setLeerlingen] = useState<Leerling[]>([]);
   const [les, setLes] = useState<Les | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -56,6 +64,42 @@ export default function Dashboard() {
     return m * 60;
   };
 
+  // Helper: determine current lesson hour based on time of day
+  const getCurrentUur = (): number | null => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const uurArray = Object.keys(uurTijden).map(Number).sort((a, b) => a - b);
+
+    for (let i = 0; i < uurArray.length; i++) {
+      const uur = uurArray[i];
+      const timeStr = uurTijden[uur];
+      const [h, m] = timeStr.split(':').map(Number);
+      const uurMinutes = h * 60 + m;
+
+      let nextUurMinutes = 16 * 60 + 40; // Default to 16:40 for last hour
+      if (i + 1 < uurArray.length) {
+        const nextUur = uurArray[i + 1];
+        const nextTimeStr = uurTijden[nextUur];
+        const [nh, nm] = nextTimeStr.split(':').map(Number);
+        nextUurMinutes = nh * 60 + nm;
+      }
+
+      if (currentMinutes >= uurMinutes && currentMinutes < nextUurMinutes) {
+        return uur;
+      }
+    }
+    return null;
+  };
+
+  // Helper: get today's day of week (1=Mon, 5=Fri)
+  const getTodayDag = (): number => {
+    const now = new Date();
+    const day = now.getDay();
+    if (day === 0) return 5; // Sunday -> Friday (no school)
+    return day; // 1=Monday, ..., 5=Friday, 6=Saturday
+  };
+
   // Fetch data
   const fetchData = useCallback(async () => {
     const [kRes, lRes, lesRes, layRes, lvRes] = await Promise.all([
@@ -84,9 +128,40 @@ export default function Dashboard() {
     setLState(newState);
   }, [activeKlas]);
 
+  // Fetch today's rooster and auto-set active class
+  const fetchTodayRoosterAndAutoSet = useCallback(async () => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const res = await fetch(`/api/roosters?datum=${today}`);
+      const slots = await res.json();
+      setTodayRooster(slots || []);
+
+      // Auto-determine current lesson if not manually overridden
+      if (!manualOverride) {
+        const currentUur = getCurrentUur();
+        const todayDag = getTodayDag();
+        setCurrentUur(currentUur);
+
+        if (currentUur && todayDag >= 1 && todayDag <= 5) {
+          const currentSlot = slots.find((s: RoosterSlot) => s.dag === todayDag && s.uur === currentUur);
+          if (currentSlot) {
+            setActiveKlas(currentSlot.klas_id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch rooster:', e);
+    }
+  }, [manualOverride]);
+
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Clock
+  // On mount, fetch today's rooster and auto-set class
+  useEffect(() => {
+    fetchTodayRoosterAndAutoSet();
+  }, [fetchTodayRoosterAndAutoSet]);
+
+  // Clock and periodic rooster update
   useEffect(() => {
     const tick = () => {
       const now = new Date();
@@ -95,8 +170,59 @@ export default function Dashboard() {
     };
     tick();
     const i = setInterval(tick, 1000);
-    return () => clearInterval(i);
+
+    // Every 60 seconds, check if hour has changed and update auto-follow
+    const roosterCheckInterval = setInterval(() => {
+      fetchTodayRoosterAndAutoSet();
+    }, 60000);
+
+    return () => {
+      clearInterval(i);
+      clearInterval(roosterCheckInterval);
+    };
+  }, [fetchTodayRoosterAndAutoSet]);
+
+  // Reset manual override after 5 minutes of inactivity
+  useEffect(() => {
+    if (manualOverride) {
+      const timeout = setTimeout(() => {
+        setManualOverride(false);
+      }, 5 * 60 * 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [lastInteractionTime, manualOverride]);
+
+  // Fullscreen toggle
+  const toggleFullscreen = () => {
+    if (!fullscreen) {
+      document.documentElement.requestFullscreen?.().catch(() => {
+        // Fallback if requestFullscreen not available
+        setFullscreen(true);
+      });
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+    setFullscreen(!fullscreen);
+  };
+
+  // Listen for fullscreen exit (e.g. pressing Escape)
+  useEffect(() => {
+    const handler = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
+
+  // Apply fullscreen styles to body
+  useEffect(() => {
+    if (fullscreen) {
+      document.body.classList.add('fullscreen-dashboard');
+    } else {
+      document.body.classList.remove('fullscreen-dashboard');
+    }
+    return () => {
+      document.body.classList.remove('fullscreen-dashboard');
+    };
+  }, [fullscreen]);
 
   // Timer countdown
   useEffect(() => {
@@ -408,10 +534,38 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col" style={{ height: fullscreen ? '100vh' : undefined, overflow: fullscreen ? 'hidden' : undefined }}>
       {/* Overlay om menu/dropdown te sluiten */}
       {(menuOpen || openDD !== null || selectedSeat !== null) && (
         <div className="fixed inset-0 z-30" onClick={() => { setMenuOpen(false); setOpenDD(null); setSelectedSeat(null); }} />
+      )}
+
+      {/* Fullscreen exit button - floating */}
+      {fullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          style={{
+            position: 'fixed',
+            top: 16,
+            right: 16,
+            zIndex: 50,
+            padding: '8px 12px',
+            background: 'rgba(30, 58, 95, 0.8)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            opacity: 0.6,
+            transition: 'opacity 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+          title="Verlaat volledig scherm (Esc)"
+        >
+          ✕ Exit
+        </button>
       )}
 
       {/* Notitie modal */}
@@ -463,11 +617,47 @@ export default function Dashboard() {
           <span style={{ color: '#6b7280', fontSize: '0.875rem', fontVariantNumeric: 'normal' }}>{date}</span>
           <span style={{ color: '#e5e7eb' }}>|</span>
           <span style={{ color: '#374151', fontSize: '0.875rem', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }}>{clock}</span>
+
+          {/* Today's lesson schedule pills */}
+          {todayRooster.length > 0 && (
+            <div className="flex items-center gap-2" style={{ marginLeft: 16 }}>
+              {todayRooster
+                .filter((s: RoosterSlot) => s.dag === getTodayDag())
+                .sort((a: RoosterSlot, b: RoosterSlot) => a.uur - b.uur)
+                .map((slot: RoosterSlot) => {
+                  const isCurrentLesson = currentUur === slot.uur;
+                  const klas = klassen.find(k => k.id === slot.klas_id);
+                  return (
+                    <div
+                      key={`${slot.uur}-${slot.klas_id}`}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: 12,
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        background: isCurrentLesson ? '#1e3a5f' : '#f3f4f6',
+                        color: isCurrentLesson ? 'white' : '#6b7280',
+                      }}
+                    >
+                      {slot.uur}: {klas?.naam || '?'}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
           {/* Klas selector */}
-          <select style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', fontSize: '0.875rem', color: '#374151' }} value={activeKlas} onChange={e => setActiveKlas(Number(e.target.value))}>
+          <select
+            style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', fontSize: '0.875rem', color: '#374151' }}
+            value={activeKlas}
+            onChange={e => {
+              setActiveKlas(Number(e.target.value));
+              setManualOverride(true);
+              setLastInteractionTime(Date.now());
+            }}
+          >
             {klassen.map(k => <option key={k.id} value={k.id}>{k.naam} - {k.vak}</option>)}
           </select>
           <span style={{ fontSize: '0.6875rem', color: '#9ca3af' }}>{activeKlasObj ? `${activeKlasObj.aantal_leerlingen} ll · Lok ${activeKlasObj.lokaal}` : ''}</span>
@@ -493,6 +683,15 @@ export default function Dashboard() {
             </button>
             <button onClick={resetTimer} style={{ padding: '4px 10px', borderRadius: 4, fontSize: '0.75rem', background: '#f0f4f8', border: '1px solid #e5e7eb', color: '#64748b', cursor: 'pointer' }}>Reset</button>
           </div>
+
+          {/* Fullscreen button */}
+          <button
+            onClick={toggleFullscreen}
+            title={fullscreen ? 'Verlaat volledig scherm' : 'Volledig scherm'}
+            style={{ padding: '4px 8px', borderRadius: 6, fontSize: '0.875rem', border: fullscreen ? '1px solid #1e3a5f' : '1px solid #e5e7eb', background: fullscreen ? '#f0f4f8' : 'white', color: '#374151', cursor: 'pointer' }}
+          >
+            🖥️
+          </button>
 
           {/* Mode switch - altijd op dezelfde plek */}
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: '6px', padding: '4px' }}>

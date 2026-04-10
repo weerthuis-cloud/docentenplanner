@@ -79,6 +79,7 @@ export default function PlannerPage() {
   const [klasWeekStart, setKlasWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
   const [jaarlaagWeekStart, setJaarlaagWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [activeEditor, setActiveEditor] = useState<Editor | null>(null);
   const [selectedLesPanel, setSelectedLesPanel] = useState<{ klas_id: number; datum: string; uur: number | null } | null>(null);
   const [panelTab, setPanelTab] = useState<string>('programma');
@@ -314,14 +315,16 @@ export default function PlannerPage() {
       updated = { ...les, [field]: value };
     }
     setEditState(prev => ({ ...prev, [key]: updated }));
+    setSaveStatus('saving');
     if (saveTimerRef.current[key]) clearTimeout(saveTimerRef.current[key]);
     saveTimerRef.current[key] = setTimeout(() => { saveLes(updated); }, 1500);
   }
 
   async function saveLes(les: Les) {
-    setSaving(true);
+    setSaveStatus('saving');
     await fetch('/api/lessen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(les) });
-    setSaving(false);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2000);
   }
 
   async function deleteToets(id: number) { await fetch(`/api/toetsen?id=${id}`, { method: 'DELETE' }); fetchToetsen(); }
@@ -355,11 +358,22 @@ export default function PlannerPage() {
     const hasToets = cellToetsen.length > 0;
     const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
 
+    // Check if lesson has any content (prepared)
+    const allFields = visibleFields.map(f => f.veld_key);
+    const hasContent = allFields.some(key => isFieldFilled(les, key));
+
+    // Tooltip: first ~100 chars of programma
+    const programmaPreview = stripHtml(les.programma || '').slice(0, 100);
+    const tooltipText = programmaPreview ? `${programmaPreview}${programmaPreview.length === 100 ? '...' : ''}` : '';
+
     return (
       <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 12, overflow: 'hidden', background: hasToets ? toetsAccent + '30' : kleur + '30', cursor: 'pointer', position: 'relative' }}
-        onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '5px 8px', flexWrap: 'wrap', flexShrink: 0 }}>
+        onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}
+        title={tooltipText}>
+        {/* Header with prepared indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '5px 8px', flexWrap: 'wrap', flexShrink: 0, position: 'relative' }}>
+          {/* Prepared indicator dot */}
+          <span style={{ position: 'absolute', top: 4, left: 4, width: 8, height: 8, borderRadius: '50%', background: hasContent ? '#22c55e' : '#f97316' }} title={hasContent ? 'Les is voorbereid' : 'Les is nog leeg'} />
           <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 7px', borderRadius: 5 }}>{klas?.naam}</span>
           <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
           <button onClick={(e) => { e.stopPropagation(); const tk = `${slot.klas_id}-${datum}`; setInlineToetsCell(inlineToetsCell === tk ? null : tk); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
@@ -1758,7 +1772,7 @@ export default function PlannerPage() {
                     <select value={kopieerDoelKlas} onChange={e => setKopieerDoelKlas(e.target.value ? Number(e.target.value) : '')}
                       style={{ border: '1px solid #d1d5db', borderRadius: 5, padding: '0.35rem 0.5rem', fontSize: '0.95rem' }}>
                       <option value="">Kies klas...</option>
-                      {klassen.map(k => <option key={k.id} value={k.id}>{k.naam} ({k.vak})</option>)}
+                      {klassen.filter(k => k.id !== selectedLesPanel.klas_id).map(k => <option key={k.id} value={k.id}>{k.naam} ({k.vak})</option>)}
                     </select>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <input type="date" value={kopieerDoelDatum} onChange={e => setKopieerDoelDatum(e.target.value)}
@@ -1839,10 +1853,30 @@ export default function PlannerPage() {
                     onFocus={(editor) => setActiveEditor(editor)}
                     placeholder={activeTab.placeholder}
                     borderColor={panelKleur}
+                    autoFocus
+                    onTabOut={() => {
+                      // Cycle to next tab or first if on last
+                      const currentIndex = tabs.findIndex(t => t.key === panelTab);
+                      const nextIndex = (currentIndex + 1) % tabs.length;
+                      setPanelTab(tabs[nextIndex].key);
+                    }}
                     grow
                   />
                 )}
               </div>
+
+              {/* Save status indicator */}
+              {saveStatus !== 'idle' && (
+                <div style={{ padding: '0.5rem 1rem', background: '#f8fafc', borderTop: '1px solid #e5e7eb', flexShrink: 0, textAlign: 'right' }}>
+                  <span style={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: saveStatus === 'saved' ? '#16a34a' : '#666',
+                  }}>
+                    {saveStatus === 'saving' ? '⏳ Opslaan...' : '✓ Opgeslagen'}
+                  </span>
+                </div>
+              )}
             </div>
           );
         })()}

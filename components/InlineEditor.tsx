@@ -16,9 +16,11 @@ interface InlineEditorProps {
   placeholder?: string;
   borderColor?: string;
   grow?: boolean;
+  autoFocus?: boolean;
+  onTabOut?: () => void;
 }
 
-export default function InlineEditor({ content, onChange, onFocus, onBlur, placeholder, borderColor, grow }: InlineEditorProps) {
+export default function InlineEditor({ content, onChange, onFocus, onBlur, placeholder, borderColor, grow, autoFocus, onTabOut }: InlineEditorProps) {
   const hasInitialized = useRef(false);
 
   const editor = useEditor({
@@ -45,6 +47,20 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
       attributes: {
         class: 'tiptap',
       },
+      handleKeyDown: (view, event) => {
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          // If Shift+Tab, try to go back; otherwise go to next tab
+          if (event.shiftKey) {
+            onTabOut?.();
+          } else {
+            // For forward Tab in last field, call onTabOut (which cycles to first)
+            onTabOut?.();
+          }
+          return true;
+        }
+        return false;
+      },
     },
   });
 
@@ -53,12 +69,22 @@ export default function InlineEditor({ content, onChange, onFocus, onBlur, place
     if (!editor) return;
     if (!hasInitialized.current) {
       hasInitialized.current = true;
+      if (autoFocus) {
+        editor.commands.focus();
+      }
       return;
     }
     if (content !== editor.getHTML()) {
       editor.commands.setContent(content || '');
     }
   }, [content]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-focus on mount if requested
+  useEffect(() => {
+    if (autoFocus && editor && hasInitialized.current) {
+      editor.commands.focus('end');
+    }
+  }, [autoFocus, editor]);
 
   if (!editor) return null;
 
