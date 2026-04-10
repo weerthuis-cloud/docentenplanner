@@ -14,6 +14,7 @@ interface Toets { id: number; klas_id: number; naam: string; type: string; datum
 interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; }
 interface Jaarplanner { id: number; vak: string; jaarlaag: string; schooljaar: string; naam: string; data: Array<{ week: number; les: number; planning: string; toetsen: string }>; created_at: string; }
 interface RoosterPeriode { id: number; naam: string; start_datum: string; eind_datum: string; bron: string; created_at: string; }
+interface Vervallen { id: number; datum: string; uur: number | null; reden: string; created_at: string; }
 
 function stripHtml(html: string): string {
   if (!html) return '';
@@ -102,6 +103,12 @@ export default function PlannerPage() {
   const [inlineToetsType, setInlineToetsType] = useState('SO');
   const [inlineToetsNaam, setInlineToetsNaam] = useState('');
 
+  // Rooster weeknavigatie + vervallen
+  const [roosterWeekStart, setRoosterWeekStart] = useState(() => getMonday(new Date()).toISOString().split('T')[0]);
+  const [vervallen, setVervallen] = useState<Vervallen[]>([]);
+  const [vervallenReden, setVervallenReden] = useState('');
+  const [editVervallenId, setEditVervallenId] = useState<number | null>(null);
+
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
   const today = new Date().toISOString().split('T')[0];
@@ -168,9 +175,14 @@ export default function PlannerPage() {
     Promise.all(klassen.map(k => fetch(`/api/toetsen?klas_id=${k.id}`).then(r => r.json()))).then(r => setToetsen(r.flat()));
   }, [klassen]);
 
+  const fetchVervallen = useCallback(() => {
+    fetch('/api/vervallen').then(r => r.json()).then(setVervallen);
+  }, []);
+
   useEffect(() => { fetchAllRooster(); }, [fetchAllRooster]);
   useEffect(() => { fetchLessen(); }, [fetchLessen]);
   useEffect(() => { fetchToetsen(); }, [fetchToetsen]);
+  useEffect(() => { fetchVervallen(); }, [fetchVervallen]);
   useEffect(() => { if (klassen.length > 0 && !selectedKlasId) setSelectedKlasId(klassen[0].id); }, [klassen, selectedKlasId]);
   useEffect(() => { if (klassen.length > 0 && !selectedJaarlaag) setSelectedJaarlaag([...new Set(klassen.map(k => k.jaarlaag))][0] || ''); }, [klassen, selectedJaarlaag]);
 
@@ -181,6 +193,30 @@ export default function PlannerPage() {
   const isBlokuurStart = (dag: number, uur: number): boolean => { const s = getSlot(dag, uur); const n = getSlot(dag, uur + 1); return !!(s && n && s.klas_id === n.klas_id && s.is_blokuur); };
   const isBlokuurSecond = (dag: number, uur: number): boolean => { const s = getSlot(dag, uur); const p = getSlot(dag, uur - 1); return !!(s && p && s.klas_id === p.klas_id && p.is_blokuur); };
   const canBeBlokuur = (dag: number, uur: number): boolean => { const s = getSlot(dag, uur); const n = getSlot(dag, uur + 1); return !!(s && n && s.klas_id === n.klas_id); };
+
+  /* ───── Vervallen helpers ───── */
+  const isVervallenDag = (datum: string): Vervallen | undefined => vervallen.find(v => v.datum === datum && v.uur === null);
+  const isVervallenUur = (datum: string, uur: number): Vervallen | undefined => vervallen.find(v => v.datum === datum && v.uur === uur);
+  const isVervallen = (datum: string, uur: number): Vervallen | undefined => isVervallenDag(datum) || isVervallenUur(datum, uur);
+
+  async function toggleVervallen(datum: string, uur: number | null, reden?: string) {
+    const existing = uur !== null
+      ? vervallen.find(v => v.datum === datum && v.uur === uur)
+      : vervallen.find(v => v.datum === datum && v.uur === null);
+    if (existing) {
+      await fetch(`/api/vervallen?id=${existing.id}`, { method: 'DELETE' });
+    } else {
+      await fetch('/api/vervallen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datum, uur, reden: reden || '' }) });
+    }
+    fetchVervallen();
+  }
+
+  async function updateVervallenReden(id: number, reden: string) {
+    await fetch('/api/vervallen', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, reden }) });
+    fetchVervallen();
+  }
 
   /* ───── Rooster actions ───── */
   async function setRoosterKlas(dag: number, uur: number, klasId: number | null) {
@@ -1013,45 +1049,161 @@ export default function PlannerPage() {
               </span>
             </div>
 
-            {/* Rooster grid */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderRadius: 12, overflow: 'hidden', border: '1px solid #d4d4d4' }}>
-              <thead><tr>
-                <th style={{ ...th, width: 42 }}>Uur</th>
-                {dagNamen.map(n => <th key={n} style={th}>{n}</th>)}
-              </tr></thead>
-              <tbody>
-                {[1,2,3,4,5,6,7,8,9,10].map(uur => (
-                  <tr key={uur}>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '1.12rem', padding: '0.3rem 0.25rem' }}>
-                      {uur}
-                      <div style={{ fontSize: '0.82rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
-                    </td>
-                    {[1,2,3,4,5].map(dag => {
-                      const slot = getSlot(dag, uur); const klas = slot ? klassen.find(k => k.id === slot.klas_id) : null;
-                      const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
-                      if (isBlokuurSecond(dag, uur)) return null;
-                      const isBlok = isBlokuurStart(dag, uur);
+            {/* Week navigatie */}
+            {(() => {
+              const roosterDays = getDaysOfWeek(roosterWeekStart);
+              const roosterWeekNum = getWeekNumber(roosterWeekStart);
+              const curPeriode = periodes.find(p => p.id === selectedPeriodeId);
+              return (
+                <>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+                  <button onClick={() => { const d = new Date(roosterWeekStart + 'T12:00:00'); d.setDate(d.getDate() - 7); setRoosterWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>◀</button>
+                  <span style={{ fontWeight: 700, color: '#2d8a4e', minWidth: 55, textAlign: 'center', fontSize: '1.05rem' }}>Wk {roosterWeekNum}</span>
+                  <span style={{ fontSize: '0.92rem', color: '#6B7280' }}>{formatDate(roosterDays[0])} – {formatDate(roosterDays[4])}</span>
+                  <button onClick={() => { const d = new Date(roosterWeekStart + 'T12:00:00'); d.setDate(d.getDate() + 7); setRoosterWeekStart(d.toISOString().split('T')[0]); }} style={navBtn}>▶</button>
+                  <button onClick={() => setRoosterWeekStart(getMonday(new Date()).toISOString().split('T')[0])} style={{ ...navBtn, fontSize: '0.92rem', color: '#2d8a4e' }}>Vandaag</button>
+                  {curPeriode && (roosterWeekStart < curPeriode.start_datum || roosterDays[4] > curPeriode.eind_datum) && (
+                    <span style={{ fontSize: '0.88rem', color: '#DC2626', fontWeight: 600 }}>⚠ Buiten periode</span>
+                  )}
+                </div>
+
+                {/* Rooster grid met weekweergave */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderRadius: 12, overflow: 'hidden', border: '1px solid #d4d4d4' }}>
+                  <thead><tr>
+                    <th style={{ ...th, width: 50 }}>Uur</th>
+                    {roosterDays.map((d, idx) => {
+                      const dagVerv = isVervallenDag(d);
+                      const vakantie = isInVakantie(d, vakanties);
                       return (
-                        <td key={`${dag}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, borderLeft: slot ? `3px solid ${kleur}` : undefined, background: slot ? kleur + '06' : '#fcfcfc', padding: '0.3rem' }}>
-                          <select value={slot?.klas_id || ''} onChange={e => setRoosterKlas(dag, uur, e.target.value ? Number(e.target.value) : null)}
-                            style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '1.0rem', fontWeight: 700, cursor: 'pointer', color: kleur || '#c4c4c4' }}>
-                            <option value="">—</option>
-                            {klassen.map((k, i) => <option key={k.id} value={k.id} style={{ color: klasKleuren[i % klasKleuren.length] }}>{k.naam} ({k.lokaal})</option>)}
-                          </select>
-                          {slot && klas && <div style={{ fontSize: '0.92rem', color: '#9CA3AF', marginTop: 2 }}>{klas.vak} - {klas.lokaal}</div>}
-                          {canBeBlokuur(dag, uur) && (
-                            <button onClick={() => toggleBlokuur(dag, uur)} style={{ marginTop: 3, fontSize: '0.88rem', padding: '2px 7px', borderRadius: 3,
-                              border: `1px solid ${isBlok ? kleur : '#d1d5db'}`, background: isBlok ? kleur + '20' : '#f9fafb', color: isBlok ? kleur : '#9CA3AF', cursor: 'pointer', fontWeight: 600 }}>
-                              {isBlok ? '✓ Blokuur' : 'Maak blokuur'}
+                        <th key={d} style={{ ...th, background: dagVerv ? '#fef2f2' : vakantie ? '#fefce8' : '#f9fafb', position: 'relative' }}>
+                          <div>{dagNamen[idx]}</div>
+                          <div style={{ fontSize: '0.86rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(d)}</div>
+                          {vakantie && <div style={{ fontSize: '0.82rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</div>}
+                          {dagVerv && <div style={{ fontSize: '0.82rem', color: '#DC2626', fontWeight: 600 }}>VERVALLEN</div>}
+                          {!vakantie && (
+                            <button onClick={() => toggleVervallen(d, null)}
+                              style={{ fontSize: '0.82rem', padding: '1px 6px', borderRadius: 3, marginTop: 2,
+                                border: dagVerv ? '1px solid #DC2626' : '1px solid #d1d5db',
+                                background: dagVerv ? '#fef2f2' : '#f9fafb',
+                                color: dagVerv ? '#DC2626' : '#9CA3AF', cursor: 'pointer', fontWeight: 600 }}>
+                              {dagVerv ? '✓ Dag vervalt' : 'Dag laten vervallen'}
                             </button>
                           )}
-                        </td>
+                          {dagVerv && (
+                            <div style={{ marginTop: 2 }}>
+                              {editVervallenId === dagVerv.id ? (
+                                <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                  <input autoFocus value={vervallenReden} onChange={e => setVervallenReden(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') { updateVervallenReden(dagVerv.id, vervallenReden); setEditVervallenId(null); } }}
+                                    placeholder="Reden..."
+                                    style={{ border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 4px', fontSize: '0.82rem', width: '100%' }} />
+                                  <button onClick={() => { updateVervallenReden(dagVerv.id, vervallenReden); setEditVervallenId(null); }}
+                                    style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 3, padding: '2px 6px', fontSize: '0.82rem', cursor: 'pointer' }}>✓</button>
+                                </div>
+                              ) : (
+                                <div onClick={() => { setEditVervallenId(dagVerv.id); setVervallenReden(dagVerv.reden); }}
+                                  style={{ fontSize: '0.82rem', color: '#b91c1c', fontStyle: dagVerv.reden ? 'normal' : 'italic', cursor: 'pointer' }}>
+                                  {dagVerv.reden || 'Klik voor reden...'}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </th>
                       );
                     })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </tr></thead>
+                  <tbody>
+                    {[1,2,3,4,5,6,7,8,9,10].map(uur => (
+                      <tr key={uur}>
+                        <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '1.12rem', padding: '0.3rem 0.25rem' }}>
+                          {uur}
+                          <div style={{ fontSize: '0.82rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
+                        </td>
+                        {roosterDays.map((d, idx) => {
+                          const dag = idx + 1;
+                          const slot = getSlot(dag, uur); const klas = slot ? klassen.find(k => k.id === slot.klas_id) : null;
+                          const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
+                          if (isBlokuurSecond(dag, uur)) return null;
+                          const isBlok = isBlokuurStart(dag, uur);
+                          const dagVerv = isVervallenDag(d);
+                          const uurVerv = isVervallenUur(d, uur);
+                          const vakantie = isInVakantie(d, vakanties);
+                          const cellVerv = dagVerv || uurVerv;
+
+                          if (vakantie) {
+                            return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fefce8', textAlign: 'center', verticalAlign: 'middle' }}>
+                              {uur === 1 && <span style={{ fontSize: '0.86rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</span>}
+                            </td>;
+                          }
+
+                          return (
+                            <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{
+                              ...td, padding: '0.3rem', position: 'relative',
+                              borderLeft: slot && !cellVerv ? `3px solid ${kleur}` : cellVerv ? '3px solid #fca5a5' : undefined,
+                              background: cellVerv ? '#fef2f2' : slot ? kleur + '06' : '#fcfcfc',
+                              opacity: cellVerv ? 0.7 : 1,
+                            }}>
+                              {/* Klas selectie (basisrooster) */}
+                              <select value={slot?.klas_id || ''} onChange={e => setRoosterKlas(dag, uur, e.target.value ? Number(e.target.value) : null)}
+                                style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '1.0rem', fontWeight: 700, cursor: 'pointer',
+                                  color: cellVerv ? '#d4a0a0' : (kleur || '#c4c4c4'), textDecoration: cellVerv ? 'line-through' : 'none' }}>
+                                <option value="">—</option>
+                                {klassen.map((k, i) => <option key={k.id} value={k.id} style={{ color: klasKleuren[i % klasKleuren.length] }}>{k.naam} ({k.lokaal})</option>)}
+                              </select>
+                              {slot && klas && <div style={{ fontSize: '0.92rem', color: cellVerv ? '#d4a0a0' : '#9CA3AF', marginTop: 2, textDecoration: cellVerv ? 'line-through' : 'none' }}>{klas.vak} - {klas.lokaal}</div>}
+                              {canBeBlokuur(dag, uur) && !cellVerv && (
+                                <button onClick={() => toggleBlokuur(dag, uur)} style={{ marginTop: 3, fontSize: '0.88rem', padding: '2px 7px', borderRadius: 3,
+                                  border: `1px solid ${isBlok ? kleur : '#d1d5db'}`, background: isBlok ? kleur + '20' : '#f9fafb', color: isBlok ? kleur : '#9CA3AF', cursor: 'pointer', fontWeight: 600 }}>
+                                  {isBlok ? '✓ Blokuur' : 'Maak blokuur'}
+                                </button>
+                              )}
+
+                              {/* Vervallen toggle per uur */}
+                              {slot && !dagVerv && (
+                                <div style={{ marginTop: 4 }}>
+                                  <button onClick={() => toggleVervallen(d, uur)}
+                                    style={{ fontSize: '0.82rem', padding: '1px 5px', borderRadius: 3,
+                                      border: uurVerv ? '1px solid #DC2626' : '1px solid #e5e7eb',
+                                      background: uurVerv ? '#fef2f2' : 'white',
+                                      color: uurVerv ? '#DC2626' : '#b0b8c4', cursor: 'pointer', fontWeight: 600 }}>
+                                    {uurVerv ? '✕ Vervalt' : 'Vervallen'}
+                                  </button>
+                                  {uurVerv && (
+                                    <div style={{ marginTop: 2 }}>
+                                      {editVervallenId === uurVerv.id ? (
+                                        <div style={{ display: 'flex', gap: 2 }}>
+                                          <input autoFocus value={vervallenReden} onChange={e => setVervallenReden(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') { updateVervallenReden(uurVerv.id, vervallenReden); setEditVervallenId(null); } }}
+                                            placeholder="Reden..."
+                                            style={{ border: '1px solid #d1d5db', borderRadius: 3, padding: '1px 4px', fontSize: '0.82rem', width: '100%' }} />
+                                          <button onClick={() => { updateVervallenReden(uurVerv.id, vervallenReden); setEditVervallenId(null); }}
+                                            style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 3, padding: '1px 5px', fontSize: '0.82rem', cursor: 'pointer' }}>✓</button>
+                                        </div>
+                                      ) : (
+                                        <div onClick={() => { setEditVervallenId(uurVerv.id); setVervallenReden(uurVerv.reden); }}
+                                          style={{ fontSize: '0.82rem', color: '#b91c1c', fontStyle: uurVerv.reden ? 'normal' : 'italic', cursor: 'pointer' }}>
+                                          {uurVerv.reden || 'Reden...'}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Vervallen label als hele dag vervalt */}
+                              {dagVerv && slot && (
+                                <div style={{ fontSize: '0.82rem', color: '#DC2626', fontWeight: 600, marginTop: 2 }}>Vervallen</div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </>
+              );
+            })()}
           </div>
         )}
 
