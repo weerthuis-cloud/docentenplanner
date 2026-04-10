@@ -97,6 +97,10 @@ export default function PlannerPage() {
   const [zermeloNieuwEind, setZermeloNieuwEind] = useState('');
   const [zermeloWeekStart, setZermeloWeekStart] = useState('');
   const [showNewKlasForm, setShowNewKlasForm] = useState(false);
+  // Inline toets aanmaken in cel: key = "klas_id-datum"
+  const [inlineToetsCell, setInlineToetsCell] = useState<string | null>(null);
+  const [inlineToetsType, setInlineToetsType] = useState('SO');
+  const [inlineToetsNaam, setInlineToetsNaam] = useState('');
 
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
@@ -266,7 +270,44 @@ export default function PlannerPage() {
               <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.5rem', padding: 0 }}>✕</button>
             </span>
           ))}
+          <button onClick={(e) => { e.stopPropagation(); const tk = `${slot.klas_id}-${datum}`; setInlineToetsCell(inlineToetsCell === tk ? null : tk); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
+            title="Toets inplannen"
+            style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.6 }}>
+            +T
+          </button>
         </div>
+        {/* Inline toets form */}
+        {inlineToetsCell === `${slot.klas_id}-${datum}` && (
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 3, padding: '3px 6px', background: '#fef3c7', borderBottom: '1px solid #f59e0b40', alignItems: 'center', flexShrink: 0 }}>
+            <select value={inlineToetsType} onChange={e => setInlineToetsType(e.target.value)}
+              style={{ border: '1px solid #d1d5db', borderRadius: 3, padding: '1px 2px', fontSize: '0.65rem', fontWeight: 700 }}>
+              {Object.entries(toetsLabels).map(([k, v]) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <input value={inlineToetsNaam} onChange={e => setInlineToetsNaam(e.target.value)} placeholder="Naam..."
+              autoFocus
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && inlineToetsNaam.trim()) {
+                  await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ klas_id: slot.klas_id, naam: inlineToetsNaam.trim(), type: inlineToetsType, datum, kleur: toetsKleuren[inlineToetsType] || '#6B7280' }) });
+                  fetch('/api/toetsen').then(r => r.json()).then(setToetsen);
+                  setInlineToetsCell(null); setInlineToetsNaam('');
+                }
+                if (e.key === 'Escape') { setInlineToetsCell(null); setInlineToetsNaam(''); }
+              }}
+              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 3, padding: '1px 4px', fontSize: '0.65rem', minWidth: 50 }} />
+            <button onClick={async () => {
+              if (!inlineToetsNaam.trim()) return;
+              await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ klas_id: slot.klas_id, naam: inlineToetsNaam.trim(), type: inlineToetsType, datum, kleur: toetsKleuren[inlineToetsType] || '#6B7280' }) });
+              fetch('/api/toetsen').then(r => r.json()).then(setToetsen);
+              setInlineToetsCell(null); setInlineToetsNaam('');
+            }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 3, padding: '1px 6px', fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer' }}>
+              ✓
+            </button>
+            <button onClick={() => { setInlineToetsCell(null); setInlineToetsNaam(''); }}
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.6rem', padding: 0 }}>✕</button>
+          </div>
+        )}
         {/* JP suggestie */}
         {jpSuggestion && !les.programma && (
           <div onClick={(e) => { e.stopPropagation(); updateCell(cellKey, les, 'programma', `<p>${jpSuggestion}</p>`); }}
