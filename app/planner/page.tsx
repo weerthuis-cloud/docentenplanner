@@ -354,22 +354,22 @@ export default function PlannerPage() {
     const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
 
     return (
-      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderLeft: `3px solid ${hasToets ? toetsAccent : kleur}`, background: hasToets ? toetsAccent + '08' : 'white', cursor: 'pointer', position: 'relative' }}
+      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 10, overflow: 'hidden', background: hasToets ? toetsAccent + '08' : kleur + '08', cursor: 'pointer', position: 'relative', border: `1px solid ${hasToets ? toetsAccent : kleur}18` }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '3px 6px', background: hasToets ? toetsAccent + '15' : kleur + '08', borderBottom: `1px solid ${hasToets ? toetsAccent : kleur}15`, flexWrap: 'wrap', flexShrink: 0 }}>
-          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'white', background: kleur, padding: '0 0.35rem', borderRadius: 3 }}>{klas?.naam}</span>
-          <span style={{ fontSize: '0.86rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
-          {isBlok && <span style={{ fontSize: '0.84rem', color: kleur, fontWeight: 600 }}>blok</span>}
+        {/* Header met gradient */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '4px 6px', background: `linear-gradient(180deg, ${hasToets ? toetsAccent : kleur}20 0%, ${hasToets ? toetsAccent : kleur}08 100%)`, flexWrap: 'wrap', flexShrink: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 7px', borderRadius: 5 }}>{klas?.naam}</span>
+          <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
+          {isBlok && <span style={{ fontSize: '0.78rem', color: kleur, fontWeight: 600 }}>blok</span>}
           {cellToetsen.map(t => (
-            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '0 5px', borderRadius: 3, fontSize: '0.84rem', fontWeight: 700 }}>
+            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '18', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 6px', borderRadius: 4, fontSize: '0.78rem', fontWeight: 700 }}>
               {t.type}: {t.naam.length > 10 ? t.naam.slice(0, 10) + '..' : t.naam}
-              <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.78rem', padding: 0 }}>✕</button>
+              <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.72rem', padding: 0 }}>✕</button>
             </span>
           ))}
           <button onClick={(e) => { e.stopPropagation(); const tk = `${slot.klas_id}-${datum}`; setInlineToetsCell(inlineToetsCell === tk ? null : tk); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
             title="Toets inplannen"
-            style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.86rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.6 }}>
+            style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.5 }}>
             +T
           </button>
         </div>
@@ -429,9 +429,9 @@ export default function PlannerPage() {
   }
 
   /* ───── Styles ───── */
-  const th: React.CSSProperties = { padding: '0.5rem 0.4rem', fontWeight: 700, fontSize: '1.12rem', borderBottom: '2px solid #d1d5db', textAlign: 'center', background: '#f9fafb' };
-  const td: React.CSSProperties = { padding: 0, borderBottom: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb', verticalAlign: 'top' };
-  const navBtn: React.CSSProperties = { padding: '0.45rem 0.75rem', borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '1.05rem' };
+  const th: React.CSSProperties = { padding: '0.5rem 0.4rem', fontWeight: 700, fontSize: '1.05rem', textAlign: 'center', background: '#f1f5f9', color: '#64748b', borderBottom: '1px solid #e2e8f0' };
+  const td: React.CSSProperties = { padding: 3, borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', verticalAlign: 'top' };
+  const navBtn: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '1.0rem', color: '#334155' };
 
   /* ═══ Two-week data for klas/jaarlaag views ═══ */
   function getTwoWeeks(ws: string) {
@@ -1461,10 +1461,10 @@ export default function PlannerPage() {
                         <div
                           onClick={() => setSelectedLesPanel({ klas_id: slot!.klas_id, datum: selectedDate, uur: slot!.uur })}
                           style={{
-                            background: hasToets ? toetsAccent + '06' : kleur + '06',
-                            borderLeft: `4px solid ${hasToets ? toetsAccent : kleur}`,
-                            borderRadius: '0 10px 10px 0',
-                            padding: '9px 14px',
+                            background: hasToets ? toetsAccent + '08' : kleur + '08',
+                            border: `1px solid ${hasToets ? toetsAccent : kleur}18`,
+                            borderRadius: 10,
+                            overflow: 'hidden',
                             cursor: 'pointer',
                             transition: 'all 0.12s ease',
                             minHeight: isBlok ? 100 : 64,
@@ -1472,21 +1472,21 @@ export default function PlannerPage() {
                           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateX(3px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 2px 10px ${kleur}20`; }}
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
                         >
-                          {/* Header */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{klas?.naam}</span>
-                            <span style={{ fontSize: '0.86rem', color: kleur, fontWeight: 600 }}>{klas?.vak}</span>
+                          {/* Header met gradient */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px', flexWrap: 'wrap', background: `linear-gradient(180deg, ${hasToets ? toetsAccent : kleur}20 0%, transparent 100%)` }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{klas?.naam}</span>
+                            <span style={{ fontSize: '0.84rem', color: kleur, fontWeight: 600 }}>{klas?.vak}</span>
                             <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{klas?.lokaal}</span>
                             {isBlok && <span style={{ fontSize: '0.78rem', color: kleur, fontWeight: 600, background: kleur + '12', padding: '1px 6px', borderRadius: 3 }}>blok</span>}
                             {cellToetsen.map(t => (
-                              <span key={t.id} style={{ fontSize: '0.78rem', fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280' }}>
+                              <span key={t.id} style={{ fontSize: '0.78rem', fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: (toetsKleuren[t.type] || '#6B7280') + '18', color: toetsKleuren[t.type] || '#6B7280' }}>
                                 {t.type}: {t.naam.length > 15 ? t.naam.slice(0, 15) + '..' : t.naam}
                               </span>
                             ))}
                             <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: '#b0b8c4' }}>▸</span>
                           </div>
                           {/* Programma */}
-                          <div style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.5 }}>
+                          <div style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.5, padding: '2px 12px' }}>
                             {programmaText
                               ? (programmaText.length > 80 ? programmaText.slice(0, 80) + '...' : programmaText)
                               : (jpSuggestion
@@ -1497,7 +1497,7 @@ export default function PlannerPage() {
                           </div>
                           {/* Ingevulde velden indicators */}
                           {filledExtras.length > 0 && (
-                            <div style={{ display: 'flex', gap: 3, marginTop: 5 }}>
+                            <div style={{ display: 'flex', gap: 3, marginTop: 5, padding: '0 12px 4px' }}>
                               {filledExtras.map(f => <span key={f.veld_key} title={f.label} style={{ fontSize: '0.76rem', opacity: 0.6 }}>{f.icoon}</span>)}
                             </div>
                           )}
