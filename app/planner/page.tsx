@@ -765,9 +765,11 @@ export default function PlannerPage() {
                           <div key={dag} style={{ flex: '1 1 100px', background: '#fefce8', borderRadius: 6, padding: '0.3rem 0.4rem', border: '1px solid #fde68a', minWidth: 90 }}>
                             <div style={{ fontWeight: 700, fontSize: '0.72rem', color: '#92400e', marginBottom: 2 }}>{dagNamenKort[dag - 1]}</div>
                             {dagSlots.map((s, i) => (
-                              <div key={i} style={{ fontSize: '0.68rem', color: '#374151', lineHeight: 1.3 }}>
-                                <span style={{ color: '#94a3b8' }}>u{s.uur}</span> {s.vak} <span style={{ color: '#94a3b8' }}>({s.groep})</span>
-                                <span style={{ color: '#c4b5a0', fontSize: '0.6rem', marginLeft: 2 }}>{s.start_time}-{s.end_time}</span>
+                              <div key={i} style={{ fontSize: '0.68rem', color: '#374151', lineHeight: 1.4 }}>
+                                <span style={{ fontWeight: 700, color: '#92400e' }}>u{s.uur}</span> {s.vak} <span style={{ color: '#94a3b8' }}>({s.groep})</span>
+                                <div style={{ fontSize: '0.62rem', color: '#b08040', marginLeft: 16 }}>
+                                  {s.start_time}-{s.end_time} ({(s as Record<string, unknown>).duur || '?'}min)
+                                </div>
                               </div>
                             ))}
                           </div>

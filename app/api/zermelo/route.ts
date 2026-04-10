@@ -147,6 +147,7 @@ export async function POST(req: Request) {
       type PreviewSlot = {
         dag: number; uur: number; vak: string; lokaal: string;
         groep: string; groepen: string[]; start_time: string; end_time: string;
+        duur: number;
       };
 
       const slots: PreviewSlot[] = [];
@@ -181,7 +182,7 @@ export async function POST(req: Request) {
           if (seen.has(key)) continue;
           seen.add(key);
 
-          slots.push({ dag, uur, vak, lokaal, groep, groepen, start_time: startTime, end_time: endTime });
+          slots.push({ dag, uur, vak, lokaal, groep, groepen, start_time: startTime, end_time: endTime, duur: Math.round(durationMin) });
         }
       }
 
