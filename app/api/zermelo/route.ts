@@ -40,37 +40,60 @@ function isBovenbouwGroep(groep: string): boolean {
   return /^h[45]|^v[456]|^m[34]|^a[456]/.test(g);
 }
 
+// Convert epoch to Amsterdam local time (handles CET/CEST automatically)
+function epochToAmsterdam(epoch: number): { hours: number; minutes: number; dayOfWeek: number } {
+  const d = new Date(epoch * 1000);
+  const nl = d.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam', hour12: false });
+  // nl format: "M/D/YYYY, HH:MM:SS"
+  const [datePart, timePart] = nl.split(', ');
+  const [h, m] = timePart.split(':').map(Number);
+  // Get day of week in Amsterdam timezone
+  const nlDate = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const dag = nlDate.getDay(); // 0=zo, 1=ma, ..., 5=vr
+  return { hours: h, minutes: m, dayOfWeek: dag };
+}
+
+// Starttijden per uur (minuten sinds middernacht), per type
+// Uren 1-3 zijn gelijk, daarna verschilt het door pauzes
+const UREN_ONDERBOUW: Record<number, number> = {
+  1: 540, 2: 580, 3: 620, // 09:00, 09:40, 10:20
+  4: 700, 5: 740, 6: 780, // 11:40, 12:20, 13:00 (pauze 11:00-11:40)
+  7: 840, 8: 880, 9: 920, 10: 960, // 14:00, 14:40, 15:20, 16:00 (pauze 13:40-14:00)
+};
+const UREN_BOVENBOUW: Record<number, number> = {
+  1: 540, 2: 580, 3: 620, 4: 660, // 09:00, 09:40, 10:20, 11:00
+  5: 740, 6: 780, 7: 820,          // 12:20, 13:00, 13:40 (pauze 11:40-12:20)
+  8: 880, 9: 920, 10: 960,         // 14:40, 15:20, 16:00 (pauze 14:20-14:40)
+};
+
 function epochToHour(appt: { start: number; startTimeSlot?: number; groups?: string[] }): { dag: number; uur: number } {
-  const d = new Date(appt.start * 1000);
-  const dag = d.getDay(); // 0=zo, 1=ma, ..., 5=vr
-  const timeMin = d.getHours() * 60 + d.getMinutes();
+  const { hours, minutes, dayOfWeek } = epochToAmsterdam(appt.start);
+  const timeMin = hours * 60 + minutes;
   const groep = appt.groups?.[0] || '';
   const boven = isBovenbouwGroep(groep);
+  const tijden = boven ? UREN_BOVENBOUW : UREN_ONDERBOUW;
 
-  // Uur 1-3 zijn gelijk voor iedereen
-  if (timeMin < 580) return { dag, uur: 1 };       // 09:00
-  if (timeMin < 620) return { dag, uur: 2 };       // 09:40
-  if (timeMin < 660) return { dag, uur: 3 };       // 10:20
-
-  if (boven) {
-    // Bovenbouw: uur 4 om 11:00, pauze 11:40-12:20
-    if (timeMin < 700) return { dag, uur: 4 };     // 11:00
-    if (timeMin < 780) return { dag, uur: 5 };     // 12:20
-    if (timeMin < 820) return { dag, uur: 6 };     // 13:00
-    if (timeMin < 860) return { dag, uur: 7 };     // 13:40
-    if (timeMin < 920) return { dag, uur: 8 };     // 14:40
-    if (timeMin < 960) return { dag, uur: 9 };     // 15:20
-    return { dag, uur: 10 };                         // 16:00
-  } else {
-    // Onderbouw: pauze 11:00-11:40, uur 4 om 11:40
-    if (timeMin < 740) return { dag, uur: 4 };     // 11:40
-    if (timeMin < 780) return { dag, uur: 5 };     // 12:20
-    if (timeMin < 820) return { dag, uur: 6 };     // 13:00
-    if (timeMin < 880) return { dag, uur: 7 };     // 14:00
-    if (timeMin < 920) return { dag, uur: 8 };     // 14:40
-    if (timeMin < 960) return { dag, uur: 9 };     // 15:20
-    return { dag, uur: 10 };                         // 16:00
+  // Vind het dichtstbijzijnde lesuur (nearest match)
+  let bestUur = 1;
+  let bestDiff = Math.abs(timeMin - tijden[1]);
+  for (let u = 2; u <= 10; u++) {
+    const diff = Math.abs(timeMin - tijden[u]);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestUur = u;
+    }
   }
+
+  return { dag: dayOfWeek, uur: bestUur };
+}
+
+// 80-min blokken: als een les 80 min duurt, geeft het paar terug
+// Blokken: 1+2, 3+4, 5+6, 7+8, 9+10
+function getBlokUren(uur: number, durationMin: number): number[] {
+  if (durationMin < 60) return [uur]; // Enkele les (40 min)
+  // 80-min les: vul het blok
+  const blokStart = uur % 2 === 1 ? uur : uur - 1; // Oneven = blokstart
+  return [blokStart, blokStart + 1].filter(u => u >= 1 && u <= 10);
 }
 
 // Helper: Zermelo API call
@@ -163,26 +186,24 @@ export async function POST(req: Request) {
         const groep = groepen[0] || '';
         groepen.forEach(g => alleGroepen.add(g));
 
-        const startTime = new Date(appt.start * 1000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-        const endTime = new Date(appt.end * 1000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+        // Gebruik Amsterdam timezone voor display
+        const startAmst = epochToAmsterdam(appt.start);
+        const endAmst = epochToAmsterdam(appt.end);
+        const startTime = `${String(startAmst.hours).padStart(2,'0')}:${String(startAmst.minutes).padStart(2,'0')}`;
+        const endTime = `${String(endAmst.hours).padStart(2,'0')}:${String(endAmst.minutes).padStart(2,'0')}`;
 
-        // Bereken hoeveel 40-min periodes deze afspraak duurt
         const durationMin = (appt.end - appt.start) / 60;
-        const numPeriods = Math.max(1, Math.round(durationMin / 40));
+        const { dag, uur } = epochToHour({ start: appt.start, groups: appt.groups });
+        if (dag < 1 || dag > 5) continue;
 
-        for (let p = 0; p < numPeriods; p++) {
-          const periodStart = appt.start + (p * 40 * 60);
-          const { dag, uur } = epochToHour({
-            start: periodStart,
-            groups: appt.groups,
-          });
-          if (dag < 1 || dag > 5) continue;
-
-          const key = `${dag}-${uur}`;
+        // 80-min blok: vul altijd beide uren
+        const blokUren = getBlokUren(uur, durationMin);
+        for (const u of blokUren) {
+          const key = `${dag}-${u}`;
           if (seen.has(key)) continue;
           seen.add(key);
 
-          slots.push({ dag, uur, vak, lokaal, groep, groepen, start_time: startTime, end_time: endTime, duur: Math.round(durationMin) });
+          slots.push({ dag, uur: u, vak, lokaal, groep, groepen, start_time: startTime, end_time: endTime, duur: Math.round(durationMin) });
         }
       }
 

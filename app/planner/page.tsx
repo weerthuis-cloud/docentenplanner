@@ -768,7 +768,7 @@ export default function PlannerPage() {
                               <div key={i} style={{ fontSize: '0.68rem', color: '#374151', lineHeight: 1.4 }}>
                                 <span style={{ fontWeight: 700, color: '#92400e' }}>u{s.uur}</span> {s.vak} <span style={{ color: '#94a3b8' }}>({s.groep})</span>
                                 <div style={{ fontSize: '0.62rem', color: '#b08040', marginLeft: 16 }}>
-                                  {s.start_time}-{s.end_time} ({(s as Record<string, unknown>).duur || '?'}min)
+                                  {s.start_time}-{s.end_time} ({String((s as Record<string, unknown>).duur ?? '?')}min)
                                 </div>
                               </div>
                             ))}
