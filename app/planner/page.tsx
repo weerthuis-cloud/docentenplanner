@@ -1211,7 +1211,7 @@ export default function PlannerPage() {
                 </div>
 
                 {/* Rooster grid met weekweergave */}
-                <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 4, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
                   <thead><tr>
                     <th style={{ ...th, width: 50 }}>Uur</th>
                     {roosterDays.map((d, idx) => {
