@@ -93,6 +93,8 @@ export default function PlannerPage() {
   const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview'>('auth');
   const [zermeloMapping, setZermeloMapping] = useState<Record<string, number | 'new'>>({});
   const [zermeloImportPeriodeId, setZermeloImportPeriodeId] = useState<number | 'new'>('new');
+  const [zermeloNieuwStart, setZermeloNieuwStart] = useState('');
+  const [zermeloNieuwEind, setZermeloNieuwEind] = useState('');
   const [zermeloWeekStart, setZermeloWeekStart] = useState('');
   const [showNewKlasForm, setShowNewKlasForm] = useState(false);
 
@@ -767,6 +769,11 @@ export default function PlannerPage() {
                         setZermeloMapping(autoMap);
                         // Selecteer huidige periode als default, anders 'new'
                         setZermeloImportPeriodeId(selectedPeriodeId || 'new');
+                        // Defaults voor nieuwe periode datums
+                        const defaultStart = zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0];
+                        setZermeloNieuwStart(defaultStart);
+                        const defaultYr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+                        setZermeloNieuwEind(`${defaultYr}-07-17`);
                         setZermeloStep('preview');
                         const matched = Object.values(autoMap).filter(v => v !== 'new').length;
                         setZermeloStatus(`${data.slots.length} lessen gevonden, ${matched}/${uniqueGroepen.length} groepen herkend`);
@@ -856,6 +863,16 @@ export default function PlannerPage() {
                         ))}
                         <option value="new">+ Nieuwe periode aanmaken</option>
                       </select>
+                      {zermeloImportPeriodeId === 'new' && (
+                        <>
+                          <span style={{ fontSize: '0.72rem', color: '#6B7280' }}>van</span>
+                          <input type="date" value={zermeloNieuwStart} onChange={e => setZermeloNieuwStart(e.target.value)}
+                            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
+                          <span style={{ fontSize: '0.72rem', color: '#6B7280' }}>t/m</span>
+                          <input type="date" value={zermeloNieuwEind} onChange={e => setZermeloNieuwEind(e.target.value)}
+                            style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.25rem 0.4rem', fontSize: '0.78rem' }} />
+                        </>
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.3rem 0' }}>
                       <button onClick={async () => {
@@ -871,10 +888,10 @@ export default function PlannerPage() {
                         if (zermeloImportPeriodeId !== 'new') {
                           importBody.periode_id = zermeloImportPeriodeId;
                         } else {
+                          if (!zermeloNieuwStart || !zermeloNieuwEind) { setZermeloStatus('Vul start- en einddatum in'); return; }
                           importBody.periode_naam = `Zermelo ${new Date().toLocaleDateString('nl-NL')}`;
-                          importBody.start_datum = zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0];
-                          const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();
-                          importBody.eind_datum = `${yr}-07-17`;
+                          importBody.start_datum = zermeloNieuwStart;
+                          importBody.eind_datum = zermeloNieuwEind;
                         }
                         const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(importBody) });
