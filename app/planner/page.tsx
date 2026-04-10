@@ -127,6 +127,13 @@ export default function PlannerPage() {
   const [kopieerDoelUur, setKopieerDoelUur] = useState<number | ''>('');
   const [kopieerStatus, setKopieerStatus] = useState('');
 
+  // Werklijst sidebar
+  interface WerklijstItem { id: number; titel: string; categorie: string; kleur: string; sub: string; datum: string | null; afgerond: boolean; volgorde: number; }
+  const [werklijst, setWerklijst] = useState<WerklijstItem[]>([]);
+  const [showWerklijstForm, setShowWerklijstForm] = useState(false);
+  const [nieuwWerkItem, setNieuwWerkItem] = useState({ titel: '', categorie: 'taak', sub: '', datum: '' });
+  const [werklijstTab, setWerklijstTab] = useState<'werklijst' | 'notities'>('werklijst');
+
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
   const today = new Date().toISOString().split('T')[0];
@@ -213,11 +220,16 @@ export default function PlannerPage() {
     });
   }, []);
 
+  const fetchWerklijst = useCallback(() => {
+    fetch('/api/werklijst').then(r => r.json()).then(setWerklijst);
+  }, []);
+
   useEffect(() => { fetchAllRooster(); }, [fetchAllRooster]);
   useEffect(() => { fetchLessen(); }, [fetchLessen]);
   useEffect(() => { fetchToetsen(); }, [fetchToetsen]);
   useEffect(() => { fetchVervallen(); }, [fetchVervallen]);
   useEffect(() => { fetchOverzichtItems(); fetchOverzichtInstellingen(); }, [fetchOverzichtItems, fetchOverzichtInstellingen]);
+  useEffect(() => { fetchWerklijst(); }, [fetchWerklijst]);
   useEffect(() => { if (klassen.length > 0 && !selectedKlasId) setSelectedKlasId(klassen[0].id); }, [klassen, selectedKlasId]);
   useEffect(() => { if (klassen.length > 0 && !selectedJaarlaag) setSelectedJaarlaag([...new Set(klassen.map(k => k.jaarlaag))][0] || ''); }, [klassen, selectedJaarlaag]);
 
@@ -1380,74 +1392,129 @@ export default function PlannerPage() {
           </table>
         )}
 
-        {/* ═══ DAGPLANNER (alle lesvelden direct zichtbaar per les) ═══ */}
+        {/* ═══ DAGPLANNER (tijdlijn-stijl met kaarten) ═══ */}
         {view === 'dag' && (() => {
           const dagIdx = new Date(selectedDate + 'T12:00:00').getDay();
           const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
           const vakantie = isInVakantie(selectedDate, vakanties);
           if (dagNr === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lesdag (weekend).</div>;
           if (vakantie) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c95555', fontWeight: 600, padding: '3rem' }}>{vakantie.naam}</div>;
-          const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dagNr, s.uur));
-          if (dagSlots.length === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lessen op deze dag.</div>;
 
-          const dagFields = visibleFields.map(f => ({ key: f.veld_key, label: `${f.icoon} ${f.label}`, placeholder: f.label + '...', isCustom: f.is_custom }));
+          // Alle mogelijke uren (1-10), toon les als er een slot is, anders vrij uur
+          const maxUur = Math.max(...allRooster.filter(r => r.dag === dagNr).map(r => r.uur), 7);
+          const alleUren = Array.from({ length: maxUur }, (_, i) => i + 1);
+          const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur);
+
+          // Huidig uur bepalen
+          const nu = new Date();
+          const nuUur = nu.getHours();
+          const nuMin = nu.getMinutes();
+          const isVandaag = selectedDate === new Date().toISOString().split('T')[0];
+          // Map schooluren naar kloktijden
+          const uurStart: Record<number, number> = { 1: 830, 2: 915, 3: 1020, 4: 1105, 5: 1230, 6: 1315, 7: 1415, 8: 1500, 9: 1545, 10: 1630 };
+          const uurEind: Record<number, number> = { 1: 915, 2: 1000, 3: 1105, 4: 1150, 5: 1315, 6: 1400, 7: 1500, 8: 1545, 9: 1630, 10: 1715 };
+          const nuTijd = nuUur * 100 + nuMin;
+          const huidigUur = isVandaag ? alleUren.find(u => uurStart[u] && nuTijd >= uurStart[u] && nuTijd < (uurEind[u] || 9999)) : null;
+
+          const uurTijdStr = (u: number) => {
+            const s = uurStart[u];
+            if (!s) return '';
+            return `${Math.floor(s / 100)}:${String(s % 100).padStart(2, '0')}`;
+          };
 
           return (
-            <div style={{ maxWidth: 700, margin: '0 auto', padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {dagSlots.map(slot => {
-                const isBlok = isBlokuurStart(dagNr, slot.uur);
-                const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
-                const klas = klassen.find(k => k.id === slot.klas_id);
-                const cellKey = `${slot.klas_id}-${selectedDate}-${slot.uur}`;
-                const les = getCellLes(slot.klas_id, selectedDate, slot.uur);
-                const cellToetsen = getToetsenForDateKlas(selectedDate, slot.klas_id);
+            <div style={{ padding: '0 0 1.5rem 0' }}>
+              {alleUren.map(uurNr => {
+                const slot = dagSlots.find(s => s.uur === uurNr);
+                const isSecondBlok = slot ? isBlokuurSecond(dagNr, slot.uur) : false;
+                if (isSecondBlok) return null;
+                const isBlok = slot ? isBlokuurStart(dagNr, slot.uur) : false;
+                const isNow = huidigUur === uurNr;
+                const hasLes = !!slot;
+                const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : '#e2e8f0';
+                const klas = slot ? klassen.find(k => k.id === slot.klas_id) : null;
+                const les = slot ? getCellLes(slot.klas_id, selectedDate, slot.uur) : null;
+                const cellToetsen = slot ? getToetsenForDateKlas(selectedDate, slot.klas_id) : [];
+                const hasToets = cellToetsen.length > 0;
+                const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
+                const programmaText = les ? stripHtml(les.programma || '') : '';
+                const filledExtras = hasLes ? visibleFields.filter(f => f.veld_key !== 'programma' && les && isFieldFilled(les, f.veld_key)) : [];
+                const jpSuggestion = slot ? getJpSuggestion(slot.klas_id, selectedDate) : null;
 
                 return (
-                  <div key={slot.uur} style={{ background: 'white', borderRadius: 10, border: '1px solid #e5e7eb', overflow: 'hidden', borderLeft: `4px solid ${kleur}` }}>
-                    {/* Header - klik opent zijpaneel voor snelle tab-navigatie */}
-                    <div onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: selectedDate, uur: slot.uur })}
-                      style={{ padding: '0.5rem 0.75rem', background: kleur + '08', borderBottom: `1px solid ${kleur}15`, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', cursor: 'pointer' }}>
-                      <span style={{ fontWeight: 700, fontSize: '1.18rem', color: kleur }}>Uur {slot.uur}{isBlok ? `–${slot.uur + 1}` : ''}</span>
-                      <span style={{ fontWeight: 700, fontSize: '1.02rem', color: 'white', background: kleur, padding: '2px 10px', borderRadius: 4 }}>{klas?.naam}</span>
-                      <span style={{ fontSize: '0.92rem', color: '#94a3b8' }}>{klas?.vak} · {klas?.lokaal}</span>
-                      {isBlok && <span style={{ fontSize: '0.88rem', color: kleur, fontWeight: 600, background: kleur + '15', padding: '2px 8px', borderRadius: 3 }}>blokuur</span>}
-                      {cellToetsen.map(t => (
-                        <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '2px 8px', borderRadius: 4, fontSize: '0.9rem', fontWeight: 700 }}>
-                          {t.type}: {t.naam}
-                        </span>
-                      ))}
-                      <span style={{ marginLeft: 'auto', fontSize: '0.86rem', color: '#b0b8c4' }}>&#9654;</span>
+                  <div key={uurNr} style={{ display: 'flex', minHeight: hasLes ? (isBlok ? 120 : 82) : 44, borderBottom: '1px solid #f1f5f9', position: 'relative' }}>
+                    {/* Tijdkolom */}
+                    <div style={{ width: 64, flexShrink: 0, padding: '10px 8px 10px 14px', textAlign: 'right', position: 'relative' }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 600, color: isNow ? '#ef4444' : '#94a3b8', lineHeight: 1.3 }}>
+                        {uurTijdStr(uurNr)}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: 1 }}>uur {uurNr}</div>
+                      {isNow && <div style={{ position: 'absolute', right: -4, top: 14, width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} />}
                     </div>
-                    {/* Velden grid: 2 kolommen, 7 velden (laatste rij krijgt colspan via gridColumn) */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-                      {dagFields.map((field, fi) => {
-                        const isLast = fi === dagFields.length - 1;
-                        const isInLastRow = fi >= dagFields.length - 2;
-                        return (
-                          <div key={field.key} style={{
-                            borderBottom: isInLastRow ? 'none' : '1px solid #f1f5f9',
-                            borderRight: fi % 2 === 0 && !isLast ? '1px solid #f1f5f9' : 'none',
-                            padding: '0.45rem 0.75rem', minHeight: 60,
-                            ...(isLast ? { gridColumn: '1 / -1' } : {}),
-                          }}>
-                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{field.label}</div>
-                            <InlineEditor
-                              content={getFieldValue(les, field.key)}
-                              onChange={(val) => {
-                                if (field.isCustom) {
-                                  const newCustom = { ...(les.custom_velden || {}), [field.key]: val };
-                                  updateCell(cellKey, les, 'custom_velden', JSON.stringify(newCustom));
-                                } else {
-                                  updateCell(cellKey, les, field.key, val);
-                                }
-                              }}
-                              onFocus={(editor) => setActiveEditor(editor)}
-                              placeholder={field.placeholder}
-                              borderColor={kleur}
-                            />
+
+                    {/* "Nu" lijn */}
+                    {isNow && <div style={{ position: 'absolute', left: 64, right: 0, top: 16, height: 2, background: '#ef4444', zIndex: 2, opacity: 0.4 }} />}
+
+                    {/* Leskaart of vrij slot */}
+                    <div style={{ flex: 1, padding: '4px 14px 4px 0' }}>
+                      {hasLes && les ? (
+                        <div
+                          onClick={() => setSelectedLesPanel({ klas_id: slot!.klas_id, datum: selectedDate, uur: slot!.uur })}
+                          style={{
+                            background: hasToets ? toetsAccent + '06' : kleur + '06',
+                            borderLeft: `4px solid ${hasToets ? toetsAccent : kleur}`,
+                            borderRadius: '0 10px 10px 0',
+                            padding: '9px 14px',
+                            cursor: 'pointer',
+                            transition: 'all 0.12s ease',
+                            minHeight: isBlok ? 100 : 64,
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateX(3px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 2px 10px ${kleur}20`; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+                        >
+                          {/* Header */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{klas?.naam}</span>
+                            <span style={{ fontSize: '0.86rem', color: kleur, fontWeight: 600 }}>{klas?.vak}</span>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{klas?.lokaal}</span>
+                            {isBlok && <span style={{ fontSize: '0.78rem', color: kleur, fontWeight: 600, background: kleur + '12', padding: '1px 6px', borderRadius: 3 }}>blok</span>}
+                            {cellToetsen.map(t => (
+                              <span key={t.id} style={{ fontSize: '0.78rem', fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280' }}>
+                                {t.type}: {t.naam.length > 15 ? t.naam.slice(0, 15) + '..' : t.naam}
+                              </span>
+                            ))}
+                            <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: '#b0b8c4' }}>▸</span>
                           </div>
-                        );
-                      })}
+                          {/* Programma */}
+                          <div style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.5 }}>
+                            {programmaText
+                              ? (programmaText.length > 80 ? programmaText.slice(0, 80) + '...' : programmaText)
+                              : (jpSuggestion
+                                ? <span style={{ color: '#2d8a4e', fontStyle: 'italic' }}>📅 {jpSuggestion.slice(0, 50)}{jpSuggestion.length > 50 ? '...' : ''}</span>
+                                : <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>Plan les...</span>
+                              )
+                            }
+                          </div>
+                          {/* Ingevulde velden indicators */}
+                          {filledExtras.length > 0 && (
+                            <div style={{ display: 'flex', gap: 3, marginTop: 5 }}>
+                              {filledExtras.map(f => <span key={f.veld_key} title={f.label} style={{ fontSize: '0.76rem', opacity: 0.6 }}>{f.icoon}</span>)}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{
+                          border: '2px dashed #e2e8f0', borderRadius: 10,
+                          height: '100%', minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#cbd5e1', fontSize: '0.82rem',
+                          transition: 'all 0.12s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#94a3b8'; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0'; (e.currentTarget as HTMLElement).style.color = '#cbd5e1'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                        >
+                          Vrij
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1851,6 +1918,162 @@ export default function PlannerPage() {
             </div>
           );
         })()}
+
+        {/* ═══ WERKLIJST SIDEBAR (zichtbaar in dagweergave) ═══ */}
+        {view === 'dag' && !selectedLesPanel && (
+          <div style={{ width: 260, background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            {/* Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9' }}>
+              {(['werklijst', 'notities'] as const).map(tab => (
+                <button key={tab} onClick={() => setWerklijstTab(tab)} style={{
+                  flex: 1, padding: '11px 8px 9px', border: 'none', cursor: 'pointer',
+                  fontSize: '0.82rem', fontWeight: 700, background: 'transparent',
+                  color: werklijstTab === tab ? '#0f172a' : '#94a3b8',
+                  borderBottom: werklijstTab === tab ? '2px solid #0f172a' : '2px solid transparent',
+                  textTransform: 'capitalize',
+                }}>
+                  {tab === 'werklijst' ? `Werklijst` : 'Notities'}
+                  {tab === 'werklijst' && werklijst.filter(w => !w.afgerond).length > 0 && (
+                    <span style={{ fontSize: '0.7rem', background: werklijstTab === tab ? '#0f172a' : '#e2e8f0', color: werklijstTab === tab ? 'white' : '#64748b', padding: '1px 6px', borderRadius: 10, marginLeft: 4 }}>
+                      {werklijst.filter(w => !w.afgerond).length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {werklijstTab === 'werklijst' ? (
+              <div style={{ flex: 1, overflow: 'auto', padding: '4px 8px 8px' }}>
+                {/* Prioriteit */}
+                {werklijst.filter(w => w.categorie === 'prio' && !w.afgerond).length > 0 && (
+                  <>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, padding: '8px 4px 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 2, background: '#ef4444', display: 'inline-block' }} /> Prioriteit
+                    </div>
+                    {werklijst.filter(w => w.categorie === 'prio' && !w.afgerond).map(item => (
+                      <div key={item.id} style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 7, background: item.kleur + '08', borderLeft: `3px solid ${item.kleur}`, cursor: 'pointer', transition: 'all 0.1s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateX(2px)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <input type="checkbox" checked={false} onChange={async () => {
+                            await fetch('/api/werklijst', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, afgerond: true }) });
+                            fetchWerklijst();
+                          }} style={{ cursor: 'pointer', accentColor: item.kleur }} />
+                          <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#334155' }}>{item.titel}</span>
+                        </div>
+                        {item.sub && <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2, marginLeft: 22 }}>{item.sub}</div>}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Taken */}
+                {werklijst.filter(w => w.categorie === 'taak' && !w.afgerond).length > 0 && (
+                  <>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, padding: '10px 4px 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 2, background: '#64748b', display: 'inline-block' }} /> Taken
+                    </div>
+                    {werklijst.filter(w => w.categorie === 'taak' && !w.afgerond).map(item => (
+                      <div key={item.id} style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 7, background: '#f8fafc', borderLeft: `3px solid ${item.kleur}`, cursor: 'pointer', transition: 'all 0.1s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateX(2px)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <input type="checkbox" checked={false} onChange={async () => {
+                            await fetch('/api/werklijst', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, afgerond: true }) });
+                            fetchWerklijst();
+                          }} style={{ cursor: 'pointer' }} />
+                          <span style={{ fontSize: '0.84rem', fontWeight: 500, color: '#475569' }}>{item.titel}</span>
+                        </div>
+                        {item.sub && <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2, marginLeft: 22 }}>{item.sub}</div>}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Agenda */}
+                {werklijst.filter(w => w.categorie === 'agenda' && !w.afgerond).length > 0 && (
+                  <>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, padding: '10px 4px 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 2, background: '#3b82f6', display: 'inline-block' }} /> Agenda
+                    </div>
+                    {werklijst.filter(w => w.categorie === 'agenda' && !w.afgerond).map(item => (
+                      <div key={item.id} style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 7, background: item.kleur + '08', borderLeft: `3px solid ${item.kleur}` }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#334155' }}>{item.titel}</div>
+                        {item.datum && <div style={{ fontSize: '0.72rem', color: item.kleur, fontWeight: 600, marginTop: 2 }}>📅 {formatDate(item.datum)}</div>}
+                        {item.sub && <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 1 }}>{item.sub}</div>}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Voorbereiding */}
+                {werklijst.filter(w => w.categorie === 'voorbereiding' && !w.afgerond).length > 0 && (
+                  <>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, padding: '10px 4px 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 2, background: '#94a3b8', display: 'inline-block' }} /> Voorbereiding
+                    </div>
+                    {werklijst.filter(w => w.categorie === 'voorbereiding' && !w.afgerond).map(item => (
+                      <div key={item.id} style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 7, background: '#f8fafc', borderLeft: `3px solid ${item.kleur}` }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: 500, color: '#475569' }}>{item.titel}</div>
+                        {item.sub && <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>{item.sub}</div>}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Leeg state */}
+                {werklijst.filter(w => !w.afgerond).length === 0 && !showWerklijstForm && (
+                  <div style={{ textAlign: 'center', color: '#cbd5e1', fontSize: '0.84rem', padding: '2rem 1rem' }}>
+                    Geen items. Voeg er een toe!
+                  </div>
+                )}
+
+                {/* Nieuw item form */}
+                {showWerklijstForm && (
+                  <div style={{ padding: '8px', background: '#f8fafc', borderRadius: 8, marginTop: 8, border: '1px solid #e2e8f0' }}>
+                    <input value={nieuwWerkItem.titel} onChange={e => setNieuwWerkItem({ ...nieuwWerkItem, titel: e.target.value })}
+                      placeholder="Titel..." autoFocus
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && nieuwWerkItem.titel.trim()) {
+                          await fetch('/api/werklijst', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nieuwWerkItem) });
+                          setNieuwWerkItem({ titel: '', categorie: 'taak', sub: '', datum: '' }); setShowWerklijstForm(false); fetchWerklijst();
+                        }
+                        if (e.key === 'Escape') setShowWerklijstForm(false);
+                      }}
+                      style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 5, padding: '6px 8px', fontSize: '0.86rem', marginBottom: 6 }} />
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <select value={nieuwWerkItem.categorie} onChange={e => setNieuwWerkItem({ ...nieuwWerkItem, categorie: e.target.value })}
+                        style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '4px', fontSize: '0.8rem' }}>
+                        <option value="prio">Prioriteit</option>
+                        <option value="taak">Taak</option>
+                        <option value="agenda">Agenda</option>
+                        <option value="voorbereiding">Voorbereiding</option>
+                      </select>
+                      <button onClick={async () => {
+                        if (!nieuwWerkItem.titel.trim()) return;
+                        await fetch('/api/werklijst', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nieuwWerkItem) });
+                        setNieuwWerkItem({ titel: '', categorie: 'taak', sub: '', datum: '' }); setShowWerklijstForm(false); fetchWerklijst();
+                      }} style={{ background: '#0f172a', color: 'white', border: 'none', borderRadius: 5, padding: '4px 12px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>+</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ flex: 1, padding: '2rem 1rem', textAlign: 'center', color: '#cbd5e1', fontSize: '0.84rem' }}>
+                Notities komen hier
+              </div>
+            )}
+
+            {/* Add button */}
+            <div style={{ padding: '8px 10px', borderTop: '1px solid #f1f5f9' }}>
+              <button onClick={() => setShowWerklijstForm(!showWerklijstForm)} style={{
+                width: '100%', padding: '8px', borderRadius: 7, border: '2px dashed #e2e8f0',
+                background: 'transparent', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#94a3b8',
+              }}>+ Nieuw item</button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
