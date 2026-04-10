@@ -44,7 +44,20 @@ export async function POST(req: Request) {
     return d.toISOString().split('T')[0];
   }
 
-  // Build all slots from startDate's Monday onwards
+  // 2b. Haal vakanties/studiedagen/toetsweken op om te filteren
+  const { data: vakanties } = await supabase.from('vakanties').select('*');
+  const blokkeerDatums = new Set<string>();
+  (vakanties || []).forEach((v: { start_datum: string; eind_datum: string; type?: string }) => {
+    // Vakanties en studiedagen blokkeren slots, toetsweken niet (daar zijn al toetsen gepland)
+    if (v.type === 'toetsweek') return;
+    const start = new Date(v.start_datum + 'T12:00:00');
+    const end = new Date(v.eind_datum + 'T12:00:00');
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      blokkeerDatums.add(fmt(d));
+    }
+  });
+
+  // Build all slots from startDate's Monday onwards, skip geblokkeerde datums
   const allSlots: Array<{ datum: string; uur: number; dag: number }> = [];
   let monday = getMonday(new Date(startDate));
 
@@ -53,6 +66,7 @@ export async function POST(req: Request) {
       const slotDate = new Date(monday);
       slotDate.setDate(slotDate.getDate() + (pat.dag - 1)); // dag 1=ma, 2=di, etc.
       const slotDatum = fmt(slotDate);
+      if (blokkeerDatums.has(slotDatum)) continue; // Skip vakantie/studiedag
       if (slotDatum >= datum) {
         // Als het de startdatum is, filter op uur >= startuur
         if (slotDatum === datum && uur && pat.uur < uur) continue;

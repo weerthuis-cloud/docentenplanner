@@ -11,7 +11,7 @@ interface Klas { id: number; naam: string; vak: string; jaarlaag: string; lokaal
 interface RoosterSlot { id?: number; klas_id: number; dag: number; uur: number; vak: string; lokaal: string; is_blokuur: boolean; periode_id?: number; }
 interface Les { id?: number; klas_id: number; datum: string; uur: number | null; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; custom_velden?: Record<string, string>; }
 interface Toets { id: number; klas_id: number; naam: string; type: string; datum: string; kleur: string; les_id: number | null; }
-interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; }
+interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; type?: 'vakantie' | 'toetsweek' | 'studiedag'; }
 interface Jaarplanner { id: number; vak: string; jaarlaag: string; schooljaar: string; naam: string; data: Array<{ week: number; les: number; planning: string; toetsen: string }>; created_at: string; }
 interface RoosterPeriode { id: number; naam: string; start_datum: string; eind_datum: string; bron: string; created_at: string; }
 interface Vervallen { id: number; datum: string; uur: number | null; reden: string; created_at: string; }
@@ -51,6 +51,12 @@ function getDaysOfWeek(ws: string): string[] {
 }
 function isInVakantie(datum: string, vakanties: Vakantie[]): Vakantie | null {
   for (const v of vakanties) { if (datum >= v.start_datum && datum <= v.eind_datum) return v; } return null;
+}
+function kalenderKleur(v: Vakantie | null): { bg: string; text: string; accent: string } {
+  if (!v) return { bg: '#f9fafb', text: '#6B7280', accent: '#d1d5db' };
+  if (v.type === 'toetsweek') return { bg: '#fef2f2', text: '#dc2626', accent: '#fca5a5' };
+  if (v.type === 'studiedag') return { bg: '#eff6ff', text: '#2563EB', accent: '#93c5fd' };
+  return { bg: '#fefce8', text: '#ca8a04', accent: '#fde68a' }; // vakantie
 }
 const emptyLes = (klas_id: number, datum: string, uur: number | null): Les => ({
   klas_id, datum, uur, startopdracht: '', terugkijken: '', programma: '', leerdoelen: '', huiswerk: '', niet_vergeten: '', notities: '',
@@ -1227,10 +1233,10 @@ export default function PlannerPage() {
                       const dagVerv = isVervallenDag(d);
                       const vakantie = isInVakantie(d, vakanties);
                       return (
-                        <th key={d} style={{ ...th, background: dagVerv ? '#fef2f2' : vakantie ? '#fefce8' : '#f9fafb', position: 'relative' }}>
+                        <th key={d} style={{ ...th, background: dagVerv ? '#fef2f2' : vakantie ? kalenderKleur(vakantie).bg : '#f9fafb', position: 'relative' }}>
                           <div>{dagNamen[idx]}</div>
                           <div style={{ fontSize: '0.86rem', fontWeight: 400, opacity: 0.6 }}>{formatDate(d)}</div>
-                          {vakantie && <div style={{ fontSize: '0.82rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</div>}
+                          {vakantie && <div style={{ fontSize: '0.82rem', color: kalenderKleur(vakantie).text, fontWeight: 600 }}>{vakantie.naam}</div>}
                           {dagVerv && <div style={{ fontSize: '0.82rem', color: '#DC2626', fontWeight: 600 }}>VERVALLEN</div>}
                           {!vakantie && (
                             <button onClick={() => toggleVervallen(d, null)}
@@ -1283,8 +1289,9 @@ export default function PlannerPage() {
                           const cellVerv = dagVerv || uurVerv;
 
                           if (vakantie) {
-                            return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fefce8', textAlign: 'center', verticalAlign: 'middle' }}>
-                              {uur === 1 && <span style={{ fontSize: '0.86rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</span>}
+                            const kk = kalenderKleur(vakantie);
+                            return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: kk.bg, textAlign: 'center', verticalAlign: 'middle' }}>
+                              {uur === 1 && <span style={{ fontSize: '0.86rem', color: kk.text, fontWeight: 600 }}>{vakantie.naam}</span>}
                             </td>;
                           }
 
@@ -1389,7 +1396,7 @@ export default function PlannerPage() {
                     const isBlok = isBlokuurStart(dag, uur);
                     const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
                     /* Vakantie */
-                    if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.9rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
+                    if (vakantie) { const kk = kalenderKleur(vakantie); return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: kk.bg, padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.9rem', color: kk.text, fontWeight: 600 }}>{vakantie.naam}</span>}</td>; }
                     /* Leeg uur */
                     if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td }}><div style={{ minHeight: isBlok ? 210 : 105, borderRadius: 12, background: '#e8eaed' }} /></td>;
                     /* Les cel — height:1px trick zodat height:100% in kinderen werkt */
@@ -1407,7 +1414,7 @@ export default function PlannerPage() {
           const dagNr = dagIdx >= 1 && dagIdx <= 5 ? dagIdx : 0;
           const vakantie = isInVakantie(selectedDate, vakanties);
           if (dagNr === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lesdag (weekend).</div>;
-          if (vakantie) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c95555', fontWeight: 600, padding: '3rem' }}>{vakantie.naam}</div>;
+          if (vakantie) { const kk = kalenderKleur(vakantie); return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: kk.text, fontWeight: 600, padding: '3rem', background: kk.bg, borderRadius: 12, margin: '1rem' }}>{vakantie.naam}</div>; }
 
           // Alle mogelijke uren (1-10), toon les als er een slot is, anders vrij uur
           const maxUur = Math.max(...allRooster.filter(r => r.dag === dagNr).map(r => r.uur), 7);
@@ -1590,7 +1597,7 @@ export default function PlannerPage() {
                         if (!lesdag) return <td key={wi} style={{ ...td }}><div style={{ minHeight: 80, borderRadius: 12, background: '#e8eaed' }} /></td>;
                         const { datum, dag, vakantie, slots } = lesdag;
                         const isToday = datum === today;
-                        if (vakantie) return <td key={wi} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center', padding: '0.5rem' }}><span style={{ fontSize: '0.92rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</span></td>;
+                        if (vakantie) { const kk = kalenderKleur(vakantie); return <td key={wi} style={{ ...td, background: kk.bg, verticalAlign: 'middle', textAlign: 'center', padding: '0.5rem' }}><span style={{ fontSize: '0.92rem', color: kk.text, fontWeight: 600 }}>{vakantie.naam}</span></td>; }
                         return (
                           <td key={wi} style={{ ...td, height: '1px', background: isToday ? '#f0fdf408' : undefined }}>
                             {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
@@ -1652,10 +1659,10 @@ export default function PlannerPage() {
                   {allLesDagen.map(ld => {
                     const isToday = ld.datum === today;
                     return (
-                      <th key={ld.datum} style={{ ...th, background: isToday ? '#f0fdf4' : ld.vakantie ? '#fefce8' : undefined, color: isToday ? '#2d8a4e' : undefined }}>
+                      <th key={ld.datum} style={{ ...th, background: isToday ? '#f0fdf4' : ld.vakantie ? kalenderKleur(ld.vakantie).bg : undefined, color: isToday ? '#2d8a4e' : undefined }}>
                         <div>{dagNamenKort[ld.di]}</div>
                         <div style={{ fontSize: '0.86rem', fontWeight: 400, color: '#94a3b8' }}>{formatDate(ld.datum)}</div>
-                        {ld.vakantie && <div style={{ fontSize: '0.78rem', color: '#ca8a04', fontWeight: 600 }}>{ld.vakantie.naam}</div>}
+                        {ld.vakantie && <div style={{ fontSize: '0.78rem', color: kalenderKleur(ld.vakantie).text, fontWeight: 600 }}>{ld.vakantie.naam}</div>}
                       </th>
                     );
                   })}
@@ -1671,7 +1678,7 @@ export default function PlannerPage() {
                         <div style={{ fontSize: '0.86rem', fontWeight: 400, color: '#94a3b8' }}>{klas.vak}</div>
                       </td>
                       {allLesDagen.map(ld => {
-                        if (ld.vakantie) return <td key={ld.datum} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.82rem', color: '#ca8a04' }}>{ld.vakantie.naam}</span></td>;
+                        if (ld.vakantie) { const kk = kalenderKleur(ld.vakantie); return <td key={ld.datum} style={{ ...td, background: kk.bg, verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.82rem', color: kk.text }}>{ld.vakantie.naam}</span></td>; }
                         const slots = allRooster.filter(r => r.dag === ld.dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(ld.dag, s.uur));
                         if (slots.length === 0) return <td key={ld.datum} style={{ ...td }}><div style={{ minHeight: 60, borderRadius: 12, background: '#e8eaed' }} /></td>;
                         return (
@@ -1803,6 +1810,60 @@ export default function PlannerPage() {
                     </label>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Schoolkalender */}
+            <div>
+              <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#374151', marginBottom: '0.75rem' }}>Schoolkalender</h2>
+              <p style={{ fontSize: '1.0rem', color: '#6B7280', marginBottom: '1rem' }}>Voeg vakanties, toetsweken en studiedagen toe. Deze worden in alle planners getoond.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                {vakanties.length === 0 && (
+                  <div style={{ padding: '0.75rem 1rem', background: '#e8eaed', borderRadius: 12, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen items. Voeg hieronder iets toe.</div>
+                )}
+                {vakanties.map(v => {
+                  const typeKleur = v.type === 'toetsweek' ? '#dc2626' : v.type === 'studiedag' ? '#2563EB' : '#ca8a04';
+                  const typeLabel = v.type === 'toetsweek' ? 'Toetsweek' : v.type === 'studiedag' ? 'Studiedag' : 'Vakantie';
+                  return (
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 1rem', background: typeKleur + '18', borderRadius: 12 }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'white', background: typeKleur, padding: '2px 8px', borderRadius: 5 }}>{typeLabel}</span>
+                      <span style={{ fontWeight: 600, fontSize: '1.05rem', color: '#374151', flex: 1 }}>{v.naam}</span>
+                      <span style={{ fontSize: '0.92rem', color: '#6B7280' }}>{formatDate(v.start_datum)} – {formatDate(v.eind_datum)}</span>
+                      <button onClick={async () => {
+                        if (!confirm(`"${v.naam}" verwijderen?`)) return;
+                        await fetch(`/api/vakanties?id=${v.id}`, { method: 'DELETE' });
+                        fetch('/api/vakanties').then(r => r.json()).then(setVakanties);
+                      }} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '1.0rem', padding: '2px 6px' }}>✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Toevoeg formulier */}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.75rem 1rem', background: 'white', borderRadius: 12, border: '1px solid #e5e7eb' }}>
+                <select id="kalender-type" defaultValue="vakantie" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.5rem', fontSize: '1.0rem', fontWeight: 600 }}>
+                  <option value="vakantie">Vakantie</option>
+                  <option value="toetsweek">Toetsweek</option>
+                  <option value="studiedag">Studiedag</option>
+                </select>
+                <input id="kalender-naam" placeholder="Naam..." style={{ flex: 1, minWidth: 120, border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '1.0rem' }} />
+                <input id="kalender-start" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.5rem', fontSize: '1.0rem' }} />
+                <span style={{ color: '#9CA3AF' }}>t/m</span>
+                <input id="kalender-eind" type="date" style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.5rem', fontSize: '1.0rem' }} />
+                <button onClick={async () => {
+                  const type = (document.getElementById('kalender-type') as HTMLSelectElement).value;
+                  const naam = (document.getElementById('kalender-naam') as HTMLInputElement).value.trim();
+                  const start = (document.getElementById('kalender-start') as HTMLInputElement).value;
+                  const eind = (document.getElementById('kalender-eind') as HTMLInputElement).value;
+                  if (!naam || !start) return;
+                  await fetch('/api/vakanties', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ naam, start_datum: start, eind_datum: eind || start, type }) });
+                  fetch('/api/vakanties').then(r => r.json()).then(setVakanties);
+                  (document.getElementById('kalender-naam') as HTMLInputElement).value = '';
+                  (document.getElementById('kalender-start') as HTMLInputElement).value = '';
+                  (document.getElementById('kalender-eind') as HTMLInputElement).value = '';
+                }} style={{ background: '#374151', color: 'white', border: 'none', borderRadius: 6, padding: '0.4rem 1rem', fontWeight: 700, fontSize: '1.0rem', cursor: 'pointer' }}>
+                  + Toevoegen
+                </button>
               </div>
             </div>
 
