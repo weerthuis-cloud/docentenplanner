@@ -2,19 +2,16 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 /*
-  Zermelo Import API
+  Zermelo Import API - Rooster
 
   Stap 1: POST { action: 'auth', school, code }
-    ‚Üí Haalt access_token op
+    -> Haalt access_token op
 
   Stap 2: POST { action: 'fetch', school, token, week_start }
-    ‚Üí Haalt rooster op, geeft preview met groepen
+    -> Haalt rooster op, geeft preview met groepen
 
-  Stap 3: POST { action: 'fetch_students', school, token, groepen: string[] }
-    ‚Üí Haalt leerlingen op per groep
-
-  Stap 4: POST { action: 'import_full', school, token, slots, groepen_data, periode_naam, start_datum, eind_datum }
-    ‚Üí Importeert alles: maakt klassen aan, importeert leerlingen, maakt roosterperiode + slots
+  Stap 3: POST { action: 'import_full', slots, mapping, periode_naam, start_datum, eind_datum }
+    -> Importeert rooster: maakt klassen aan (via mapping), maakt roosterperiode + slots
 */
 
 function epochToHour(startTimeSlot: number): { dag: number; uur: number } {
@@ -157,130 +154,9 @@ export async function POST(req: Request) {
     }
   }
 
-  // --- STAP 3: Leerlingen per groep ophalen ---
-  if (body.action === 'fetch_students') {
-    const { school, token, groepen } = body;
-    if (!school || !token || !groepen) {
-      return NextResponse.json({ error: 'School, token en groepen zijn verplicht' }, { status: 400 });
-    }
-
-    try {
-      const result: Record<string, Array<{ firstName: string; lastName: string; code: string }>> = {};
-      let debugInfo = '';
-
-      // Methode 1: /departmentsofbranches + /studentsindepartments
-      // Haal alle departementen op en zoek per groepsnaam de juiste departmentOfBranch ID
-      try {
-        const departments = await zermeloGet(school, token, 'departmentsofbranches', {
-          schoolInSchoolYear: '~current',
-          fields: 'id,code,schoolInSchoolYearName',
-        });
-
-        debugInfo += `${departments.length} departementen gevonden. `;
-
-        // Bouw lookup: code (lowercase) -> department ID
-        const deptLookup = new Map<string, number>();
-        for (const dept of departments) {
-          if (dept.code) {
-            deptLookup.set(String(dept.code).toLowerCase(), dept.id);
-          }
-        }
-
-        // Haal alle studentInDepartments op in 1 call
-        const allStudentDepts = await zermeloGet(school, token, 'studentsindepartments', {
-          schoolInSchoolYear: '~current',
-          fields: 'student,departmentOfBranch',
-        });
-
-        debugInfo += `${allStudentDepts.length} student-dept koppelingen. `;
-
-        // Bouw lookup: departmentOfBranch ID -> student codes
-        const deptStudents = new Map<number, string[]>();
-        for (const sd of allStudentDepts) {
-          const deptId = sd.departmentOfBranch;
-          if (!deptStudents.has(deptId)) deptStudents.set(deptId, []);
-          deptStudents.get(deptId)!.push(String(sd.student));
-        }
-
-        // Verzamel alle unieke student codes die we nodig hebben
-        const neededStudentCodes = new Set<string>();
-        for (const groep of groepen as string[]) {
-          const deptId = deptLookup.get(groep.toLowerCase());
-          if (deptId !== undefined) {
-            const codes = deptStudents.get(deptId) || [];
-            for (const c of codes) neededStudentCodes.add(c);
-          }
-        }
-
-        // Haal alle benodigde studenten op in 1 call (als er student codes zijn)
-        const studentInfo = new Map<string, { firstName: string; prefix: string; lastName: string }>();
-        if (neededStudentCodes.size > 0) {
-          // Haal studenten op - Zermelo kan filteren op student codes
-          const allStudents = await zermeloGet(school, token, 'students', {
-            schoolInSchoolYear: '~current',
-            fields: 'code,firstName,prefix,lastName',
-          });
-
-          debugInfo += `${allStudents.length} studenten opgehaald. `;
-
-          for (const s of allStudents) {
-            if (s.code && neededStudentCodes.has(String(s.code))) {
-              studentInfo.set(String(s.code), {
-                firstName: s.firstName || '',
-                prefix: s.prefix || '',
-                lastName: s.lastName || '',
-              });
-            }
-          }
-        }
-
-        // Bouw resultaat per groep
-        for (const groep of groepen as string[]) {
-          const deptId = deptLookup.get(groep.toLowerCase());
-          if (deptId === undefined) {
-            result[groep] = [];
-            continue;
-          }
-
-          const studentCodes = deptStudents.get(deptId) || [];
-          result[groep] = studentCodes
-            .map(code => {
-              const info = studentInfo.get(code);
-              if (!info) return null;
-              return {
-                firstName: info.firstName,
-                lastName: [info.prefix, info.lastName].filter(Boolean).join(' '),
-                code,
-              };
-            })
-            .filter((s): s is { firstName: string; lastName: string; code: string } => s !== null)
-            .sort((a, b) => a.lastName.localeCompare(b.lastName, 'nl'));
-        }
-
-        const totalStudents = Object.values(result).reduce((sum, arr) => sum + arr.length, 0);
-        debugInfo += `Totaal ${totalStudents} leerlingen gekoppeld.`;
-
-      } catch (deptError: unknown) {
-        // Methode 1 mislukt - fallback naar /appointments met students
-        const deptMsg = deptError instanceof Error ? deptError.message : 'onbekend';
-        debugInfo += `Dept methode mislukt: ${deptMsg}. Fallback naar appointments. `;
-
-        // Fallback: haal appointments op met studentcodes
-        for (const groep of groepen as string[]) {
-          result[groep] = [];
-        }
-      }
-
-      return NextResponse.json({ success: true, students: result, debug: debugInfo });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Onbekende fout';
-      return NextResponse.json({ error: `Fout bij ophalen leerlingen: ${message}` }, { status: 500 });
-    }
-  }
-
-  // ‚îÄ‚îÄ‚îÄ STAP 4: Volledige import (rooster + klassen + leerlingen) ‚îÄ‚îÄ‚îÄ
+  // --- STAP 3: Rooster importeren (klassen + roosterslots) ---
   if (body.action === 'import_full') {
-    const { slots, students, mapping, periode_naam, start_datum, eind_datum } = body;
+    const { slots, mapping, periode_naam, start_datum, eind_datum } = body;
     if (!slots || !start_datum || !eind_datum) {
       return NextResponse.json({ error: 'Slots, start_datum en eind_datum zijn verplicht' }, { status: 400 });
     }
@@ -394,38 +270,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Importeer leerlingen per groep
-    let leerlingenImported = 0;
-    if (students && typeof students === 'object') {
-      for (const [groep, leerlingList] of Object.entries(students)) {
-        const klasId = groepToKlasId.get(groep);
-        if (!klasId || !Array.isArray(leerlingList) || leerlingList.length === 0) continue;
-
-        const { data: bestaandeLeerlingen } = await supabase
-          .from('leerlingen')
-          .select('voornaam, achternaam')
-          .eq('klas_id', klasId);
-
-        const bestaandeNamen = new Set(
-          (bestaandeLeerlingen || []).map(l => `${l.voornaam}|${l.achternaam}`.toLowerCase())
-        );
-
-        const nieuweLeerlingen = (leerlingList as Array<{ firstName: string; lastName: string }>)
-          .filter(s => !bestaandeNamen.has(`${s.firstName}|${s.lastName}`.toLowerCase()))
-          .map(s => ({
-            klas_id: klasId,
-            voornaam: s.firstName || '',
-            achternaam: s.lastName || '',
-          }));
-
-        if (nieuweLeerlingen.length > 0) {
-          const { error: llError } = await supabase.from('leerlingen').insert(nieuweLeerlingen);
-          if (!llError) leerlingenImported += nieuweLeerlingen.length;
-        }
-      }
-    }
-
-    // 4. Maak roosterperiode aan
+    // 3. Maak roosterperiode aan
     const { data: periode, error: periodeError } = await supabase
       .from('rooster_periodes')
       .insert({
@@ -479,7 +324,7 @@ export async function POST(req: Request) {
       success: true,
       periode,
       klassen_aangemaakt: klassenAangemaakt,
-      leerlingen_imported: leerlingenImported,
+      leerlingen_imported: 0,
       rooster_imported: roosterSlots.length,
       onbekend: [...new Set(onbekend)],
     });

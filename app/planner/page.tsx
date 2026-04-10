@@ -89,8 +89,7 @@ export default function PlannerPage() {
   const [zermeloToken, setZermeloToken] = useState('');
   const [zermeloStatus, setZermeloStatus] = useState('');
   const [zermeloPreview, setZermeloPreview] = useState<Array<{ dag: number; uur: number; vak: string; lokaal: string; groep: string; groepen?: string[]; start_time: string; end_time: string }> | null>(null);
-  const [zermeloStudents, setZermeloStudents] = useState<Record<string, Array<{ firstName: string; lastName: string }>> | null>(null);
-  const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview' | 'mapping' | 'students'>('auth');
+  const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview' | 'import'>('auth');
   const [zermeloMapping, setZermeloMapping] = useState<Record<string, number | 'new'>>({});
   const [zermeloWeekStart, setZermeloWeekStart] = useState('');
 
@@ -672,12 +671,12 @@ export default function PlannerPage() {
             {showZermeloForm && (
               <div style={{ marginBottom: '1rem', padding: '1rem', background: '#fef3c7', borderRadius: 8, border: '1px solid #f59e0b' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e' }}>Importeer vanuit Zermelo</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e' }}>Rooster importeren vanuit Zermelo</span>
                   {zermeloToken && (
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {['auth', 'fetch', 'preview', 'mapping', 'students'].map((s, i) => (
+                      {['auth', 'fetch', 'preview', 'import'].map((s, i) => (
                         <div key={s} style={{ width: 8, height: 8, borderRadius: '50%',
-                          background: (['auth', 'fetch', 'preview', 'mapping', 'students'].indexOf(zermeloStep) >= i) ? '#c4892e' : '#e5e7eb' }} />
+                          background: (['auth', 'fetch', 'preview', 'import'].indexOf(zermeloStep) >= i) ? '#c4892e' : '#e5e7eb' }} />
                       ))}
                     </div>
                   )}
@@ -714,28 +713,43 @@ export default function PlannerPage() {
                     <input id="z-week" type="date" defaultValue={getMonday(new Date()).toISOString().split('T')[0]}
                       style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
                     <button onClick={async () => {
-                      const weekStart = (document.getElementById('z-week') as HTMLInputElement).value;
+                      const ws = (document.getElementById('z-week') as HTMLInputElement).value;
                       setZermeloStatus('Rooster ophalen...');
                       const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'fetch', school: zermeloSchool, token: zermeloToken, week_start: weekStart }) });
+                        body: JSON.stringify({ action: 'fetch', school: zermeloSchool, token: zermeloToken, week_start: ws }) });
                       const data = await res.json();
-                      if (data.slots) { setZermeloPreview(data.slots); setZermeloWeekStart(weekStart); setZermeloStep('preview'); setZermeloStatus(`${data.slots.length} lessen gevonden`); }
-                      else { setZermeloStatus(data.error || 'Ophalen mislukt'); }
+                      if (data.slots) {
+                        setZermeloPreview(data.slots);
+                        setZermeloWeekStart(ws);
+                        // Direct auto-mapping opbouwen
+                        const uniqueGroepen = [...new Set(data.slots.map((s: { groep?: string }) => s.groep?.trim()).filter(Boolean))] as string[];
+                        const autoMap: Record<string, number | 'new'> = {};
+                        for (const g of uniqueGroepen) {
+                          const gClean = g.trim().toLowerCase();
+                          const match = klassen.find(k => k.naam.trim().toLowerCase() === gClean)
+                            || klassen.find(k => k.naam.trim().toLowerCase().replace(/[._-]/g, '') === gClean.replace(/[._-]/g, ''));
+                          autoMap[g] = match ? match.id : 'new';
+                        }
+                        setZermeloMapping(autoMap);
+                        setZermeloStep('preview');
+                        const matched = Object.values(autoMap).filter(v => v !== 'new').length;
+                        setZermeloStatus(`${data.slots.length} lessen, ${matched}/${uniqueGroepen.length} groepen herkend`);
+                      } else { setZermeloStatus(data.error || 'Ophalen mislukt'); }
                     }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
                       Rooster ophalen
                     </button>
                   </div>
                 )}
 
-                {/* Stap 3: Preview rooster + leerlingen ophalen */}
+                {/* Stap 3: Rooster preview + groepen koppelen + importeren */}
                 {zermeloToken && zermeloStep === 'preview' && zermeloPreview && (
                   <div>
+                    {/* Rooster tabel */}
                     <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Rooster: {zermeloPreview.length} lessen</div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
                       <thead><tr style={{ background: '#fef9c3' }}>
                         <th style={{ padding: '4px 8px', textAlign: 'left' }}>Dag</th>
                         <th style={{ padding: '4px 8px', textAlign: 'left' }}>Uur</th>
-                        <th style={{ padding: '4px 8px', textAlign: 'left' }}>Tijd</th>
                         <th style={{ padding: '4px 8px', textAlign: 'left' }}>Vak</th>
                         <th style={{ padding: '4px 8px', textAlign: 'left' }}>Groep</th>
                         <th style={{ padding: '4px 8px', textAlign: 'left' }}>Lokaal</th>
@@ -743,9 +757,8 @@ export default function PlannerPage() {
                       <tbody>
                         {zermeloPreview.map((s, i) => (
                           <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#fefce8' }}>
-                            <td style={{ padding: '3px 8px' }}>{dagNamen[s.dag - 1] || s.dag}</td>
+                            <td style={{ padding: '3px 8px' }}>{dagNamenKort[s.dag - 1] || s.dag}</td>
                             <td style={{ padding: '3px 8px' }}>{s.uur}</td>
-                            <td style={{ padding: '3px 8px' }}>{s.start_time}–{s.end_time}</td>
                             <td style={{ padding: '3px 8px', fontWeight: 600 }}>{s.vak}</td>
                             <td style={{ padding: '3px 8px' }}>{s.groep}</td>
                             <td style={{ padding: '3px 8px' }}>{s.lokaal}</td>
@@ -753,49 +766,19 @@ export default function PlannerPage() {
                         ))}
                       </tbody>
                     </table>
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button onClick={() => {
-                        const uniqueGroepen = [...new Set(zermeloPreview.map(s => s.groep?.trim()).filter(Boolean))];
-                        const autoMap: Record<string, number | 'new'> = {};
-                        for (const g of uniqueGroepen) {
-                          const gClean = g.trim().toLowerCase();
-                          // Probeer exacte match, dan zonder punten/underscores
-                          const match = klassen.find(k => k.naam.trim().toLowerCase() === gClean)
-                            || klassen.find(k => k.naam.trim().toLowerCase().replace(/[._-]/g, '') === gClean.replace(/[._-]/g, ''));
-                          autoMap[g] = match ? match.id : 'new';
-                        }
-                        setZermeloMapping(autoMap);
-                        setZermeloStep('mapping');
-                        const matched = Object.values(autoMap).filter(v => v !== 'new').length;
-                        setZermeloStatus(`${matched} van ${uniqueGroepen.length} groepen automatisch gekoppeld`);
-                      }} style={{ background: '#4a80d4', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
-                        Groepen koppelen →
-                      </button>
-                      <button onClick={() => { setZermeloPreview(null); setZermeloStep('fetch'); setZermeloStatus(''); }}
-                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        ← Terug
-                      </button>
-                    </div>
-                  </div>
-                )}
 
-                {/* Stap 3b: Groepen koppelen aan klassen */}
-                {zermeloToken && zermeloStep === 'mapping' && zermeloPreview && (
-                  <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Koppel Zermelo-groepen aan je klassen</div>
-                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginBottom: '0.5rem' }}>
-                      Kies bij elke groep de juiste klas, of kies &quot;Nieuwe klas aanmaken&quot;. Groepen op &quot;Overslaan&quot; worden niet meegenomen.
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: 300, overflow: 'auto', marginBottom: '0.75rem' }}>
+                    {/* Groepen koppelen */}
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Koppel groepen aan klassen</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.75rem' }}>
                       {Object.entries(zermeloMapping).map(([groep, value]) => {
                         const slotInfo = zermeloPreview.find(s => s.groep === groep);
                         const isMatched = value !== 'new' && value !== 0;
                         const isSkipped = value === 0;
                         return (
-                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.35rem 0.5rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 6, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
-                            <div style={{ minWidth: 100, fontSize: '0.78rem' }}>
+                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.3rem 0.5rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 6, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
+                            <div style={{ minWidth: 90, fontSize: '0.78rem' }}>
                               <span style={{ fontWeight: 700, color: '#374151' }}>{groep}</span>
-                              {slotInfo && <span style={{ color: '#94a3b8', marginLeft: 4, fontSize: '0.7rem' }}>({slotInfo.vak})</span>}
+                              {slotInfo && <span style={{ color: '#94a3b8', marginLeft: 4, fontSize: '0.68rem' }}>({slotInfo.vak})</span>}
                             </div>
                             <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>→</span>
                             <select
@@ -807,7 +790,7 @@ export default function PlannerPage() {
                                   [groep]: v === 'new' ? 'new' : (v === 'skip' ? 0 as unknown as number : Number(v))
                                 }));
                               }}
-                              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '0.25rem 0.4rem', fontSize: '0.78rem', background: 'white' }}
+                              style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '0.2rem 0.4rem', fontSize: '0.78rem', background: 'white' }}
                             >
                               <option value="new">+ Nieuwe klas aanmaken</option>
                               <option value="skip">Overslaan</option>
@@ -822,115 +805,29 @@ export default function PlannerPage() {
                         );
                       })}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginBottom: '0.5rem', padding: '0.3rem 0.5rem', background: '#f8fafc', borderRadius: 4 }}>
-                      {(() => {
-                        const mapped = Object.values(zermeloMapping).filter(v => v !== 'new' && v !== 0).length;
-                        const newOnes = Object.values(zermeloMapping).filter(v => v === 'new').length;
-                        const skipped = Object.values(zermeloMapping).filter(v => v === 0).length;
-                        return `${mapped} gekoppeld · ${newOnes} nieuw aan te maken · ${skipped} overslaan`;
-                      })()}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button onClick={async () => {
-                        const activeGroepen = Object.entries(zermeloMapping).filter(([, v]) => v !== 0).map(([g]) => g);
-                        if (activeGroepen.length === 0) { setZermeloStatus('Koppel minstens 1 groep aan een klas'); return; }
-                        setZermeloStatus(`Leerlingen ophalen voor ${activeGroepen.length} groepen...`);
-                        const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'fetch_students', school: zermeloSchool, token: zermeloToken, groepen: activeGroepen }) });
-                        const data = await res.json();
-                        if (data.students) {
-                          setZermeloStudents(data.students);
-                          const total = Object.values(data.students as Record<string, unknown[]>).reduce((sum, arr) => sum + arr.length, 0);
-                          setZermeloStep('students');
-                          setZermeloStatus(`${total} leerlingen gevonden in ${activeGroepen.length} groepen${data.debug ? ` (${data.debug})` : ''}`);
-                        } else { setZermeloStatus(data.error || 'Leerlingen ophalen mislukt. Ga door met alleen rooster.'); }
-                      }} style={{ background: '#4a80d4', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
-                        Leerlingen ophalen →
-                      </button>
-                      <button onClick={() => { setZermeloStep('students'); setZermeloStudents(null); }}
-                        style={{ background: 'white', color: '#6B7280', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        Overslaan, alleen rooster
-                      </button>
-                      <button onClick={() => { setZermeloStep('preview'); setZermeloStatus(''); }}
-                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        ← Terug
-                      </button>
-                    </div>
-                  </div>
-                )}
 
-                {/* Stap 5: Leerlingen preview + importeren */}
-                {zermeloToken && zermeloStep === 'students' && zermeloPreview && (
-                  <div>
-                    {/* Leerlingen preview */}
-                    {zermeloStudents && Object.keys(zermeloStudents).length > 0 && (
-                      <div style={{ marginBottom: '0.75rem' }}>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>Leerlingen per groep</div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', maxHeight: 200, overflow: 'auto' }}>
-                          {Object.entries(zermeloStudents).map(([groep, leerlingen]) => (
-                            <div key={groep} style={{ flex: '1 1 200px', maxWidth: 300, background: 'white', borderRadius: 6, border: '1px solid #e5e7eb', padding: '0.4rem 0.6rem' }}>
-                              <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#374151', marginBottom: '0.25rem' }}>
-                                {groep} → {(() => {
-                                  const m = zermeloMapping[groep];
-                                  if (!m || m === 'new') return <span style={{ color: '#c4892e' }}>nieuw</span>;
-                                  const klas = klassen.find(k => k.id === m);
-                                  return <span style={{ color: '#2d8a4e' }}>{klas?.naam || '?'}</span>;
-                                })()}
-                                <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>({leerlingen.length})</span>
-                              </div>
-                              {leerlingen.length > 0 ? (
-                                <div style={{ fontSize: '0.7rem', color: '#6B7280', lineHeight: 1.5 }}>
-                                  {leerlingen.slice(0, 5).map((l, i) => (
-                                    <div key={i}>{l.firstName} {l.lastName}</div>
-                                  ))}
-                                  {leerlingen.length > 5 && <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>+{leerlingen.length - 5} meer...</div>}
-                                </div>
-                              ) : (
-                                <div style={{ fontSize: '0.7rem', color: '#d1d5db', fontStyle: 'italic' }}>Geen leerlingen gevonden</div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Samenvatting mapping */}
-                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginBottom: '0.5rem', padding: '0.3rem 0.5rem', background: '#f0fdf4', borderRadius: 4, border: '1px solid #bbf7d0' }}>
-                      <strong>Koppeling:</strong>{' '}
-                      {Object.entries(zermeloMapping).filter(([, v]) => v !== 0).map(([g, v]) => {
-                        if (v === 'new') return `${g} → nieuw`;
-                        const klas = klassen.find(k => k.id === v);
-                        return `${g} → ${klas?.naam || '?'}`;
-                      }).join(' · ')}
-                      {Object.values(zermeloMapping).some(v => v === 0) && (
-                        <span style={{ color: '#94a3b8' }}>{' '}· overgeslagen: {Object.entries(zermeloMapping).filter(([, v]) => v === 0).map(([g]) => g).join(', ')}</span>
-                      )}
-                    </div>
-
-                    {/* Import formulier */}
+                    {/* Periode + importeer */}
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid #f59e0b40' }}>
                       <input id="z-naam" placeholder="Naam periode..." defaultValue={`Zermelo ${new Date().toLocaleDateString('nl-NL')}`}
                         style={{ flex: '1 1 140px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
                       <input id="z-start" type="date" defaultValue={zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0]}
                         style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
                       <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>t/m</span>
-                      <input id="z-eind" type="date" defaultValue={(() => {
-                        // Standaard: einde schooljaar (eerste vrijdag van juli)
-                        const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();
-                        return `${yr}-07-17`;
-                      })()}
+                      <input id="z-eind" type="date" defaultValue={(() => { const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear(); return `${yr}-07-17`; })()}
                         style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
                       <button onClick={async () => {
                         const naam = (document.getElementById('z-naam') as HTMLInputElement).value;
                         const start = (document.getElementById('z-start') as HTMLInputElement).value;
                         const eind = (document.getElementById('z-eind') as HTMLInputElement).value;
                         if (!start || !eind) { setZermeloStatus('Vul start- en einddatum in'); return; }
-                        setZermeloStatus('Importeren: klassen, leerlingen en rooster...');
+                        const activeCount = Object.values(zermeloMapping).filter(v => v !== 0).length;
+                        if (activeCount === 0) { setZermeloStatus('Koppel minstens 1 groep aan een klas'); return; }
+                        setZermeloStatus('Importeren...');
                         const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
                             action: 'import_full',
                             slots: zermeloPreview,
-                            students: zermeloStudents || {},
+                            students: {},
                             mapping: zermeloMapping,
                             periode_naam: naam,
                             start_datum: start,
@@ -940,20 +837,18 @@ export default function PlannerPage() {
                         if (data.success) {
                           const parts = [];
                           if (data.klassen_aangemaakt > 0) parts.push(`${data.klassen_aangemaakt} klassen aangemaakt`);
-                          if (data.leerlingen_imported > 0) parts.push(`${data.leerlingen_imported} leerlingen`);
                           parts.push(`${data.rooster_imported} roosterslots`);
-                          if (data.onbekend?.length) parts.push(`Onbekend: ${data.onbekend.join(', ')}`);
                           setZermeloStatus(`Import klaar: ${parts.join(' · ')}`);
-                          setZermeloPreview(null); setZermeloStudents(null); setZermeloStep('auth'); setZermeloToken('');
+                          setZermeloPreview(null); setZermeloStep('auth'); setZermeloToken('');
                           setZermeloMapping({});
                           setSelectedPeriodeId(data.periode.id);
                           fetchPeriodes(); fetchAllRooster();
                           fetch('/api/klassen').then(r => r.json()).then(setKlassen);
                         } else { setZermeloStatus(data.error || 'Import mislukt'); }
                       }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.35rem 0.8rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
-                        Importeer alles
+                        Importeer rooster
                       </button>
-                      <button onClick={() => { setZermeloStep('mapping'); }}
+                      <button onClick={() => { setZermeloPreview(null); setZermeloStep('fetch'); setZermeloStatus(''); }}
                         style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
                         ← Terug
                       </button>
