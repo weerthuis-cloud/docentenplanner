@@ -7,128 +7,211 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File;
     if (!file) return NextResponse.json({ error: 'Geen bestand ontvangen' }, { status: 400 });
 
-    // Dynamisch xlsx importeren
     const XLSX = await import('xlsx');
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: 'array' });
-
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: (string | number | null)[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
 
-    // Zoek patronen in de Excel
-    // Typische structuur: kolom 0 = dag/week/maand, kolom 1 = dagnummer, kolom 2 = beschrijving
-    const items: Array<{ naam: string; start_datum: string; eind_datum: string; type: string }> = [];
+    // ─── Stap 1: Bepaal schooljaar ───
+    let startYear = 2025;
+    for (const row of rows) {
+      const text = String(row[0] || '') + ' ' + String(row[2] || '');
+      const m = text.match(/(\d{4})\s*[-–]\s*(\d{4})/);
+      if (m) { startYear = parseInt(m[1]); break; }
+    }
 
-    // Helper: parse datum uit context (maand + dagnummer)
-    let currentMonth = -1;
-    let currentYear = 2025;
+    // ─── Stap 2: Track maand + jaar ───
     const maandNamen: Record<string, number> = {
       'januari': 0, 'februari': 1, 'maart': 2, 'april': 3, 'mei': 4, 'juni': 5,
       'juli': 6, 'augustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'december': 11,
     };
 
-    // Eerste pass: zoek het schooljaar
-    for (const row of rows) {
-      const text = String(row[0] || '').toLowerCase() + ' ' + String(row[2] || '').toLowerCase();
-      const match = text.match(/(\d{4})\s*[-–]\s*(\d{4})/);
-      if (match) {
-        currentYear = parseInt(match[1]);
-        break;
+    let currentMonth = 7; // start bij augustus
+    let currentYear = startYear;
+
+    function updateMonth(text: string) {
+      const t = text.toLowerCase().trim();
+      for (const [naam, num] of Object.entries(maandNamen)) {
+        // Match standalone month or month in "maart|april" or "april " format
+        if (t === naam || t === naam + ' ' || t.startsWith(naam + ' ') || t.endsWith(naam) || t.includes(naam + '|') || t.includes('|' + naam)) {
+          const prevMonth = currentMonth;
+          currentMonth = num;
+          // Year transition: if month wraps around (went from high to low)
+          if (num < prevMonth && prevMonth >= 8) {
+            currentYear = startYear + 1;
+          }
+          return true;
+        }
       }
+      return false;
     }
 
-    // Track vakantie-periodes
-    interface PeriodeTracker { naam: string; type: string; dates: string[] }
-    const activePeriodes: PeriodeTracker[] = [];
+    function makeDatum(dagNr: number): string {
+      // Direct string formatting to avoid timezone issues
+      const m = String(currentMonth + 1).padStart(2, '0');
+      const d = String(dagNr).padStart(2, '0');
+      return `${currentYear}-${m}-${d}`;
+    }
 
-    // Scan alle rijen
+    // ─── Stap 3: Verzamel items ───
+    interface CalItem { naam: string; start_datum: string; eind_datum: string; type: string }
+    const items: CalItem[] = [];
+    const toetsperiodes: Record<string, string[]> = {};
+    let activeVakantie: { naam: string; dates: string[] } | null = null;
+
+    const feestdagen = ['bevrijdingsdag', 'hemelvaartsdag', 'koningsdag', '1e kerstdag', '2e kerstdag',
+      'nieuwjaarsdag', '2e pinksterdag'];
+
+    function flushVakantie() {
+      if (activeVakantie && activeVakantie.dates.length > 0) {
+        activeVakantie.dates.sort();
+        items.push({
+          naam: activeVakantie.naam,
+          start_datum: activeVakantie.dates[0],
+          eind_datum: activeVakantie.dates[activeVakantie.dates.length - 1],
+          type: 'vakantie',
+        });
+      }
+      activeVakantie = null;
+    }
+
+    const vakantieNamen = ['herfstvakantie', 'kerstvakantie', 'voorjaarsvakantie', 'meivakantie', 'zomervakantie'];
+    let lastDagNr = 0;
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const col0 = String(row[0] || '').trim().toLowerCase();
+      const col0raw = String(row[0] || '').trim();
+      const col0 = col0raw.toLowerCase();
       const col1 = row[1];
-      const col2 = String(row[2] || '').trim();
+      const col2raw = String(row[2] || '').trim();
+      const col2 = col2raw.toLowerCase();
 
-      // Detecteer maandwissel
-      for (const [naam, num] of Object.entries(maandNamen)) {
-        if (col0.includes(naam) || col2.toLowerCase().includes(naam)) {
-          currentMonth = num;
-          // Januari of later in het schooljaar = volgend jaar
-          if (num <= 7 && currentYear < 2026) {
-            // Controleer of we al voorbij augustus zijn geweest
-            currentYear = currentYear + 1;
+      // ── Detecteer maandwissel ──
+      // Standalone maand-rij (alleen col0 gevuld met maandnaam)
+      if (col0 && !col2raw && !col1) {
+        updateMonth(col0);
+      }
+      // Week-rij: col2 bevat soms maandinformatie ("april", "maart|april", "juni|juli")
+      if (col0.startsWith('week ') && col2) {
+        // Extract maand uit col2 (neem de LAATSTE maand als er meerdere zijn)
+        const parts = col2.split(/[|,]/);
+        const lastPart = parts[parts.length - 1].replace(/\s*-\s*periode\s+\d+/i, '').trim();
+        updateMonth(lastPart);
+      }
+
+      // ── Detecteer vakantie-weken ──
+      if (col0.startsWith('week ') || (!col0 && !col1 && col2)) {
+        const gevonden = vakantieNamen.find(v => col2.includes(v));
+        if (gevonden) {
+          if (activeVakantie && activeVakantie.naam.toLowerCase() === gevonden) {
+            // Zelfde vakantie loopt door, volgende week
+          } else {
+            flushVakantie();
+            activeVakantie = { naam: gevonden.charAt(0).toUpperCase() + gevonden.slice(1), dates: [] };
           }
-          break;
+
+          // Speciale check voor "ZOMERVAKANTIE 4 JULI T/M 16 AUGUSTUS"
+          const zomerText = col2raw.toUpperCase();
+          const fullMatch = zomerText.match(/(\d+)\s+(JANUARI|FEBRUARI|MAART|APRIL|MEI|JUNI|JULI|AUGUSTUS|SEPTEMBER|OKTOBER|NOVEMBER|DECEMBER)\s+T\/M\s+(\d+)\s+(JANUARI|FEBRUARI|MAART|APRIL|MEI|JUNI|JULI|AUGUSTUS|SEPTEMBER|OKTOBER|NOVEMBER|DECEMBER)/);
+          if (fullMatch) {
+            const maandMap: Record<string, number> = { JANUARI: 0, FEBRUARI: 1, MAART: 2, APRIL: 3, MEI: 4, JUNI: 5, JULI: 6, AUGUSTUS: 7, SEPTEMBER: 8, OKTOBER: 9, NOVEMBER: 10, DECEMBER: 11 };
+            const sd = new Date(startYear + 1, maandMap[fullMatch[2]], parseInt(fullMatch[1]));
+            const ed = new Date(startYear + 1, maandMap[fullMatch[4]], parseInt(fullMatch[3]));
+            items.push({
+              naam: 'Zomervakantie',
+              start_datum: sd.toISOString().split('T')[0],
+              eind_datum: ed.toISOString().split('T')[0],
+              type: 'vakantie',
+            });
+            activeVakantie = null;
+          }
+          continue;
+        } else if (col0.startsWith('week ')) {
+          // Week-rij zonder vakantie: sluit actieve vakantie af
+          flushVakantie();
         }
       }
-      if (currentMonth < 0) continue; // Nog geen maand gevonden
 
-      // Check of col2 een relevant event bevat
-      const beschrijving = col2.toLowerCase();
-      const isVakantie = beschrijving.includes('vakantie') || beschrijving.includes('vrij') || beschrijving.includes('recess');
-      const isToetsweek = beschrijving.includes('toets') || beschrijving.includes('tentamen') || beschrijving.includes('examen');
-      const isStudiedag = beschrijving.includes('studiedag') || beschrijving.includes('organisatiedag') || beschrijving.includes('lesvrij');
-
-      if (!isVakantie && !isToetsweek && !isStudiedag) continue;
-
-      // Bepaal type
-      const type = isToetsweek ? 'toetsweek' : isStudiedag ? 'studiedag' : 'vakantie';
-
-      // Probeer datum te bepalen
+      // ── Dag-rij check ──
       const dagNr = typeof col1 === 'number' ? col1 : parseInt(String(col1));
-      if (!isNaN(dagNr) && dagNr >= 1 && dagNr <= 31) {
-        const datum = new Date(currentYear, currentMonth, dagNr);
-        const datumStr = datum.toISOString().split('T')[0];
+      const isDagRij = !isNaN(dagNr) && dagNr >= 1 && dagNr <= 31 &&
+        (col0.startsWith('ma') || col0.startsWith('di') || col0.startsWith('wo') ||
+         col0.startsWith('do') || col0.startsWith('vr') || col0.startsWith('za') || col0.startsWith('zo'));
 
-        // Zoek of er al een actieve periode is met dezelfde naam-patroon
-        const naamClean = col2.replace(/\s+/g, ' ').trim();
-        let found = false;
-        for (const p of activePeriodes) {
-          if (p.type === type && (
-            p.naam.toLowerCase().includes(naamClean.toLowerCase().split(' ')[0]) ||
-            naamClean.toLowerCase().includes(p.naam.toLowerCase().split(' ')[0])
-          )) {
-            p.dates.push(datumStr);
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          activePeriodes.push({ naam: naamClean, type, dates: [datumStr] });
+      if (!isDagRij) continue;
+
+      // Auto-detect maandwissel ALLEEN tijdens vakantie: als dagnr drastisch daalt (bv 26→1)
+      if (activeVakantie && lastDagNr > 0 && dagNr < lastDagNr - 15) {
+        currentMonth++;
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      }
+      lastDagNr = dagNr;
+
+      // Als we in een actieve vakantie zitten, voeg de datum toe
+      if (activeVakantie) {
+        activeVakantie.dates.push(makeDatum(dagNr));
+      }
+
+      // ── Toetsperiode A/B/C/D ──
+      const toetsMatch = col2.match(/^toetsperiode\s+([a-d])/i);
+      if (toetsMatch) {
+        const letter = toetsMatch[1].toUpperCase();
+        const key = `Toetsperiode ${letter}`;
+        if (!toetsperiodes[key]) toetsperiodes[key] = [];
+        toetsperiodes[key].push(makeDatum(dagNr));
+        continue;
+      }
+
+      // ── Organisatiedag ──
+      if (col2.startsWith('organisatiedag')) {
+        items.push({
+          naam: col2raw.replace(/\s+/g, ' ').trim(),
+          start_datum: makeDatum(dagNr),
+          eind_datum: makeDatum(dagNr),
+          type: 'studiedag',
+        });
+        continue;
+      }
+
+      // ── Feestdagen (losse vrije dagen) ──
+      const isFeestdag = feestdagen.some(f => col2.includes(f));
+      if (isFeestdag && !activeVakantie) {
+        items.push({
+          naam: col2raw.replace(/\s+/g, ' ').trim(),
+          start_datum: makeDatum(dagNr),
+          eind_datum: makeDatum(dagNr),
+          type: 'vakantie',
+        });
+        continue;
+      }
+
+      // ── "Vrije dag" met "school gesloten" ──
+      const col3 = String(row[3] || '').toLowerCase();
+      if ((col2 === 'vrije dag' || col2 === 'lesvrije dag') && col3.includes('school gesloten')) {
+        if (!activeVakantie) {
+          items.push({
+            naam: col2raw,
+            start_datum: makeDatum(dagNr),
+            eind_datum: makeDatum(dagNr),
+            type: 'vakantie',
+          });
         }
       }
     }
 
-    // Converteer periodes naar items met start/eind
-    for (const p of activePeriodes) {
-      if (p.dates.length === 0) continue;
-      p.dates.sort();
+    // Sluit laatste vakantie af
+    flushVakantie();
+
+    // Converteer toetsperiodes naar items
+    for (const [naam, dates] of Object.entries(toetsperiodes)) {
+      dates.sort();
       items.push({
-        naam: p.naam.charAt(0).toUpperCase() + p.naam.slice(1),
-        start_datum: p.dates[0],
-        eind_datum: p.dates[p.dates.length - 1],
-        type: p.type,
+        naam,
+        start_datum: dates[0],
+        eind_datum: dates[dates.length - 1],
+        type: 'toetsweek',
       });
-    }
-
-    // Als we niets gevonden hebben met de structured approach, probeer een simpelere scan
-    if (items.length === 0) {
-      // Fallback: zoek rijen met bekende keywords en probeer datums eruit te halen
-      for (let i = 0; i < rows.length; i++) {
-        const rowText = rows[i].map(c => String(c || '')).join(' ').toLowerCase();
-        let type = '';
-        if (rowText.includes('vakantie')) type = 'vakantie';
-        else if (rowText.includes('toets')) type = 'toetsweek';
-        else if (rowText.includes('studiedag') || rowText.includes('organisatiedag')) type = 'studiedag';
-        if (!type) continue;
-
-        // Zoek datums in de rij
-        const dateMatch = rowText.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec)/);
-        if (dateMatch) {
-          const naam = rows[i].map(c => String(c || '').trim()).filter(Boolean)[0] || type;
-          items.push({ naam, start_datum: '', eind_datum: '', type });
-        }
-      }
     }
 
     // Sorteer op startdatum
