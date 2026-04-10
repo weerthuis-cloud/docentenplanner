@@ -1211,7 +1211,7 @@ export default function PlannerPage() {
                 </div>
 
                 {/* Rooster grid met weekweergave */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderRadius: 20, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
                   <thead><tr>
                     <th style={{ ...th, width: 50 }}>Uur</th>
                     {roosterDays.map((d, idx) => {
@@ -1281,9 +1281,9 @@ export default function PlannerPage() {
 
                           return (
                             <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{
-                              ...td, padding: '0.3rem', position: 'relative',
-                              borderLeft: slot && !cellVerv ? `3px solid ${kleur}` : cellVerv ? '3px solid #fca5a5' : undefined,
-                              background: cellVerv ? '#fef2f2' : slot ? kleur + '06' : '#fcfcfc',
+                              ...td, padding: '6px 5px', position: 'relative',
+                              background: cellVerv ? '#fef2f2' : slot ? kleur + '30' : '#e8eaed',
+                              borderRadius: 12,
                               opacity: cellVerv ? 0.7 : 1,
                             }}>
                               {/* Klas selectie (basisrooster) */}
@@ -1461,8 +1461,8 @@ export default function PlannerPage() {
                         <div
                           onClick={() => setSelectedLesPanel({ klas_id: slot!.klas_id, datum: selectedDate, uur: slot!.uur })}
                           style={{
-                            background: hasToets ? toetsAccent + '08' : kleur + '08',
-                            border: `1px solid ${hasToets ? toetsAccent : kleur}18`,
+                            background: hasToets ? toetsAccent + '30' : kleur + '30',
+                            border: 'none',
                             borderRadius: 12,
                             overflow: 'hidden',
                             cursor: 'pointer',
@@ -1472,8 +1472,8 @@ export default function PlannerPage() {
                           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateX(3px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 2px 10px ${kleur}20`; }}
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
                         >
-                          {/* Header met gradient */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px', flexWrap: 'wrap', background: `linear-gradient(180deg, ${hasToets ? toetsAccent : kleur}20 0%, transparent 100%)` }}>
+                          {/* Header */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{klas?.naam}</span>
                             <span style={{ fontSize: '0.84rem', color: kleur, fontWeight: 600 }}>{klas?.vak}</span>
                             <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{klas?.lokaal}</span>
@@ -1504,13 +1504,13 @@ export default function PlannerPage() {
                         </div>
                       ) : (
                         <div style={{
-                          border: '2px dashed #e2e8f0', borderRadius: 12,
+                          borderRadius: 12, background: '#e8eaed',
                           height: '100%', minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#cbd5e1', fontSize: '0.82rem',
+                          color: '#b0b8c4', fontSize: '0.82rem',
                           transition: 'all 0.12s',
                         }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#94a3b8'; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0'; (e.currentTarget as HTMLElement).style.color = '#cbd5e1'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#dde0e4'; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#e8eaed'; (e.currentTarget as HTMLElement).style.color = '#b0b8c4'; }}
                         >
                           Vrij
                         </div>
@@ -1574,12 +1574,12 @@ export default function PlannerPage() {
                       </td>
                       {weekColumns.map((week, wi) => {
                         const lesdag = week.lesDagen[rowIdx];
-                        if (!lesdag) return <td key={wi} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: 80 }} /></td>;
+                        if (!lesdag) return <td key={wi} style={{ ...td }}><div style={{ minHeight: 80, borderRadius: 12, background: '#e8eaed' }} /></td>;
                         const { datum, dag, vakantie, slots } = lesdag;
                         const isToday = datum === today;
                         if (vakantie) return <td key={wi} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center', padding: '0.5rem' }}><span style={{ fontSize: '0.92rem', color: '#ca8a04', fontWeight: 600 }}>{vakantie.naam}</span></td>;
                         return (
-                          <td key={wi} style={{ ...td, padding: 0, height: '1px', background: isToday ? '#f0fdf408' : undefined }}>
+                          <td key={wi} style={{ ...td, height: '1px', background: isToday ? '#f0fdf408' : undefined }}>
                             {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
                           </td>
                         );
@@ -1648,9 +1648,9 @@ export default function PlannerPage() {
                       {jlKlassen.map(klas => {
                         if (vakantie) return <td key={klas.id} style={{ ...td, background: '#fefce8', verticalAlign: 'middle', textAlign: 'center' }}><span style={{ fontSize: '0.88rem', color: '#ca8a04' }}>{vakantie.naam}</span></td>;
                         const slots = allRooster.filter(r => r.dag === dag && r.klas_id === klas.id).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dag, s.uur));
-                        if (slots.length === 0) return <td key={klas.id} style={{ ...td, background: '#fafafa' }}><div style={{ minHeight: 60 }} /></td>;
+                        if (slots.length === 0) return <td key={klas.id} style={{ ...td }}><div style={{ minHeight: 60, borderRadius: 12, background: '#e8eaed' }} /></td>;
                         return (
-                          <td key={klas.id} style={{ ...td, padding: 0, height: '1px' }}>
+                          <td key={klas.id} style={{ ...td, height: '1px' }}>
                             {slots.map(slot => renderCell(slot, datum, isBlokuurStart(dag, slot.uur)))}
                           </td>
                         );
