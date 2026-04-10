@@ -89,9 +89,10 @@ export default function PlannerPage() {
   const [zermeloToken, setZermeloToken] = useState('');
   const [zermeloStatus, setZermeloStatus] = useState('');
   const [zermeloPreview, setZermeloPreview] = useState<Array<{ dag: number; uur: number; vak: string; lokaal: string; groep: string; groepen?: string[]; start_time: string; end_time: string }> | null>(null);
-  const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview' | 'import'>('auth');
+  const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview'>('auth');
   const [zermeloMapping, setZermeloMapping] = useState<Record<string, number | 'new'>>({});
   const [zermeloWeekStart, setZermeloWeekStart] = useState('');
+  const [showNewKlasForm, setShowNewKlasForm] = useState(false);
 
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
@@ -101,14 +102,21 @@ export default function PlannerPage() {
   klassen.forEach((k, i) => { klasKleurMap[k.id] = klasKleuren[i % klasKleuren.length]; });
 
   /* ───── Fetching ───── */
-  const fetchPeriodes = useCallback(() => {
+  const fetchPeriodes = useCallback((forceSelectId?: number) => {
     fetch('/api/rooster-periodes').then(r => r.json()).then((data: RoosterPeriode[]) => {
       setPeriodes(data);
-      if (data.length > 0 && !selectedPeriodeId) {
-        // Selecteer de periode die vandaag geldig is, of de eerste
+      if (forceSelectId) {
+        setSelectedPeriodeId(forceSelectId);
+      } else if (data.length > 0 && !selectedPeriodeId) {
         const today = new Date().toISOString().split('T')[0];
+        // Zoek actieve periode, of de meest recente
         const actief = data.find(p => p.start_datum <= today && p.eind_datum >= today);
-        setSelectedPeriodeId(actief?.id || data[0].id);
+        if (actief) { setSelectedPeriodeId(actief.id); }
+        else {
+          // Neem de periode die het dichtst bij vandaag ligt
+          const sorted = [...data].sort((a, b) => Math.abs(new Date(a.start_datum).getTime() - Date.now()) - Math.abs(new Date(b.start_datum).getTime() - Date.now()));
+          setSelectedPeriodeId(sorted[0].id);
+        }
       }
     });
   }, [selectedPeriodeId]);
@@ -674,9 +682,9 @@ export default function PlannerPage() {
                   <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e' }}>Rooster importeren vanuit Zermelo</span>
                   {zermeloToken && (
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {['auth', 'fetch', 'preview', 'import'].map((s, i) => (
+                      {['auth', 'fetch', 'preview'].map((s, i) => (
                         <div key={s} style={{ width: 8, height: 8, borderRadius: '50%',
-                          background: (['auth', 'fetch', 'preview', 'import'].indexOf(zermeloStep) >= i) ? '#c4892e' : '#e5e7eb' }} />
+                          background: (['auth', 'fetch', 'preview'].indexOf(zermeloStep) >= i) ? '#c4892e' : '#e5e7eb' }} />
                       ))}
                     </div>
                   )}
@@ -710,6 +718,7 @@ export default function PlannerPage() {
                 {zermeloToken && zermeloStep === 'fetch' && (
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.82rem', color: '#2d8a4e', fontWeight: 600 }}>✓ Verbonden</span>
+                    <span style={{ fontSize: '0.78rem', color: '#6B7280' }}>Kies een lesweek:</span>
                     <input id="z-week" type="date" defaultValue={getMonday(new Date()).toISOString().split('T')[0]}
                       style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
                     <button onClick={async () => {
@@ -721,7 +730,6 @@ export default function PlannerPage() {
                       if (data.slots) {
                         setZermeloPreview(data.slots);
                         setZermeloWeekStart(ws);
-                        // Direct auto-mapping opbouwen
                         const uniqueGroepen = [...new Set(data.slots.map((s: { groep?: string }) => s.groep?.trim()).filter(Boolean))] as string[];
                         const autoMap: Record<string, number | 'new'> = {};
                         for (const g of uniqueGroepen) {
@@ -733,49 +741,47 @@ export default function PlannerPage() {
                         setZermeloMapping(autoMap);
                         setZermeloStep('preview');
                         const matched = Object.values(autoMap).filter(v => v !== 'new').length;
-                        setZermeloStatus(`${data.slots.length} lessen, ${matched}/${uniqueGroepen.length} groepen herkend`);
+                        setZermeloStatus(`${data.slots.length} lessen gevonden, ${matched}/${uniqueGroepen.length} groepen herkend`);
                       } else { setZermeloStatus(data.error || 'Ophalen mislukt'); }
                     }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
-                      Rooster ophalen
+                      Ophalen
                     </button>
                   </div>
                 )}
 
-                {/* Stap 3: Rooster preview + groepen koppelen + importeren */}
+                {/* Stap 3: Preview + koppelen + direct importeren */}
                 {zermeloToken && zermeloStep === 'preview' && zermeloPreview && (
                   <div>
-                    {/* Rooster tabel */}
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Rooster: {zermeloPreview.length} lessen</div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
-                      <thead><tr style={{ background: '#fef9c3' }}>
-                        <th style={{ padding: '4px 8px', textAlign: 'left' }}>Dag</th>
-                        <th style={{ padding: '4px 8px', textAlign: 'left' }}>Uur</th>
-                        <th style={{ padding: '4px 8px', textAlign: 'left' }}>Vak</th>
-                        <th style={{ padding: '4px 8px', textAlign: 'left' }}>Groep</th>
-                        <th style={{ padding: '4px 8px', textAlign: 'left' }}>Lokaal</th>
-                      </tr></thead>
-                      <tbody>
-                        {zermeloPreview.map((s, i) => (
-                          <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#fefce8' }}>
-                            <td style={{ padding: '3px 8px' }}>{dagNamenKort[s.dag - 1] || s.dag}</td>
-                            <td style={{ padding: '3px 8px' }}>{s.uur}</td>
-                            <td style={{ padding: '3px 8px', fontWeight: 600 }}>{s.vak}</td>
-                            <td style={{ padding: '3px 8px' }}>{s.groep}</td>
-                            <td style={{ padding: '3px 8px' }}>{s.lokaal}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    {/* Compact rooster preview */}
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                      {zermeloPreview.length} lessen gevonden
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
+                      {[1,2,3,4,5].map(dag => {
+                        const dagSlots = zermeloPreview.filter(s => s.dag === dag);
+                        if (dagSlots.length === 0) return null;
+                        return (
+                          <div key={dag} style={{ flex: '1 1 100px', background: '#fefce8', borderRadius: 6, padding: '0.3rem 0.4rem', border: '1px solid #fde68a', minWidth: 90 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.72rem', color: '#92400e', marginBottom: 2 }}>{dagNamenKort[dag - 1]}</div>
+                            {dagSlots.map((s, i) => (
+                              <div key={i} style={{ fontSize: '0.68rem', color: '#374151', lineHeight: 1.3 }}>
+                                <span style={{ color: '#94a3b8' }}>u{s.uur}</span> {s.vak} <span style={{ color: '#94a3b8' }}>({s.groep})</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
 
                     {/* Groepen koppelen */}
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Koppel groepen aan klassen</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Koppel Zermelo-groepen aan je klassen:</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.6rem' }}>
                       {Object.entries(zermeloMapping).map(([groep, value]) => {
                         const slotInfo = zermeloPreview.find(s => s.groep === groep);
                         const isMatched = value !== 'new' && value !== 0;
                         const isSkipped = value === 0;
                         return (
-                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.3rem 0.5rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 6, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
+                          <div key={groep} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.25rem 0.5rem', background: isSkipped ? '#f9fafb' : isMatched ? '#f0fdf4' : '#fffbeb', borderRadius: 6, border: `1px solid ${isSkipped ? '#e5e7eb' : isMatched ? '#bbf7d0' : '#fde68a'}` }}>
                             <div style={{ minWidth: 90, fontSize: '0.78rem' }}>
                               <span style={{ fontWeight: 700, color: '#374151' }}>{groep}</span>
                               {slotInfo && <span style={{ color: '#94a3b8', marginLeft: 4, fontSize: '0.68rem' }}>({slotInfo.vak})</span>}
@@ -806,20 +812,13 @@ export default function PlannerPage() {
                       })}
                     </div>
 
-                    {/* Periode + importeer */}
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid #f59e0b40' }}>
-                      <input id="z-naam" placeholder="Naam periode..." defaultValue={`Zermelo ${new Date().toLocaleDateString('nl-NL')}`}
-                        style={{ flex: '1 1 140px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                      <input id="z-start" type="date" defaultValue={zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0]}
-                        style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>t/m</span>
-                      <input id="z-eind" type="date" defaultValue={(() => { const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear(); return `${yr}-07-17`; })()}
-                        style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem', fontSize: '0.8rem' }} />
+                    {/* Importeer knop - datums automatisch, geen extra invoer nodig */}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid #f59e0b40' }}>
                       <button onClick={async () => {
-                        const naam = (document.getElementById('z-naam') as HTMLInputElement).value;
-                        const start = (document.getElementById('z-start') as HTMLInputElement).value;
-                        const eind = (document.getElementById('z-eind') as HTMLInputElement).value;
-                        if (!start || !eind) { setZermeloStatus('Vul start- en einddatum in'); return; }
+                        const startDatum = zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0];
+                        const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+                        const eindDatum = `${yr}-07-17`;
+                        const naam = `Zermelo ${new Date().toLocaleDateString('nl-NL')}`;
                         const activeCount = Object.values(zermeloMapping).filter(v => v !== 0).length;
                         if (activeCount === 0) { setZermeloStatus('Koppel minstens 1 groep aan een klas'); return; }
                         setZermeloStatus('Importeren...');
@@ -830,26 +829,29 @@ export default function PlannerPage() {
                             students: {},
                             mapping: zermeloMapping,
                             periode_naam: naam,
-                            start_datum: start,
-                            eind_datum: eind,
+                            start_datum: startDatum,
+                            eind_datum: eindDatum,
                           }) });
                         const data = await res.json();
                         if (data.success) {
                           const parts = [];
                           if (data.klassen_aangemaakt > 0) parts.push(`${data.klassen_aangemaakt} klassen aangemaakt`);
-                          parts.push(`${data.rooster_imported} roosterslots`);
-                          setZermeloStatus(`Import klaar: ${parts.join(' · ')}`);
+                          parts.push(`${data.rooster_imported} lessen geimporteerd`);
+                          setZermeloStatus(`Klaar! ${parts.join(', ')}`);
                           setZermeloPreview(null); setZermeloStep('auth'); setZermeloToken('');
                           setZermeloMapping({});
-                          setSelectedPeriodeId(data.periode.id);
-                          fetchPeriodes(); fetchAllRooster();
+                          // Refresh alles met de juiste periode geselecteerd
                           fetch('/api/klassen').then(r => r.json()).then(setKlassen);
+                          fetchPeriodes(data.periode.id);
                         } else { setZermeloStatus(data.error || 'Import mislukt'); }
-                      }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.35rem 0.8rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                      }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.4rem 1rem', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
                         Importeer rooster
                       </button>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                        Periode: {zermeloWeekStart || '...'} t/m {(() => { const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear(); return `${yr}-07-17`; })()}
+                      </span>
                       <button onClick={() => { setZermeloPreview(null); setZermeloStep('fetch'); setZermeloStatus(''); }}
-                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer', marginLeft: 'auto' }}>
                         ← Terug
                       </button>
                     </div>
@@ -882,6 +884,47 @@ export default function PlannerPage() {
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Klas toevoegen */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button onClick={() => setShowNewKlasForm(!showNewKlasForm)}
+                style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid #2d8a4e', background: showNewKlasForm ? '#2d8a4e' : '#f0fdf4', color: showNewKlasForm ? 'white' : '#2d8a4e', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
+                + Klas toevoegen
+              </button>
+              <span style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>
+                {klassen.length} klassen: {klassen.map(k => k.naam).join(', ')}
+              </span>
+            </div>
+            {showNewKlasForm && (
+              <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', padding: '0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', alignItems: 'center', flexWrap: 'wrap' }}>
+                <input id="nk-naam" placeholder="Naam (bijv. M3B)" style={{ flex: '1 1 80px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
+                <input id="nk-vak" placeholder="Vak (bijv. ne)" style={{ flex: '1 1 60px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
+                <input id="nk-lokaal" placeholder="Lokaal" style={{ flex: '0 1 60px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
+                <input id="nk-jaarlaag" placeholder="Jaarlaag (3)" style={{ flex: '0 1 50px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
+                <button onClick={async () => {
+                  const naam = (document.getElementById('nk-naam') as HTMLInputElement).value.trim();
+                  const vak = (document.getElementById('nk-vak') as HTMLInputElement).value.trim();
+                  const lokaal = (document.getElementById('nk-lokaal') as HTMLInputElement).value.trim();
+                  const jaarlaag = (document.getElementById('nk-jaarlaag') as HTMLInputElement).value.trim();
+                  if (!naam) return;
+                  const yr = new Date().getFullYear();
+                  const schooljaar = new Date().getMonth() >= 7 ? `${yr}-${yr+1}` : `${yr-1}-${yr}`;
+                  await fetch('/api/klassen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ naam, vak, lokaal, jaarlaag, schooljaar }) });
+                  fetch('/api/klassen').then(r => r.json()).then(setKlassen);
+                  (document.getElementById('nk-naam') as HTMLInputElement).value = '';
+                  (document.getElementById('nk-vak') as HTMLInputElement).value = '';
+                  (document.getElementById('nk-lokaal') as HTMLInputElement).value = '';
+                  (document.getElementById('nk-jaarlaag') as HTMLInputElement).value = '';
+                }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                  Toevoegen
+                </button>
+                <button onClick={() => setShowNewKlasForm(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
+                  Sluiten
+                </button>
               </div>
             )}
 

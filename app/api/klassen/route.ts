@@ -21,8 +21,9 @@ export async function GET() {
 export async function POST(req: Request) {
   const body = await req.json();
   const { error } = await supabase.from('klassen').insert({
-    naam: body.naam, vak: body.vak || 'Nederlands',
+    naam: body.naam, vak: body.vak || '',
     lokaal: body.lokaal || '', jaarlaag: body.jaarlaag || '',
+    schooljaar: body.schooljaar || '',
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
