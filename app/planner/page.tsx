@@ -1739,22 +1739,18 @@ export default function PlannerPage() {
                   <div style={{ fontSize: '0.92rem', color: '#94a3b8', marginTop: 2 }}>{panelKlas?.vak} · {panelKlas?.lokaal}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  {panelLes.id && (
-                    <>
-                      <button onClick={() => { setShowKopieerModal('kopieer'); setKopieerDoelKlas(''); setKopieerDoelDatum(''); setKopieerDoelUur(''); setKopieerStatus(''); }}
-                        title="Kopieer naar andere klas/datum"
-                        style={{ background: '#e0f2fe', border: '1px solid #7dd3fc', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#0369a1' }}>📋</button>
-                      <button onClick={() => { setShowKopieerModal('verplaats'); setKopieerDoelKlas(''); setKopieerDoelDatum(''); setKopieerDoelUur(''); setKopieerStatus(''); }}
-                        title="Verplaats naar andere klas/datum"
-                        style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#92400e' }}>↗️</button>
-                    </>
-                  )}
+                  <button onClick={() => { setShowKopieerModal('kopieer'); setKopieerDoelKlas(''); setKopieerDoelDatum(''); setKopieerDoelUur(''); setKopieerStatus(''); }}
+                    title="Kopieer naar andere klas/datum"
+                    style={{ background: '#e0f2fe', border: '1px solid #7dd3fc', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#0369a1' }}>📋</button>
+                  <button onClick={() => { setShowKopieerModal('verplaats'); setKopieerDoelKlas(''); setKopieerDoelDatum(''); setKopieerDoelUur(''); setKopieerStatus(''); }}
+                    title="Verplaats naar andere klas/datum"
+                    style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#92400e' }}>↗️</button>
                   <button onClick={() => setSelectedLesPanel(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8', padding: '4px 8px', borderRadius: 4 }}>✕</button>
                 </div>
               </div>
 
               {/* Kopieer/verplaats form */}
-              {showKopieerModal && panelLes.id && (
+              {showKopieerModal && (
                 <div style={{ padding: '0.6rem 0.8rem', background: showKopieerModal === 'kopieer' ? '#f0f9ff' : '#fffbeb', borderBottom: `2px solid ${showKopieerModal === 'kopieer' ? '#7dd3fc' : '#fcd34d'}`, flexShrink: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: '0.95rem', color: showKopieerModal === 'kopieer' ? '#0369a1' : '#92400e', marginBottom: 6 }}>
                     {showKopieerModal === 'kopieer' ? '📋 Kopieer les naar...' : '↗️ Verplaats les naar...'}
@@ -1781,7 +1777,7 @@ export default function PlannerPage() {
                         const res = await fetch('/api/lessen/kopie', {
                           method: 'POST', headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            bron_id: panelLes.id,
+                            ...(panelLes.id ? { bron_id: panelLes.id } : { bron_data: panelLes }),
                             doel_klas_id: kopieerDoelKlas,
                             doel_datum: kopieerDoelDatum,
                             doel_uur: kopieerDoelUur || null,
