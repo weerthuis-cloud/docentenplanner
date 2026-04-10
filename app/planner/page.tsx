@@ -1352,7 +1352,7 @@ export default function PlannerPage() {
 
         {/* ═══ WEEKPLANNER ═══ */}
         {view === 'week' && (
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 4, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
             <thead><tr>
               <th style={{ ...th, width: 42 }}>Uur</th>
               {days.map((d, idx) => {
@@ -1548,7 +1548,7 @@ export default function PlannerPage() {
           });
 
           return (
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 4, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
               <thead><tr>
                 <th style={{ ...th, width: 42 }} />
                 {weekColumns.map((week, wi) => {
@@ -1613,7 +1613,7 @@ export default function PlannerPage() {
           });
 
           return (
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 4, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
               <thead><tr>
                 <th style={{ ...th, width: 72 }}>Dag</th>
                 {jlKlassen.map(klas => {
