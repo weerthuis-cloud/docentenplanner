@@ -109,6 +109,12 @@ export default function PlannerPage() {
   const [vervallenReden, setVervallenReden] = useState('');
   const [editVervallenId, setEditVervallenId] = useState<number | null>(null);
 
+  // Overzicht aanpasbaar
+  const [overzichtItems, setOverzichtItems] = useState<Array<{ id: number; type: string; titel: string; inhoud: string; datum: string | null; kleur: string }>>([]);
+  const [overzichtInstellingen, setOverzichtInstellingen] = useState<Record<string, boolean>>({ vandaag: true, lege_lessen: true, komende_toetsen: true, notities: true, agenda: true });
+  const [showOverzichtSettings, setShowOverzichtSettings] = useState(false);
+  const [editOvItemId, setEditOvItemId] = useState<number | null>(null);
+
   const days = getDaysOfWeek(weekStart);
   const weekEnd = days[4];
   const today = new Date().toISOString().split('T')[0];
@@ -179,10 +185,22 @@ export default function PlannerPage() {
     fetch('/api/vervallen').then(r => r.json()).then(setVervallen);
   }, []);
 
+  const fetchOverzichtItems = useCallback(() => {
+    fetch('/api/overzicht').then(r => r.json()).then(setOverzichtItems);
+  }, []);
+  const fetchOverzichtInstellingen = useCallback(() => {
+    fetch('/api/overzicht?wat=instellingen').then(r => r.json()).then((data: Array<{ blok: string; zichtbaar: boolean }>) => {
+      const map: Record<string, boolean> = {};
+      data.forEach(d => { map[d.blok] = d.zichtbaar; });
+      setOverzichtInstellingen(map);
+    });
+  }, []);
+
   useEffect(() => { fetchAllRooster(); }, [fetchAllRooster]);
   useEffect(() => { fetchLessen(); }, [fetchLessen]);
   useEffect(() => { fetchToetsen(); }, [fetchToetsen]);
   useEffect(() => { fetchVervallen(); }, [fetchVervallen]);
+  useEffect(() => { fetchOverzichtItems(); fetchOverzichtInstellingen(); }, [fetchOverzichtItems, fetchOverzichtInstellingen]);
   useEffect(() => { if (klassen.length > 0 && !selectedKlasId) setSelectedKlasId(klassen[0].id); }, [klassen, selectedKlasId]);
   useEffect(() => { if (klassen.length > 0 && !selectedJaarlaag) setSelectedJaarlaag([...new Set(klassen.map(k => k.jaarlaag))][0] || ''); }, [klassen, selectedJaarlaag]);
 
@@ -572,10 +590,48 @@ export default function PlannerPage() {
             return diffDays >= 0 && diffDays <= 14;
           }).sort((a, b) => new Date(a.datum).getTime() - new Date(b.datum).getTime());
 
+          const ovNotities = overzichtItems.filter(i => i.type === 'notitie');
+          const ovAgenda = overzichtItems.filter(i => i.type === 'agenda').sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
+          const blokZichtbaar = (blok: string) => overzichtInstellingen[blok] !== false;
+
           return (
             <div style={{ padding: '1.5rem', maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+              {/* Instellingen knop */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-1rem' }}>
+                <button onClick={() => setShowOverzichtSettings(!showOverzichtSettings)}
+                  style={{ background: showOverzichtSettings ? '#f3f4f6' : 'transparent', border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '1.0rem', color: '#6B7280' }}>
+                  ⚙ Aanpassen
+                </button>
+              </div>
+
+              {/* Blokken toggle panel */}
+              {showOverzichtSettings && (
+                <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '0.75rem 1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#374151' }}>Blokken tonen:</span>
+                  {[
+                    { key: 'vandaag', label: 'Vandaag' },
+                    { key: 'lege_lessen', label: 'Lege lessen' },
+                    { key: 'komende_toetsen', label: 'Komende toetsen' },
+                    { key: 'notities', label: 'Notities' },
+                    { key: 'agenda', label: 'Agenda' },
+                  ].map(b => (
+                    <label key={b.key} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: '0.95rem' }}>
+                      <input type="checkbox" checked={blokZichtbaar(b.key)}
+                        onChange={async () => {
+                          const newVal = !blokZichtbaar(b.key);
+                          setOverzichtInstellingen(prev => ({ ...prev, [b.key]: newVal }));
+                          await fetch('/api/overzicht', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'toggle_blok', blok: b.key, zichtbaar: newVal }) });
+                        }} />
+                      {b.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+
               {/* Vandaag */}
-              <div>
+              {blokZichtbaar('vandaag') && <div>
                 <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#2d8a4e', marginBottom: '0.75rem' }}>Vandaag ({dagNamen[todayDagNum - 1] || 'Weekend'})</h2>
                 {todayVakantie ? (
                   <div style={{ padding: '1rem', background: '#fef2f2', borderRadius: 8, color: '#b91c1c', fontSize: '1.18rem', fontWeight: 600 }}>{todayVakantie.naam}</div>
@@ -656,10 +712,10 @@ export default function PlannerPage() {
                     })}
                   </div>
                 )}
-              </div>
+              </div>}
 
               {/* Lege lessen */}
-              {emptyLessons.length > 0 && (
+              {blokZichtbaar('lege_lessen') && emptyLessons.length > 0 && (
                 <div>
                   <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#d97706', marginBottom: '0.75rem' }}>Lege lessen deze week</h2>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -681,7 +737,7 @@ export default function PlannerPage() {
               )}
 
               {/* Komende toetsen */}
-              {upcomingToetsen.length > 0 && (
+              {blokZichtbaar('komende_toetsen') && upcomingToetsen.length > 0 && (
                 <div>
                   <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#c95555', marginBottom: '0.75rem' }}>Komende toetsen</h2>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -703,6 +759,119 @@ export default function PlannerPage() {
                   </div>
                 </div>
               )}
+
+              {/* Notities */}
+              {blokZichtbaar('notities') && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#8b5ec0' }}>Notities</h2>
+                    <button onClick={async () => {
+                      const res = await fetch('/api/overzicht', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'notitie', titel: '', inhoud: '', kleur: '#8b5ec0' }) });
+                      const item = await res.json();
+                      fetchOverzichtItems();
+                      setEditOvItemId(item.id);
+                    }}
+                      style={{ background: '#faf5ff', border: '1px solid #d8b4fe', color: '#8b5ec0', borderRadius: 6, padding: '2px 10px', fontSize: '1.0rem', fontWeight: 700, cursor: 'pointer' }}>+</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {ovNotities.length === 0 && (
+                      <div style={{ padding: '0.75rem 1rem', background: '#f9fafb', borderRadius: 6, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen notities. Klik + om er een toe te voegen.</div>
+                    )}
+                    {ovNotities.map(item => (
+                      <div key={item.id} style={{ padding: '0.75rem 1rem', background: 'white', border: '1px solid #d8b4fe30', borderLeft: `3px solid ${item.kleur}`, borderRadius: 6 }}>
+                        {editOvItemId === item.id ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <input value={item.titel} onChange={e => setOverzichtItems(prev => prev.map(p => p.id === item.id ? { ...p, titel: e.target.value } : p))}
+                              placeholder="Titel..." style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: '1.05rem', fontWeight: 700 }} />
+                            <textarea value={item.inhoud} onChange={e => setOverzichtItems(prev => prev.map(p => p.id === item.id ? { ...p, inhoud: e.target.value } : p))}
+                              placeholder="Inhoud..." rows={3} style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: '1.0rem', resize: 'vertical' }} />
+                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                              <button onClick={async () => {
+                                await fetch('/api/overzicht', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: item.id, titel: item.titel, inhoud: item.inhoud }) });
+                                setEditOvItemId(null); fetchOverzichtItems();
+                              }} style={{ background: '#8b5ec0', color: 'white', border: 'none', borderRadius: 4, padding: '4px 12px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer' }}>Opslaan</button>
+                              <button onClick={() => { setEditOvItemId(null); fetchOverzichtItems(); }}
+                                style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 12px', fontSize: '0.95rem', cursor: 'pointer', color: '#6B7280' }}>Annuleer</button>
+                              <button onClick={async () => {
+                                await fetch(`/api/overzicht?id=${item.id}`, { method: 'DELETE' });
+                                setEditOvItemId(null); fetchOverzichtItems();
+                              }} style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: '0.95rem', cursor: 'pointer', marginLeft: 'auto' }}>Verwijder</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div onClick={() => setEditOvItemId(item.id)} style={{ cursor: 'pointer' }}>
+                            {item.titel && <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#374151', marginBottom: 2 }}>{item.titel}</div>}
+                            <div style={{ fontSize: '1.0rem', color: '#6B7280', whiteSpace: 'pre-wrap' }}>{item.inhoud || 'Klik om te bewerken...'}</div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Agenda */}
+              {blokZichtbaar('agenda') && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#2563EB' }}>Agenda</h2>
+                    <button onClick={async () => {
+                      const res = await fetch('/api/overzicht', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'agenda', titel: '', inhoud: '', datum: new Date().toISOString().split('T')[0], kleur: '#2563EB' }) });
+                      const item = await res.json();
+                      fetchOverzichtItems();
+                      setEditOvItemId(item.id);
+                    }}
+                      style={{ background: '#eff6ff', border: '1px solid #93c5fd', color: '#2563EB', borderRadius: 6, padding: '2px 10px', fontSize: '1.0rem', fontWeight: 700, cursor: 'pointer' }}>+</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {ovAgenda.length === 0 && (
+                      <div style={{ padding: '0.75rem 1rem', background: '#f9fafb', borderRadius: 6, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen agenda-items. Klik + om er een toe te voegen.</div>
+                    )}
+                    {ovAgenda.map(item => {
+                      const isPast = item.datum && item.datum < today;
+                      return (
+                        <div key={item.id} style={{ padding: '0.75rem 1rem', background: isPast ? '#f9fafb' : 'white', border: `1px solid #93c5fd30`, borderLeft: `3px solid ${isPast ? '#d1d5db' : '#2563EB'}`, borderRadius: 6, opacity: isPast ? 0.6 : 1 }}>
+                          {editOvItemId === item.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                <input type="date" value={item.datum || ''} onChange={e => setOverzichtItems(prev => prev.map(p => p.id === item.id ? { ...p, datum: e.target.value } : p))}
+                                  style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: '1.0rem' }} />
+                                <input value={item.titel} onChange={e => setOverzichtItems(prev => prev.map(p => p.id === item.id ? { ...p, titel: e.target.value } : p))}
+                                  placeholder="Wat staat er op de planning?" style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: '1.05rem', fontWeight: 700 }} />
+                              </div>
+                              <textarea value={item.inhoud} onChange={e => setOverzichtItems(prev => prev.map(p => p.id === item.id ? { ...p, inhoud: e.target.value } : p))}
+                                placeholder="Details (optioneel)..." rows={2} style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: '1.0rem', resize: 'vertical' }} />
+                              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                <button onClick={async () => {
+                                  await fetch('/api/overzicht', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: item.id, titel: item.titel, inhoud: item.inhoud, datum: item.datum }) });
+                                  setEditOvItemId(null); fetchOverzichtItems();
+                                }} style={{ background: '#2563EB', color: 'white', border: 'none', borderRadius: 4, padding: '4px 12px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer' }}>Opslaan</button>
+                                <button onClick={() => { setEditOvItemId(null); fetchOverzichtItems(); }}
+                                  style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 12px', fontSize: '0.95rem', cursor: 'pointer', color: '#6B7280' }}>Annuleer</button>
+                                <button onClick={async () => {
+                                  await fetch(`/api/overzicht?id=${item.id}`, { method: 'DELETE' });
+                                  setEditOvItemId(null); fetchOverzichtItems();
+                                }} style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: '0.95rem', cursor: 'pointer', marginLeft: 'auto' }}>Verwijder</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div onClick={() => setEditOvItemId(item.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <span style={{ fontSize: '1.0rem', color: '#9CA3AF', minWidth: 70 }}>{item.datum ? formatDate(item.datum) : '—'}</span>
+                              <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#374151' }}>{item.titel || 'Nieuw item...'}</span>
+                              {item.inhoud && <span style={{ fontSize: '0.95rem', color: '#9CA3AF', marginLeft: 'auto' }}>{item.inhoud.slice(0, 40)}{item.inhoud.length > 40 ? '...' : ''}</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
             </div>
           );
         })()}
