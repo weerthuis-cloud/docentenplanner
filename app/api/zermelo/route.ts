@@ -14,26 +14,63 @@ import { supabase } from '@/lib/supabase';
     -> Importeert rooster: maakt klassen aan (via mapping), maakt roosterperiode + slots
 */
 
-function epochToHour(startTimeSlot: number): { dag: number; uur: number } {
-  const d = new Date(startTimeSlot * 1000);
-  const dag = d.getDay();
-  const hour = d.getHours();
-  const minutes = d.getMinutes();
+/*
+  80-minutenrooster mapping
 
-  let uur = 1;
-  const timeMin = hour * 60 + minutes;
-  if (timeMin < 510) uur = 1;
-  else if (timeMin < 560) uur = 1;
-  else if (timeMin < 610) uur = 2;
-  else if (timeMin < 660) uur = 3;
-  else if (timeMin < 720) uur = 4;
-  else if (timeMin < 780) uur = 5;
-  else if (timeMin < 840) uur = 6;
-  else if (timeMin < 900) uur = 7;
-  else if (timeMin < 960) uur = 8;
-  else uur = 9;
+  Onderbouw (havo 1-3, vwo 1-3, mavo 1-2):
+    uur 1: 09:00-09:40  |  uur 2: 09:40-10:20  |  uur 3: 10:20-11:00
+    PAUZE: 11:00-11:40
+    uur 4: 11:40-12:20  |  uur 5: 12:20-13:00  |  uur 6: 13:00-13:40
+    PAUZE: 13:40-14:00
+    uur 7: 14:00-14:40  |  uur 8: 14:40-15:20  |  uur 9: 15:20-16:00  |  uur 10: 16:00-16:40
 
-  return { dag, uur };
+  Bovenbouw (havo 4-5, vwo 4-6, mavo 3-4):
+    uur 1: 09:00-09:40  |  uur 2: 09:40-10:20  |  uur 3: 10:20-11:00
+    uur 4: 11:00-11:40
+    PAUZE: 11:40-12:20
+    uur 5: 12:20-13:00  |  uur 6: 13:00-13:40  |  uur 7: 13:40-14:20
+    PAUZE: 14:20-14:40
+    uur 8: 14:40-15:20  |  uur 9: 15:20-16:00  |  uur 10: 16:00-16:40
+*/
+
+function isBovenbouwGroep(groep: string): boolean {
+  const g = groep.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Bovenbouw: havo 4-5, vwo 4-6, mavo 3-4, atheneum 4-6
+  // Patterns: h4, h5, v4, v5, v6, m3, m4, a4, a5, a6
+  return /^h[45]|^v[456]|^m[34]|^a[456]/.test(g);
+}
+
+function epochToHour(appt: { start: number; startTimeSlot?: number; groups?: string[] }): { dag: number; uur: number } {
+  const d = new Date(appt.start * 1000);
+  const dag = d.getDay(); // 0=zo, 1=ma, ..., 5=vr
+  const timeMin = d.getHours() * 60 + d.getMinutes();
+  const groep = appt.groups?.[0] || '';
+  const boven = isBovenbouwGroep(groep);
+
+  // Uur 1-3 zijn gelijk voor iedereen
+  if (timeMin < 580) return { dag, uur: 1 };       // 09:00
+  if (timeMin < 620) return { dag, uur: 2 };       // 09:40
+  if (timeMin < 660) return { dag, uur: 3 };       // 10:20
+
+  if (boven) {
+    // Bovenbouw: uur 4 om 11:00, pauze 11:40-12:20
+    if (timeMin < 700) return { dag, uur: 4 };     // 11:00
+    if (timeMin < 780) return { dag, uur: 5 };     // 12:20
+    if (timeMin < 820) return { dag, uur: 6 };     // 13:00
+    if (timeMin < 860) return { dag, uur: 7 };     // 13:40
+    if (timeMin < 920) return { dag, uur: 8 };     // 14:40
+    if (timeMin < 960) return { dag, uur: 9 };     // 15:20
+    return { dag, uur: 10 };                         // 16:00
+  } else {
+    // Onderbouw: pauze 11:00-11:40, uur 4 om 11:40
+    if (timeMin < 740) return { dag, uur: 4 };     // 11:40
+    if (timeMin < 780) return { dag, uur: 5 };     // 12:20
+    if (timeMin < 820) return { dag, uur: 6 };     // 13:00
+    if (timeMin < 880) return { dag, uur: 7 };     // 14:00
+    if (timeMin < 920) return { dag, uur: 8 };     // 14:40
+    if (timeMin < 960) return { dag, uur: 9 };     // 15:20
+    return { dag, uur: 10 };                         // 16:00
+  }
 }
 
 // Helper: Zermelo API call
@@ -119,7 +156,11 @@ export async function POST(req: Request) {
       for (const appt of appointments) {
         if (appt.cancelled || appt.type !== 'lesson') continue;
 
-        const { dag, uur } = epochToHour(appt.start);
+        const { dag, uur } = epochToHour({
+          start: appt.start,
+          startTimeSlot: appt.startTimeSlot,
+          groups: appt.groups,
+        });
         if (dag < 1 || dag > 5) continue;
 
         const key = `${dag}-${uur}`;

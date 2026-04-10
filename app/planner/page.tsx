@@ -23,6 +23,7 @@ function stripHtml(html: string): string {
 const dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const dagNamenKort = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
 const klasKleuren = ['#2d8a4e', '#4a80d4', '#8b5ec0', '#c95555', '#c4892e', '#2ba0b0', '#b04e7a', '#6060c0'];
+const uurTijden: Record<number, string> = { 1: '09:00', 2: '09:40', 3: '10:20', 4: '11:00', 5: '12:20', 6: '13:00', 7: '13:40', 8: '14:40', 9: '15:20', 10: '16:00' };
 const toetsKleuren: Record<string, string> = { PW: '#c95555', SO: '#c4892e', PO: '#8b5ec0', MO: '#2d8a4e', SE: '#4a80d4', overig: '#8b95a5' };
 const toetsLabels: Record<string, string> = { PW: 'Proefwerk', SO: 'Schriftelijke overhoring', PO: 'Praktische opdracht', MO: 'Mondeling', SE: 'Schoolexamen', overig: 'Overig' };
 
@@ -935,9 +936,12 @@ export default function PlannerPage() {
                 {dagNamen.map(n => <th key={n} style={th}>{n}</th>)}
               </tr></thead>
               <tbody>
-                {[1,2,3,4,5,6,7,8,9].map(uur => (
+                {[1,2,3,4,5,6,7,8,9,10].map(uur => (
                   <tr key={uur}>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.85rem', padding: '0.3rem' }}>{uur}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.85rem', padding: '0.2rem 0.15rem' }}>
+                      {uur}
+                      <div style={{ fontSize: '0.55rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
+                    </td>
                     {[1,2,3,4,5].map(dag => {
                       const slot = getSlot(dag, uur); const klas = slot ? klassen.find(k => k.id === slot.klas_id) : null;
                       const kleur = slot ? (klasKleurMap[slot.klas_id] || '#6B7280') : undefined;
@@ -984,9 +988,12 @@ export default function PlannerPage() {
               })}
             </tr></thead>
             <tbody>
-              {[1,2,3,4,5,6,7,8,9].map(uur => (
+              {[1,2,3,4,5,6,7,8,9,10].map(uur => (
                 <tr key={uur}>
-                  <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.3rem' }}>{uur}</td>
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: '#9CA3AF', background: '#fafafa', fontSize: '0.82rem', padding: '0.2rem 0.15rem' }}>
+                    {uur}
+                    <div style={{ fontSize: '0.55rem', fontWeight: 400, color: '#b0b8c4', lineHeight: 1 }}>{uurTijden[uur]}</div>
+                  </td>
                   {days.map((d, idx) => {
                     const dag = idx + 1; const slot = getSlot(dag, uur); const vakantie = isInVakantie(d, vakanties);
                     /* Exact zelfde patroon als rooster: blokuur-second → null */
