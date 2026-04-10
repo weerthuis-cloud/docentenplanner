@@ -354,7 +354,7 @@ export default function PlannerPage() {
     const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
 
     return (
-      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 10, overflow: 'hidden', background: hasToets ? toetsAccent + '08' : kleur + '08', cursor: 'pointer', position: 'relative', border: `1px solid ${hasToets ? toetsAccent : kleur}18` }}
+      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 12, overflow: 'hidden', background: hasToets ? toetsAccent + '08' : kleur + '08', cursor: 'pointer', position: 'relative', border: `1px solid ${hasToets ? toetsAccent : kleur}18` }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
         {/* Header met gradient */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '4px 6px', background: `linear-gradient(180deg, ${hasToets ? toetsAccent : kleur}20 0%, ${hasToets ? toetsAccent : kleur}08 100%)`, flexWrap: 'wrap', flexShrink: 0 }}>
@@ -430,7 +430,7 @@ export default function PlannerPage() {
 
   /* ───── Styles ───── */
   const th: React.CSSProperties = { padding: '0.5rem 0.4rem', fontWeight: 700, fontSize: '1.05rem', textAlign: 'center', background: '#f1f5f9', color: '#64748b', borderBottom: '1px solid #e2e8f0' };
-  const td: React.CSSProperties = { padding: '4px 3px', borderBottom: 'none', borderRight: 'none', verticalAlign: 'top' };
+  const td: React.CSSProperties = { padding: 8, borderBottom: 'none', borderRight: 'none', verticalAlign: 'top' };
   const navBtn: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '1.0rem', color: '#334155' };
 
   /* ═══ Two-week data for klas/jaarlaag views ═══ */
@@ -1211,7 +1211,7 @@ export default function PlannerPage() {
                 </div>
 
                 {/* Rooster grid met weekweergave */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderRadius: 12, overflow: 'hidden', border: '1px solid #d4d4d4' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderRadius: 20, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
                   <thead><tr>
                     <th style={{ ...th, width: 50 }}>Uur</th>
                     {roosterDays.map((d, idx) => {
@@ -1352,7 +1352,7 @@ export default function PlannerPage() {
 
         {/* ═══ WEEKPLANNER ═══ */}
         {view === 'week' && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: '#f1f5f9', borderRadius: 20, overflow: 'hidden' }}>
             <thead><tr>
               <th style={{ ...th, width: 42 }}>Uur</th>
               {days.map((d, idx) => {
@@ -1463,7 +1463,7 @@ export default function PlannerPage() {
                           style={{
                             background: hasToets ? toetsAccent + '08' : kleur + '08',
                             border: `1px solid ${hasToets ? toetsAccent : kleur}18`,
-                            borderRadius: 10,
+                            borderRadius: 12,
                             overflow: 'hidden',
                             cursor: 'pointer',
                             transition: 'all 0.12s ease',
@@ -1504,7 +1504,7 @@ export default function PlannerPage() {
                         </div>
                       ) : (
                         <div style={{
-                          border: '2px dashed #e2e8f0', borderRadius: 10,
+                          border: '2px dashed #e2e8f0', borderRadius: 12,
                           height: '100%', minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: '#cbd5e1', fontSize: '0.82rem',
                           transition: 'all 0.12s',
@@ -1548,7 +1548,7 @@ export default function PlannerPage() {
           });
 
           return (
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: '#f1f5f9', borderRadius: 20, overflow: 'hidden' }}>
               <thead><tr>
                 <th style={{ ...th, width: 42 }} />
                 {weekColumns.map((week, wi) => {
@@ -1613,7 +1613,7 @@ export default function PlannerPage() {
           });
 
           return (
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', background: 'white' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: '#f1f5f9', borderRadius: 20, overflow: 'hidden' }}>
               <thead><tr>
                 <th style={{ ...th, width: 72 }}>Dag</th>
                 {jlKlassen.map(klas => {
