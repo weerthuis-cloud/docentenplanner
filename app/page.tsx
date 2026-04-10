@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 // Types
 interface Klas { id: number; naam: string; vak: string; lokaal: string; jaarlaag: string; aantal_leerlingen: number; }
 interface Leerling { id: number; klas_id: number; voornaam: string; achternaam: string; foto_url: string | null; foto_data: string | null; seat_row: number; seat_col: number; boek_titel: string; boek_auteur: string; boek_kleur: string; }
-interface Les { id: number; klas_id: number; datum: string; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; }
+interface Les { id: number; klas_id: number; datum: string; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; custom_velden?: Record<string, string>; }
+interface LesveldConfig { id: number; veld_key: string; label: string; icoon: string; zichtbaar: boolean; volgorde: number; is_custom: boolean; dashboard_binnenkomst: boolean; dashboard_les: boolean; }
 interface Layout { layout_data: (number | null)[][]; }
 
 type Mode = 'binnenkomst' | 'les' | 'lezen';
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [leerlingen, setLeerlingen] = useState<Leerling[]>([]);
   const [les, setLes] = useState<Les | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
+  const [lesveldConfig, setLesveldConfig] = useState<LesveldConfig[]>([]);
   const [mode, setMode] = useState<Mode>('binnenkomst');
   const [clock, setClock] = useState('');
   const [date, setDate] = useState('');
@@ -67,21 +69,24 @@ export default function Dashboard() {
 
   // Fetch data
   const fetchData = useCallback(async () => {
-    const [kRes, lRes, lesRes, layRes] = await Promise.all([
+    const [kRes, lRes, lesRes, layRes, lvRes] = await Promise.all([
       fetch('/api/klassen'),
       fetch(`/api/leerlingen?klas_id=${activeKlas}`),
       fetch(`/api/lessen?klas_id=${activeKlas}&datum=${new Date().toISOString().split('T')[0]}`),
       fetch(`/api/layout?klas_id=${activeKlas}&actief=true`),
+      fetch('/api/lesvelden'),
     ]);
     const kData = kRes.ok ? await kRes.json().catch(() => []) : [];
     const lData = lRes.ok ? await lRes.json().catch(() => []) : [];
     const lesData = lesRes.ok ? await lesRes.json().catch(() => null) : null;
     const layData = layRes.ok ? await layRes.json().catch(() => null) : null;
+    const lvData = lvRes.ok ? await lvRes.json().catch(() => []) : [];
 
     setKlassen(kData);
     setLeerlingen(lData);
     setLes(lesData);
     setLayout(layData);
+    setLesveldConfig(lvData);
 
     const newState: Record<number, LeerlingState> = {};
     lData.forEach((l: Leerling) => {
@@ -131,6 +136,18 @@ export default function Dashboard() {
   // Helpers
   const activeKlasObj = klassen.find(k => k.id === activeKlas);
   const getInitials = (l: Leerling) => `${l.voornaam[0]}${l.achternaam[0]}`.toUpperCase();
+
+  // Derive visible fields per mode
+  const binnenkomstVelden = lesveldConfig.filter(f => f.dashboard_binnenkomst && f.zichtbaar).sort((a, b) => a.volgorde - b.volgorde);
+  const lesVelden = lesveldConfig.filter(f => f.dashboard_les && f.zichtbaar).sort((a, b) => a.volgorde - b.volgorde);
+
+  // Helper to get field value from les
+  const getVeldValue = (key: string): string => {
+    if (!les) return '';
+    if (key.startsWith('custom_')) return les.custom_velden?.[key] || '';
+    const value = (les as any)[key];
+    return typeof value === 'string' ? value : '';
+  };
 
   const toggleStatus = (id: number, status: string) => {
     setLState(prev => {
@@ -518,10 +535,10 @@ export default function Dashboard() {
               {renderGrid()}
             </div>
           </div>
-          {/* Rechts: twee tekstvlakken */}
-          <div className="flex flex-col p-8 gap-6" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
+          {/* Rechts: welkom + dynamische velden */}
+          <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
             {/* Welkom blok */}
-            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+            <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: binnenkomstVelden.length === 0 ? 1 : undefined, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <h2 className="font-black uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.6rem', marginBottom: 12 }}>
                 Welkom bij {activeKlasObj?.vak || 'de les'}
               </h2>
@@ -546,15 +563,17 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Startopdracht blok */}
-            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '28px 32px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 12 }}>
-                Startopdracht
-              </h3>
-              <div className="text-lg leading-relaxed text-gray-700">
-                {les?.startopdracht || <span className="text-gray-400 italic">Stel een startopdracht in via de planner</span>}
+            {/* Dynamische velden */}
+            {binnenkomstVelden.map(veld => (
+              <div key={veld.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>
+                  {veld.icoon} {veld.label}
+                </h3>
+                <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
+                  {getVeldValue(veld.veld_key) || <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Stel in via de planner</span>}
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
@@ -569,37 +588,18 @@ export default function Dashboard() {
               {renderGrid()}
             </div>
           </div>
-          {/* Rechts: drie tekstvlakken */}
+          {/* Rechts: dynamische velden */}
           <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f9f5' }}>
-            {/* Terugkijken */}
-            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>Terugkijken</h3>
-              <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
-                {les?.terugkijken || <span className="text-gray-400 italic">Wat hebben we vorige les gedaan?</span>}
-              </div>
-            </div>
-
-            {/* Programma + Leerdoelen */}
-            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>Programma</h3>
-              <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
-                {les?.programma || <span className="text-gray-400 italic">Wat gaan we deze les doen?</span>}
-              </div>
-              {les?.leerdoelen && (
-                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #c5cdd6' }}>
-                  <h4 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '0.85rem', marginBottom: 6 }}>Leerdoelen</h4>
-                  <div className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{les.leerdoelen}</div>
+            {lesVelden.map(veld => (
+              <div key={veld.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>
+                  {veld.icoon} {veld.label}
+                </h3>
+                <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
+                  {getVeldValue(veld.veld_key) || <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Stel in via de planner</span>}
                 </div>
-              )}
-            </div>
-
-            {/* Maak-/huiswerk */}
-            <div style={{ background: '#f0f8f2', border: '1.5px solid #b8d8be', borderRadius: 16, padding: '24px 28px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-              <h3 className="font-bold uppercase tracking-wide" style={{ color: '#1a7a2e', fontSize: '1.1rem', marginBottom: 10 }}>Maak-/huiswerk</h3>
-              <div className="text-base leading-relaxed text-gray-700 whitespace-pre-line">
-                {les?.huiswerk || <span className="text-gray-400 italic">Wat moeten leerlingen thuis doen?</span>}
               </div>
-            </div>
+            ))}
           </div>
         </div>
       )}

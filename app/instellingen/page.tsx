@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 /* ───── Types ───── */
 interface Klas { id: number; naam: string; vak: string; jaarlaag: string; lokaal: string; }
 interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; type?: 'vakantie' | 'toetsweek' | 'studiedag'; }
-interface LesveldConfig { id: number; veld_key: string; label: string; icoon: string; zichtbaar: boolean; volgorde: number; is_custom: boolean; }
+interface LesveldConfig { id: number; veld_key: string; label: string; icoon: string; zichtbaar: boolean; volgorde: number; is_custom: boolean; dashboard_binnenkomst: boolean; dashboard_les: boolean; }
 interface RoosterPeriode { id: number; naam: string; start_datum: string; eind_datum: string; bron: string; created_at: string; }
 
 function formatDate(d: string) { return new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }); }
@@ -198,6 +198,59 @@ export default function InstellingenPage() {
                   setNewLesveldLabel(''); setNewLesveldIcoon('📌');
                   fetchLesveldConfig();
                 }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer' }}>+ Toevoegen</button>
+              </div>
+
+              {/* Dashboard weergave sectie */}
+              <div style={{ marginTop: '2rem', background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.25rem' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#374151', marginBottom: '0.25rem' }}>Dashboard weergave</h3>
+                <p style={{ fontSize: '0.95rem', color: '#9CA3AF', marginBottom: '1rem' }}>Bepaal welke velden zichtbaar zijn op het dashboard in de binnenkomst- en lesmodus.</p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                        <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.9rem', fontWeight: 700, color: '#6B7280' }}>Veld</th>
+                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.9rem', fontWeight: 700, color: '#6B7280' }}>Binnenkomst</th>
+                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.9rem', fontWeight: 700, color: '#6B7280' }}>Les</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lesveldConfig.filter(f => f.zichtbaar).sort((a, b) => a.volgorde - b.volgorde).map(f => (
+                        <tr key={f.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                          <td style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '1.1rem' }}>{f.icoon}</span>
+                            <span style={{ fontSize: '0.95rem', color: '#374151' }}>{f.label}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={f.dashboard_binnenkomst || false}
+                              style={{ width: 18, height: 18, cursor: 'pointer' }}
+                              onChange={async (e) => {
+                                const newVal = e.target.checked;
+                                setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, dashboard_binnenkomst: newVal } : p));
+                                await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: f.id, dashboard_binnenkomst: newVal }) });
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={f.dashboard_les || false}
+                              style={{ width: 18, height: 18, cursor: 'pointer' }}
+                              onChange={async (e) => {
+                                const newVal = e.target.checked;
+                                setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, dashboard_les: newVal } : p));
+                                await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: f.id, dashboard_les: newVal }) });
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
