@@ -1294,10 +1294,10 @@ export default function PlannerPage() {
                                 {klassen.map((k, i) => <option key={k.id} value={k.id} style={{ color: klasKleuren[i % klasKleuren.length] }}>{k.naam} ({k.lokaal})</option>)}
                               </select>
                               {slot && klas && <div style={{ fontSize: '0.92rem', color: cellVerv ? '#d4a0a0' : '#9CA3AF', marginTop: 2, textDecoration: cellVerv ? 'line-through' : 'none' }}>{klas.vak} - {klas.lokaal}</div>}
-                              {canBeBlokuur(dag, uur) && !cellVerv && (
+                              {canBeBlokuur(dag, uur) && !cellVerv && !isBlok && (
                                 <button onClick={() => toggleBlokuur(dag, uur)} style={{ marginTop: 3, fontSize: '0.88rem', padding: '2px 7px', borderRadius: 3,
-                                  border: `1px solid ${isBlok ? kleur : '#d1d5db'}`, background: isBlok ? kleur + '20' : '#f9fafb', color: isBlok ? kleur : '#9CA3AF', cursor: 'pointer', fontWeight: 600 }}>
-                                  {isBlok ? '✓ Blokuur' : 'Maak blokuur'}
+                                  border: '1px solid #d1d5db', background: '#f9fafb', color: '#9CA3AF', cursor: 'pointer', fontWeight: 600 }}>
+                                  Maak blokuur
                                 </button>
                               )}
 
