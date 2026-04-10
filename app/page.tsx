@@ -14,17 +14,6 @@ type Mode = 'binnenkomst' | 'les' | 'lezen';
 
 interface LeerlingState { warnings: number; compliments: number; statuses: string[]; materiaal: string[]; notitie: string; }
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/' },
-  { label: 'Agenda', href: '/agenda' },
-  { label: 'Planner', href: '/planner' },
-  { label: 'Klassen', href: '/klassen' },
-  { label: 'Cijfers', href: '/cijfers' },
-  { label: 'Resultaten', href: '/resultaten' },
-  { label: 'Toetsen', href: '/toetsen' },
-  { label: 'Jaarplanner', href: '/jaarplanner' },
-];
-
 export default function Dashboard() {
   const router = useRouter();
   const [klassen, setKlassen] = useState<Klas[]>([]);
@@ -468,56 +457,47 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* TOP BAR - strak en minimaal */}
-      <div className="text-white px-4 py-1.5 flex items-center justify-between text-sm relative z-40" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #162d4a 100%)' }}>
+      {/* TOP BAR - clean white style */}
+      <div className="px-4 py-1.5 flex items-center justify-between text-sm relative z-40" style={{ background: 'white', borderBottom: '1px solid #e5e7eb' }}>
         <div className="flex items-center gap-3">
-          {/* Hamburger menu */}
-          <div className="relative">
-            <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 flex flex-col items-center justify-center gap-1 rounded hover:bg-white/10">
-              <span className="block w-5 h-0.5 bg-white" />
-              <span className="block w-5 h-0.5 bg-white" />
-              <span className="block w-5 h-0.5 bg-white" />
-            </button>
-            {menuOpen && (
-              <div className="absolute top-10 left-0 bg-white text-gray-800 rounded-lg shadow-xl border border-gray-200 py-2 z-50 min-w-[180px]">
-                {NAV_ITEMS.map(item => (
-                  <button key={item.label}
-                    onClick={() => { router.push(item.href); setMenuOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 hover:text-[#1e3a5f] transition-colors
-                      ${item.href === '/' ? 'bg-blue-50 text-[#1e3a5f] font-semibold' : ''}`}>
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <h1 className="font-bold text-base">Docentenplanner</h1>
-          <span className="text-white/30 mx-1">|</span>
-          <span className="text-white/70 text-xs tabular-nums">{date}</span>
-          <span className="text-white/30 mx-1">|</span>
-          <span className="text-white/70 text-xs font-bold tabular-nums">{clock}</span>
+          <span style={{ color: '#6b7280', fontSize: '0.875rem', tabularNums: 'unset' }}>{date}</span>
+          <span style={{ color: '#e5e7eb' }}>|</span>
+          <span style={{ color: '#374151', fontSize: '0.875rem', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }}>{clock}</span>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Klas selector */}
-          <select className="bg-white/10 border border-white/20 rounded px-2 py-1 text-xs" value={activeKlas} onChange={e => setActiveKlas(Number(e.target.value))}>
-            {klassen.map(k => <option key={k.id} value={k.id} className="text-gray-800">{k.naam} - {k.vak}</option>)}
+          <select style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', fontSize: '0.875rem', color: '#374151' }} value={activeKlas} onChange={e => setActiveKlas(Number(e.target.value))}>
+            {klassen.map(k => <option key={k.id} value={k.id}>{k.naam} - {k.vak}</option>)}
           </select>
-          <span className="text-[11px] text-white/50">{activeKlasObj ? `${activeKlasObj.aantal_leerlingen} ll · Lok ${activeKlasObj.lokaal}` : ''}</span>
+          <span style={{ fontSize: '0.6875rem', color: '#9ca3af' }}>{activeKlasObj ? `${activeKlasObj.aantal_leerlingen} ll · Lok ${activeKlasObj.lokaal}` : ''}</span>
 
           {/* Spiegel knoppen */}
-          <button onClick={() => setMirrorH(!mirrorH)} className={`px-2 py-1 rounded text-xs border ${mirrorH ? 'bg-white/30 border-white' : 'bg-white/5 border-white/15'}`} title="Spiegel links/rechts">&#8596;</button>
-          <button onClick={() => setMirrorV(!mirrorV)} className={`px-2 py-1 rounded text-xs border ${mirrorV ? 'bg-white/30 border-white' : 'bg-white/5 border-white/15'}`} title="Spiegel boven/onder">&#8597;</button>
+          <button onClick={() => setMirrorH(!mirrorH)} style={{ padding: '4px 8px', borderRadius: 6, fontSize: '0.875rem', border: mirrorH ? '1px solid #1e3a5f' : '1px solid #e5e7eb', background: mirrorH ? '#f0f4f8' : 'white', color: '#374151', cursor: 'pointer' }} title="Spiegel links/rechts">&#8596;</button>
+          <button onClick={() => setMirrorV(!mirrorV)} style={{ padding: '4px 8px', borderRadius: 6, fontSize: '0.875rem', border: mirrorV ? '1px solid #1e3a5f' : '1px solid #e5e7eb', background: mirrorV ? '#f0f4f8' : 'white', color: '#374151', cursor: 'pointer' }} title="Spiegel boven/onder">&#8597;</button>
 
           {/* Timer in topbar (altijd ruimte reserveren) */}
-          <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1" style={{ visibility: mode === 'les' ? 'visible' : 'hidden' }}>
-            <TimerCompact />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f3f4f6', borderRadius: '8px', padding: '4px 12px', visibility: mode === 'les' ? 'visible' : 'hidden' }}>
+            <input
+              type="text"
+              value={timerRunning ? timerDisplay : timerInput}
+              onChange={e => { if (!timerRunning) setTimerInput(e.target.value); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !timerRunning) { setTimerSec(parseTimerInput(timerInput)); startTimer(); } }}
+              placeholder="mm:ss"
+              disabled={timerRunning}
+              style={{ width: '48px', textAlign: 'center', background: 'white', border: '1px solid #e5e7eb', borderRadius: 4, padding: '2px 4px', fontSize: '0.875rem', fontWeight: 'bold', color: '#374151' }}
+            />
+            <button onClick={() => timerRunning ? setTimerRunning(false) : startTimer()}
+              style={{ padding: '4px 10px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 'bold', background: timerRunning ? '#f97316' : '#2563eb', color: 'white', border: 'none', cursor: 'pointer' }}>
+              {timerRunning ? 'Pauze' : 'Start'}
+            </button>
+            <button onClick={resetTimer} style={{ padding: '4px 10px', borderRadius: 4, fontSize: '0.75rem', background: '#f0f4f8', border: '1px solid #e5e7eb', color: '#64748b', cursor: 'pointer' }}>Reset</button>
           </div>
 
           {/* Mode switch - altijd op dezelfde plek */}
-          <div className="flex bg-white/10 rounded p-0.5">
+          <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: '6px', padding: '4px' }}>
             {(['binnenkomst','les','lezen'] as Mode[]).map(m => (
-              <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded text-xs font-semibold transition-all ${mode === m ? 'bg-white text-[#1e3a5f]' : 'text-white/70'}`}>
+              <button key={m} onClick={() => setMode(m)} style={{ padding: '6px 12px', borderRadius: 4, fontSize: '0.875rem', fontWeight: 'bold', background: mode === m ? '#1e3a5f' : 'transparent', color: mode === m ? 'white' : '#64748b', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
                 {m.charAt(0).toUpperCase() + m.slice(1)}
               </button>
             ))}
@@ -564,16 +544,30 @@ export default function Dashboard() {
             </div>
 
             {/* Dynamische velden */}
-            {binnenkomstVelden.map(veld => (
-              <div key={veld.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>
-                  {veld.icoon} {veld.label}
-                </h3>
-                <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
-                  {getVeldValue(veld.veld_key) || <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Stel in via de planner</span>}
+            {binnenkomstVelden.map(veld => {
+              const hasValue = getVeldValue(veld.veld_key);
+              return (
+                <div key={veld.id} style={{
+                  background: hasValue ? 'white' : 'transparent',
+                  border: hasValue ? '1px solid #e5e7eb' : '2px dashed #cbd5e1',
+                  borderRadius: 12,
+                  padding: '24px 28px',
+                  boxShadow: hasValue ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>
+                    {veld.icoon} {veld.label}
+                  </h3>
+                  <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
+                    {hasValue ? getVeldValue(veld.veld_key) : (
+                      <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Nog niet ingesteld. Vul deze in via de planner →</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -590,16 +584,48 @@ export default function Dashboard() {
           </div>
           {/* Rechts: dynamische velden */}
           <div className="flex flex-col p-8 gap-5 overflow-auto" style={{ width: '42%', minWidth: 360, background: '#f5f7fa' }}>
-            {lesVelden.map(veld => (
-              <div key={veld.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>
-                  {veld.icoon} {veld.label}
-                </h3>
-                <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
-                  {getVeldValue(veld.veld_key) || <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Stel in via de planner</span>}
-                </div>
-              </div>
-            ))}
+            {(() => {
+              const filledVelden = lesVelden.filter(v => getVeldValue(v.veld_key));
+              const emptyVelden = lesVelden.filter(v => !getVeldValue(v.veld_key));
+
+              // If no les data at all
+              if (lesVelden.length > 0 && filledVelden.length === 0) {
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, textAlign: 'center', gap: 16 }}>
+                    <div style={{ fontSize: '1.1rem', color: '#6b7280', fontWeight: 500 }}>Geen les ingepland voor vandaag</div>
+                    <button onClick={() => router.push('/planner')} style={{ padding: '12px 24px', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: 8, fontSize: '1rem', fontWeight: 600, cursor: 'pointer' }}>
+                      Open de planner
+                    </button>
+                  </div>
+                );
+              }
+
+              // Otherwise show filled fields as full cards, empty fields as collapsed rows
+              return (
+                <>
+                  {filledVelden.map(veld => (
+                    <div key={veld.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <h3 style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', fontSize: '1.1rem', marginBottom: 10 }}>
+                        {veld.icoon} {veld.label}
+                      </h3>
+                      <div style={{ fontSize: '1.05rem', lineHeight: 1.7, color: '#374151', whiteSpace: 'pre-line' }}>
+                        {getVeldValue(veld.veld_key)}
+                      </div>
+                    </div>
+                  ))}
+                  {emptyVelden.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {emptyVelden.map(veld => (
+                        <div key={veld.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', color: '#9ca3af', fontSize: '0.95rem' }}>
+                          <span style={{ fontSize: '1.1rem' }}>{veld.icoon}</span>
+                          <span>{veld.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

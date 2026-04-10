@@ -616,7 +616,7 @@ export default function PlannerPage() {
 
               {/* Vandaag */}
               {blokZichtbaar('vandaag') && <div>
-                <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#2d8a4e', marginBottom: '0.75rem' }}>Vandaag ({dagNamen[todayDagNum - 1] || 'Weekend'})</h2>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#2d8a4e', marginBottom: '1rem', letterSpacing: '-0.02em' }}>Vandaag ({dagNamen[todayDagNum - 1] || 'Weekend'})</h2>
                 {todayVakantie ? (
                   <div style={{ padding: '1rem', background: '#fef2f2', borderRadius: 8, color: '#b91c1c', fontSize: '1.18rem', fontWeight: 600 }}>{todayVakantie.naam}</div>
                 ) : todaySlots.length === 0 ? (
@@ -629,15 +629,29 @@ export default function PlannerPage() {
                       const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
                       const ovExtraVelden = visibleFields.filter(f => f.veld_key !== 'programma');
                       const filledFields = les ? ovExtraVelden.filter(f => isFieldFilled(les, f.veld_key)) : [];
+
+                      // Check if lesson is "filled" - has content in any of the key fields
+                      const isFilled = les && ['startopdracht', 'terugkijken', 'programma', 'leerdoelen', 'huiswerk'].some(key => isFieldFilled(les, key));
+
                       const ovToetsen = getToetsenForDateKlas(today, slot.klas_id);
                       const ovToetsKey = `${slot.klas_id}-${today}`;
+
+                      // Determine background: full opacity if filled, faded if empty
+                      const bgColor = isFilled ? kleur + '30' : kleur + '10';
+
                       return (
                         <div key={slot.uur} onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: today, uur: slot.uur })}
-                          style={{ padding: '0.75rem 1rem', background: kleur + '30', borderRadius: 12, cursor: 'pointer' }}>
+                          style={{ padding: '0.75rem 1rem', background: bgColor, borderRadius: 12, cursor: 'pointer', position: 'relative' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, fontSize: '1.18rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{slot.uur}</span>
                             <span style={{ fontSize: '1.12rem', fontWeight: 600, color: '#374151' }}>{klas?.naam}</span>
                             <span style={{ fontSize: '1.0rem', color: '#9CA3AF' }}>({klas?.lokaal})</span>
+                            {isFilled && (
+                              <span style={{ position: 'absolute', top: '0.75rem', right: '1rem', fontSize: '1.3rem', color: '#10b981', fontWeight: 700 }}>✓</span>
+                            )}
+                            {!isFilled && (
+                              <span style={{ position: 'absolute', top: '0.75rem', right: '1rem', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>niet voorbereid</span>
+                            )}
                             <button onClick={(e) => { e.stopPropagation(); setInlineToetsCell(inlineToetsCell === ovToetsKey ? null : ovToetsKey); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
                               title="Toets inplannen" style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.5 }}>+T</button>
                             {filledFields.length > 0 && (
@@ -696,10 +710,13 @@ export default function PlannerPage() {
                 )}
               </div>}
 
-              {/* Lege lessen */}
+              {/* Nog voor te bereiden */}
               {blokZichtbaar('lege_lessen') && emptyLessons.length > 0 && (
                 <div>
-                  <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#d97706', marginBottom: '0.75rem' }}>Lege lessen deze week</h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#d97706', margin: 0 }}>Nog voor te bereiden</h2>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'white', background: '#d97706', padding: '2px 10px', borderRadius: 12 }}>({emptyLessons.length})</span>
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {emptyLessons.slice(0, 10).map((item, idx) => {
                       const kleur = klasKleurMap[item.klas.id] || '#6B7280';
@@ -721,7 +738,7 @@ export default function PlannerPage() {
               {/* Komende toetsen */}
               {blokZichtbaar('komende_toetsen') && upcomingToetsen.length > 0 && (
                 <div>
-                  <h2 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#c95555', marginBottom: '0.75rem' }}>Komende toetsen</h2>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#c95555', marginBottom: '0.5rem' }}>Komende toetsen</h2>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {upcomingToetsen.map(t => {
                       const klas = klassen.find(k => k.id === t.klas_id);

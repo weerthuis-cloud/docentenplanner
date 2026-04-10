@@ -19,8 +19,6 @@ export default function Navigation() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Geen hooks na deze return
-  if (pathname === '/') return null;
 
   const currentPage = navItems.find(item => item.href === pathname);
 
