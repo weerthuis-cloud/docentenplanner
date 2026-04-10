@@ -631,25 +631,30 @@ export default function PlannerPage() {
                       const ovToetsKey = `${slot.klas_id}-${today}`;
                       return (
                         <div key={slot.uur} onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: today, uur: slot.uur })}
-                          style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${kleur}30`, borderLeft: `3px solid ${kleur}`, borderRadius: 6, cursor: 'pointer' }}>
+                          style={{ padding: '0.75rem 1rem', background: kleur + '30', borderRadius: 12, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '1.18rem', color: kleur, minWidth: 30 }}>{slot.uur}</span>
+                            <span style={{ fontWeight: 700, fontSize: '1.18rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{slot.uur}</span>
                             <span style={{ fontSize: '1.12rem', fontWeight: 600, color: '#374151' }}>{klas?.naam}</span>
                             <span style={{ fontSize: '1.0rem', color: '#9CA3AF' }}>({klas?.lokaal})</span>
-                            {ovToetsen.map(t => (
-                              <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '2px 7px', borderRadius: 3, fontSize: '0.92rem', fontWeight: 700 }}>
-                                {t.type}: {t.naam}
-                                <button onClick={(e) => { e.stopPropagation(); deleteToets(t.id); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.82rem', padding: 0 }}>✕</button>
-                              </span>
-                            ))}
                             <button onClick={(e) => { e.stopPropagation(); setInlineToetsCell(inlineToetsCell === ovToetsKey ? null : ovToetsKey); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
-                              title="Toets inplannen" style={{ background: '#fef3c7', border: '1px solid #f59e0b40', color: '#c4892e', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>+T</button>
+                              title="Toets inplannen" style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.5 }}>+T</button>
                             {filledFields.length > 0 && (
-                              <span style={{ display: 'flex', gap: 3, marginLeft: 'auto' }}>
+                              <span style={{ display: 'flex', gap: 3 }}>
                                 {filledFields.map(f => <span key={f.veld_key} title={f.label} style={{ fontSize: '0.86rem', opacity: 0.7 }}>{f.icoon}</span>)}
                               </span>
                             )}
                           </div>
+                          {/* Toetsen blok */}
+                          {ovToetsen.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 4 }}>
+                              {ovToetsen.map(t => (
+                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: (toetsKleuren[t.type] || '#6B7280') + '20', color: toetsKleuren[t.type] || '#6B7280', padding: '3px 8px', borderRadius: 8, fontSize: '0.88rem', fontWeight: 700 }}>
+                                  <span>{t.type}: {t.naam}</span>
+                                  <button onClick={(e) => { e.stopPropagation(); deleteToets(t.id); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.72rem', padding: 0, marginLeft: 'auto' }}>✕</button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {/* Inline toets form in overzicht */}
                           {inlineToetsCell === ovToetsKey && (
                             <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 4, padding: '4px 0', alignItems: 'center' }}>
@@ -698,11 +703,11 @@ export default function PlannerPage() {
                       const kleur = klasKleurMap[item.klas.id] || '#6B7280';
                       return (
                         <div key={idx} onClick={() => setSelectedLesPanel({ klas_id: item.slot.klas_id, datum: item.datum, uur: item.slot.uur })}
-                          style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${kleur}30`, borderLeft: `3px solid ${kleur}`, borderRadius: 6, cursor: 'pointer' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.3rem' }}>
-                            <span style={{ fontSize: '1.0rem', color: '#9CA3AF', minWidth: 60 }}>{dagNamenKort[new Date(item.datum + 'T12:00:00').getDay() - 1]} {formatDate(item.datum)}</span>
+                          style={{ padding: '0.75rem 1rem', background: kleur + '30', borderRadius: 12, cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <span style={{ fontSize: '1.0rem', color: '#6B7280', minWidth: 60 }}>{dagNamenKort[new Date(item.datum + 'T12:00:00').getDay() - 1]} {formatDate(item.datum)}</span>
                             <span style={{ fontSize: '1.12rem', fontWeight: 600, color: '#374151' }}>Uur {item.slot.uur}</span>
-                            <span style={{ fontSize: '1.12rem', fontWeight: 600, color: kleur }}>{item.klas.naam}</span>
+                            <span style={{ fontSize: '1.12rem', fontWeight: 700, color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{item.klas.naam}</span>
                           </div>
                         </div>
                       );
@@ -721,12 +726,12 @@ export default function PlannerPage() {
                       const kleur = klasKleurMap[t.klas_id] || '#6B7280';
                       const tKleur = toetsKleuren[t.type] || '#6B7280';
                       return (
-                        <div key={t.id} style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${tKleur}30`, borderLeft: `3px solid ${tKleur}`, borderRadius: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.3rem' }}>
-                            <span style={{ fontSize: '1.0rem', color: '#9CA3AF', minWidth: 60 }}>{formatDate(t.datum)}</span>
-                            <span style={{ fontSize: '1.0rem', fontWeight: 700, background: tKleur + '20', color: tKleur, padding: '0 0.35rem', borderRadius: 3 }}>{t.type}</span>
+                        <div key={t.id} style={{ padding: '0.75rem 1rem', background: tKleur + '30', borderRadius: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{ fontSize: '1.0rem', color: '#6B7280', minWidth: 60 }}>{formatDate(t.datum)}</span>
+                            <span style={{ fontSize: '1.0rem', fontWeight: 700, background: tKleur, color: 'white', padding: '1px 8px', borderRadius: 5 }}>{t.type}</span>
                             <span style={{ fontSize: '1.12rem', fontWeight: 600, color: '#374151' }}>{t.naam}</span>
-                            <span style={{ fontSize: '1.05rem', color: kleur, marginLeft: 'auto' }}>{klas?.naam}</span>
+                            <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5, marginLeft: 'auto' }}>{klas?.naam}</span>
                           </div>
                         </div>
                       );
@@ -751,10 +756,10 @@ export default function PlannerPage() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {ovNotities.length === 0 && (
-                      <div style={{ padding: '0.75rem 1rem', background: '#f9fafb', borderRadius: 6, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen notities. Klik + om er een toe te voegen.</div>
+                      <div style={{ padding: '0.75rem 1rem', background: '#e8eaed', borderRadius: 12, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen notities. Klik + om er een toe te voegen.</div>
                     )}
                     {ovNotities.map(item => (
-                      <div key={item.id} style={{ padding: '0.75rem 1rem', background: 'white', border: '1px solid #d8b4fe30', borderLeft: `3px solid ${item.kleur}`, borderRadius: 6 }}>
+                      <div key={item.id} style={{ padding: '0.75rem 1rem', background: item.kleur + '30', borderRadius: 12 }}>
                         {editOvItemId === item.id ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <input value={item.titel} onChange={e => setOverzichtItems(prev => prev.map(p => p.id === item.id ? { ...p, titel: e.target.value } : p))}
@@ -803,12 +808,12 @@ export default function PlannerPage() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {ovAgenda.length === 0 && (
-                      <div style={{ padding: '0.75rem 1rem', background: '#f9fafb', borderRadius: 6, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen agenda-items. Klik + om er een toe te voegen.</div>
+                      <div style={{ padding: '0.75rem 1rem', background: '#e8eaed', borderRadius: 12, color: '#9CA3AF', fontSize: '1.0rem', fontStyle: 'italic' }}>Nog geen agenda-items. Klik + om er een toe te voegen.</div>
                     )}
                     {ovAgenda.map(item => {
                       const isPast = item.datum && item.datum < today;
                       return (
-                        <div key={item.id} style={{ padding: '0.75rem 1rem', background: isPast ? '#f9fafb' : 'white', border: `1px solid #93c5fd30`, borderLeft: `3px solid ${isPast ? '#d1d5db' : '#2563EB'}`, borderRadius: 6, opacity: isPast ? 0.6 : 1 }}>
+                        <div key={item.id} style={{ padding: '0.75rem 1rem', background: isPast ? '#e8eaed' : '#2563EB30', borderRadius: 12, opacity: isPast ? 0.6 : 1 }}>
                           {editOvItemId === item.id ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                               <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
