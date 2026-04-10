@@ -599,6 +599,30 @@ export default function PlannerPage() {
                 ))}
               </select>
 
+              {/* Verplaats naar andere periode */}
+              {selectedPeriodeId && periodes.length > 1 && (
+                <select
+                  value=""
+                  onChange={async (e) => {
+                    const naarId = Number(e.target.value);
+                    if (!naarId) return;
+                    const naarPeriode = periodes.find(p => p.id === naarId);
+                    if (!confirm(`Rooster verplaatsen naar "${naarPeriode?.naam}"? Bestaande slots in die periode worden overschreven.`)) return;
+                    await fetch('/api/rooster-periodes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'verplaatsen', van_periode_id: selectedPeriodeId, naar_periode_id: naarId }) });
+                    setSelectedPeriodeId(naarId);
+                    fetchPeriodes();
+                    fetch(`/api/roosters?periode_id=${naarId}`).then(r => r.json()).then(setAllRooster);
+                  }}
+                  style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem', color: '#6B7280' }}
+                >
+                  <option value="">Verplaats naar...</option>
+                  {periodes.filter(p => p.id !== selectedPeriodeId).map(p => (
+                    <option key={p.id} value={p.id}>{p.naam}</option>
+                  ))}
+                </select>
+              )}
+
               {/* Verlengen */}
               {selectedPeriodeId && (
                 <button onClick={async () => {

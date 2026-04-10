@@ -67,6 +67,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, periode: nieuwePeriode });
   }
 
+  // Verplaatsen: rooster slots van één periode naar een andere
+  if (body.action === 'verplaatsen') {
+    const { van_periode_id, naar_periode_id } = body;
+    if (!van_periode_id || !naar_periode_id) {
+      return NextResponse.json({ error: 'van_periode_id en naar_periode_id zijn verplicht' }, { status: 400 });
+    }
+
+    // Verwijder bestaande slots in doelperiode
+    await supabase.from('roosters').delete().eq('periode_id', naar_periode_id);
+
+    // Verplaats slots: update periode_id
+    const { error: moveError, count } = await supabase
+      .from('roosters')
+      .update({ periode_id: naar_periode_id })
+      .eq('periode_id', van_periode_id);
+
+    if (moveError) return NextResponse.json({ error: moveError.message }, { status: 500 });
+    return NextResponse.json({ success: true, moved: count });
+  }
+
   // Gewone create
   const { naam, start_datum, eind_datum, bron } = body;
   const { data, error } = await supabase
