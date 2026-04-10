@@ -121,7 +121,7 @@ export default function PlannerPage() {
   const [editOvItemId, setEditOvItemId] = useState<number | null>(null);
 
   // Kopieer/verplaats les
-  const [showKopieerModal, setShowKopieerModal] = useState<'kopieer' | 'verplaats' | null>(null);
+  const [showKopieerModal, setShowKopieerModal] = useState<'kopieer' | null>(null);
   const [kopieerDoelKlas, setKopieerDoelKlas] = useState<number | ''>('');
   const [kopieerDoelDatum, setKopieerDoelDatum] = useState('');
   const [kopieerDoelUur, setKopieerDoelUur] = useState<number | ''>('');
@@ -1834,8 +1834,15 @@ export default function PlannerPage() {
                   <button onClick={() => { setShowKopieerModal('kopieer'); setKopieerDoelKlas(''); setKopieerDoelDatum(''); setKopieerDoelUur(''); setKopieerStatus(''); }}
                     title="Kopieer naar andere klas/datum"
                     style={{ background: '#e0f2fe', border: '1px solid #7dd3fc', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#0369a1' }}>📋</button>
-                  <button onClick={() => { setShowKopieerModal('verplaats'); setKopieerDoelKlas(''); setKopieerDoelDatum(''); setKopieerDoelUur(''); setKopieerStatus(''); }}
-                    title="Verplaats naar andere klas/datum"
+                  <button onClick={async () => {
+                      if (!confirm('Alle lessen en toetsen vanaf dit punt 1 les vooruit schuiven?')) return;
+                      const res = await fetch('/api/lessen/verschuif', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ klas_id: selectedLesPanel.klas_id, datum: selectedLesPanel.datum, uur: selectedLesPanel.uur, periode_id: selectedPeriodeId })
+                      });
+                      if (res.ok) { fetchLessen(); fetch('/api/toetsen').then(r => r.json()).then(setToetsen); }
+                    }}
+                    title="Verschuif alle lessen 1 les vooruit"
                     style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#92400e' }}>↗️</button>
                   <button onClick={() => setSelectedLesPanel(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8', padding: '4px 8px', borderRadius: 4 }}>✕</button>
                 </div>
@@ -1843,9 +1850,9 @@ export default function PlannerPage() {
 
               {/* Kopieer/verplaats form */}
               {showKopieerModal && (
-                <div style={{ padding: '0.6rem 0.8rem', background: showKopieerModal === 'kopieer' ? '#f0f9ff' : '#fffbeb', borderBottom: `2px solid ${showKopieerModal === 'kopieer' ? '#7dd3fc' : '#fcd34d'}`, flexShrink: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: showKopieerModal === 'kopieer' ? '#0369a1' : '#92400e', marginBottom: 6 }}>
-                    {showKopieerModal === 'kopieer' ? '📋 Kopieer les naar...' : '↗️ Verplaats les naar...'}
+                <div style={{ padding: '0.6rem 0.8rem', background: '#f0f9ff', borderBottom: '2px solid #7dd3fc', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0369a1', marginBottom: 6 }}>
+                    📋 Kopieer les naar...
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <select value={kopieerDoelKlas} onChange={e => setKopieerDoelKlas(e.target.value ? Number(e.target.value) : '')}
@@ -1873,25 +1880,21 @@ export default function PlannerPage() {
                             doel_klas_id: kopieerDoelKlas,
                             doel_datum: kopieerDoelDatum,
                             doel_uur: kopieerDoelUur || null,
-                            modus: showKopieerModal,
+                            modus: 'kopieer',
                           })
                         });
                         if (res.ok) {
-                          setKopieerStatus(showKopieerModal === 'kopieer' ? 'Gekopieerd!' : 'Verplaatst!');
+                          setKopieerStatus('Gekopieerd!');
                           fetchLessen();
-                          if (showKopieerModal === 'verplaats') {
-                            setEditState({});
-                            setSelectedLesPanel(null);
-                          }
                           setTimeout(() => { setShowKopieerModal(null); setKopieerStatus(''); }, 1200);
                         } else {
                           setKopieerStatus('Fout bij opslaan');
                         }
                       }} style={{
-                        background: showKopieerModal === 'kopieer' ? '#0369a1' : '#d97706', color: 'white', border: 'none', borderRadius: 5,
+                        background: '#0369a1', color: 'white', border: 'none', borderRadius: 5,
                         padding: '0.4rem 1rem', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer'
                       }}>
-                        {showKopieerModal === 'kopieer' ? '📋 Kopiëren' : '↗️ Verplaatsen'}
+                        📋 Kopiëren
                       </button>
                       <button onClick={() => setShowKopieerModal(null)}
                         style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 5, padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.9rem', color: '#6b7280' }}>
