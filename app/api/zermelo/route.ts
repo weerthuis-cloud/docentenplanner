@@ -225,9 +225,9 @@ export async function POST(req: Request) {
 
   // --- STAP 3: Rooster importeren (klassen + roosterslots) ---
   if (body.action === 'import_full') {
-    const { slots, mapping, periode_naam, start_datum, eind_datum } = body;
-    if (!slots || !start_datum || !eind_datum) {
-      return NextResponse.json({ error: 'Slots, start_datum en eind_datum zijn verplicht' }, { status: 400 });
+    const { slots, mapping, periode_naam, start_datum, eind_datum, periode_id } = body;
+    if (!slots || (!periode_id && (!start_datum || !eind_datum))) {
+      return NextResponse.json({ error: 'Slots en periode (of start/eind datum) zijn verplicht' }, { status: 400 });
     }
 
     // mapping = { "groepNaam": klasId (number) | "new" | 0 (skip) }
@@ -339,20 +339,38 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Maak roosterperiode aan
-    const { data: periode, error: periodeError } = await supabase
-      .from('rooster_periodes')
-      .insert({
-        naam: periode_naam || `Zermelo ${new Date().toLocaleDateString('nl-NL')}`,
-        start_datum,
-        eind_datum,
-        bron: 'zermelo',
-      })
-      .select()
-      .single();
+    // 3. Gebruik bestaande periode of maak nieuwe aan
+    let periode: { id: number; naam?: string } | null = null;
 
-    if (periodeError || !periode) {
-      return NextResponse.json({ error: periodeError?.message || 'Periode aanmaken mislukt' }, { status: 500 });
+    if (periode_id) {
+      // Gebruik bestaande periode - verwijder eerst oude slots voor deze periode
+      const { data: existing } = await supabase.from('rooster_periodes').select('id, naam').eq('id', periode_id).single();
+      if (!existing) {
+        return NextResponse.json({ error: 'Periode niet gevonden' }, { status: 404 });
+      }
+      // Verwijder bestaande rooster slots voor deze periode
+      await supabase.from('roosters').delete().eq('periode_id', periode_id);
+      periode = existing;
+    } else {
+      const { data: newPeriode, error: periodeError } = await supabase
+        .from('rooster_periodes')
+        .insert({
+          naam: periode_naam || `Zermelo ${new Date().toLocaleDateString('nl-NL')}`,
+          start_datum,
+          eind_datum,
+          bron: 'zermelo',
+        })
+        .select()
+        .single();
+
+      if (periodeError || !newPeriode) {
+        return NextResponse.json({ error: periodeError?.message || 'Periode aanmaken mislukt' }, { status: 500 });
+      }
+      periode = newPeriode;
+    }
+
+    if (!periode) {
+      return NextResponse.json({ error: 'Periode niet beschikbaar' }, { status: 500 });
     }
 
     // 5. Importeer rooster slots

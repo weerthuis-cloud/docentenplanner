@@ -92,6 +92,7 @@ export default function PlannerPage() {
   const [zermeloPreview, setZermeloPreview] = useState<Array<{ dag: number; uur: number; vak: string; lokaal: string; groep: string; groepen?: string[]; start_time: string; end_time: string }> | null>(null);
   const [zermeloStep, setZermeloStep] = useState<'auth' | 'fetch' | 'preview'>('auth');
   const [zermeloMapping, setZermeloMapping] = useState<Record<string, number | 'new'>>({});
+  const [zermeloImportPeriodeId, setZermeloImportPeriodeId] = useState<number | 'new'>('new');
   const [zermeloWeekStart, setZermeloWeekStart] = useState('');
   const [showNewKlasForm, setShowNewKlasForm] = useState(false);
 
@@ -740,6 +741,8 @@ export default function PlannerPage() {
                           autoMap[g] = match ? match.id : 'new';
                         }
                         setZermeloMapping(autoMap);
+                        // Selecteer huidige periode als default, anders 'new'
+                        setZermeloImportPeriodeId(selectedPeriodeId || 'new');
                         setZermeloStep('preview');
                         const matched = Object.values(autoMap).filter(v => v !== 'new').length;
                         setZermeloStatus(`${data.slots.length} lessen gevonden, ${matched}/${uniqueGroepen.length} groepen herkend`);
@@ -816,34 +819,51 @@ export default function PlannerPage() {
                       })}
                     </div>
 
-                    {/* Importeer knop - datums automatisch, geen extra invoer nodig */}
+                    {/* Periode keuze + Importeer knop */}
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid #f59e0b40' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151' }}>Periode:</label>
+                      <select
+                        value={zermeloImportPeriodeId === 'new' ? 'new' : String(zermeloImportPeriodeId)}
+                        onChange={e => setZermeloImportPeriodeId(e.target.value === 'new' ? 'new' : Number(e.target.value))}
+                        style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.78rem', background: 'white', minWidth: 200 }}
+                      >
+                        {periodes.map(p => (
+                          <option key={p.id} value={String(p.id)}>{p.naam} ({p.start_datum} t/m {p.eind_datum})</option>
+                        ))}
+                        <option value="new">+ Nieuwe periode aanmaken</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', padding: '0.3rem 0' }}>
                       <button onClick={async () => {
-                        const startDatum = zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0];
-                        const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();
-                        const eindDatum = `${yr}-07-17`;
-                        const naam = `Zermelo ${new Date().toLocaleDateString('nl-NL')}`;
                         const activeCount = Object.values(zermeloMapping).filter(v => v !== 0).length;
                         if (activeCount === 0) { setZermeloStatus('Koppel minstens 1 groep aan een klas'); return; }
                         setZermeloStatus('Importeren...');
+                        const importBody: Record<string, unknown> = {
+                          action: 'import_full',
+                          slots: zermeloPreview,
+                          students: {},
+                          mapping: zermeloMapping,
+                        };
+                        if (zermeloImportPeriodeId !== 'new') {
+                          importBody.periode_id = zermeloImportPeriodeId;
+                        } else {
+                          importBody.periode_naam = `Zermelo ${new Date().toLocaleDateString('nl-NL')}`;
+                          importBody.start_datum = zermeloWeekStart || getMonday(new Date()).toISOString().split('T')[0];
+                          const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+                          importBody.eind_datum = `${yr}-07-17`;
+                        }
                         const res = await fetch('/api/zermelo', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            action: 'import_full',
-                            slots: zermeloPreview,
-                            students: {},
-                            mapping: zermeloMapping,
-                            periode_naam: naam,
-                            start_datum: startDatum,
-                            eind_datum: eindDatum,
-                          }) });
+                          body: JSON.stringify(importBody) });
                         const data = await res.json();
                         if (data.success) {
                           const parts = [];
                           if (data.klassen_aangemaakt > 0) parts.push(`${data.klassen_aangemaakt} klassen aangemaakt`);
-                          parts.push(`${data.rooster_imported} lessen geimporteerd`);
-                          setZermeloStatus(`Klaar! ${parts.join(', ')}`);
+                          parts.push(`${data.rooster_imported} lessen geïmporteerd`);
+                          setZermeloStatus(`✓ ${parts.join(', ')}`);
+                          // Reset wizard en sluit Zermelo-formulier
                           setZermeloPreview(null); setZermeloStep('auth'); setZermeloToken('');
-                          setZermeloMapping({});
+                          setZermeloMapping({}); setZermeloImportPeriodeId('new');
+                          setShowZermeloForm(false);
                           // Refresh alles met de juiste periode geselecteerd
                           fetch('/api/klassen').then(r => r.json()).then(setKlassen);
                           fetchPeriodes(data.periode.id);
@@ -851,9 +871,6 @@ export default function PlannerPage() {
                       }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.4rem 1rem', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
                         Importeer rooster
                       </button>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                        Periode: {zermeloWeekStart || '...'} t/m {(() => { const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear(); return `${yr}-07-17`; })()}
-                      </span>
                       <button onClick={() => { setZermeloPreview(null); setZermeloStep('fetch'); setZermeloStatus(''); }}
                         style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer', marginLeft: 'auto' }}>
                         ← Terug
@@ -891,46 +908,12 @@ export default function PlannerPage() {
               </div>
             )}
 
-            {/* Klas toevoegen */}
+            {/* Klassen info */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button onClick={() => setShowNewKlasForm(!showNewKlasForm)}
-                style={{ padding: '0.3rem 0.6rem', borderRadius: 6, border: '1px solid #2d8a4e', background: showNewKlasForm ? '#2d8a4e' : '#f0fdf4', color: showNewKlasForm ? 'white' : '#2d8a4e', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
-                + Klas toevoegen
-              </button>
               <span style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>
                 {klassen.length} klassen: {klassen.map(k => k.naam).join(', ')}
               </span>
             </div>
-            {showNewKlasForm && (
-              <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', padding: '0.75rem', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', alignItems: 'center', flexWrap: 'wrap' }}>
-                <input id="nk-naam" placeholder="Naam (bijv. M3B)" style={{ flex: '1 1 80px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                <input id="nk-vak" placeholder="Vak (bijv. ne)" style={{ flex: '1 1 60px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                <input id="nk-lokaal" placeholder="Lokaal" style={{ flex: '0 1 60px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                <input id="nk-jaarlaag" placeholder="Jaarlaag (3)" style={{ flex: '0 1 50px', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.3rem 0.5rem', fontSize: '0.8rem' }} />
-                <button onClick={async () => {
-                  const naam = (document.getElementById('nk-naam') as HTMLInputElement).value.trim();
-                  const vak = (document.getElementById('nk-vak') as HTMLInputElement).value.trim();
-                  const lokaal = (document.getElementById('nk-lokaal') as HTMLInputElement).value.trim();
-                  const jaarlaag = (document.getElementById('nk-jaarlaag') as HTMLInputElement).value.trim();
-                  if (!naam) return;
-                  const yr = new Date().getFullYear();
-                  const schooljaar = new Date().getMonth() >= 7 ? `${yr}-${yr+1}` : `${yr-1}-${yr}`;
-                  await fetch('/api/klassen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ naam, vak, lokaal, jaarlaag, schooljaar }) });
-                  fetch('/api/klassen').then(r => r.json()).then(setKlassen);
-                  (document.getElementById('nk-naam') as HTMLInputElement).value = '';
-                  (document.getElementById('nk-vak') as HTMLInputElement).value = '';
-                  (document.getElementById('nk-lokaal') as HTMLInputElement).value = '';
-                  (document.getElementById('nk-jaarlaag') as HTMLInputElement).value = '';
-                }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 6, padding: '0.3rem 0.7rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
-                  Toevoegen
-                </button>
-                <button onClick={() => setShowNewKlasForm(false)}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer' }}>
-                  Sluiten
-                </button>
-              </div>
-            )}
 
             {/* Rooster grid */}
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderRadius: 12, overflow: 'hidden', border: '1px solid #d4d4d4' }}>
