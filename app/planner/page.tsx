@@ -354,7 +354,7 @@ export default function PlannerPage() {
     const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
 
     return (
-      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 12, overflow: 'hidden', background: hasToets ? toetsAccent + '22' : kleur + '22', cursor: 'pointer', position: 'relative' }}
+      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 12, overflow: 'hidden', background: hasToets ? toetsAccent + '30' : kleur + '30', cursor: 'pointer', position: 'relative' }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '5px 8px', flexWrap: 'wrap', flexShrink: 0 }}>
