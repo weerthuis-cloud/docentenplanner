@@ -360,7 +360,7 @@ export default function PlannerPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '5px 8px', flexWrap: 'wrap', flexShrink: 0 }}>
           <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 7px', borderRadius: 5 }}>{klas?.naam}</span>
           <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
-          {isBlok && <span style={{ fontSize: '0.78rem', color: kleur, fontWeight: 600 }}>blok</span>}
+
           {cellToetsen.map(t => (
             <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '18', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 6px', borderRadius: 4, fontSize: '0.78rem', fontWeight: 700 }}>
               {t.type}: {t.naam.length > 10 ? t.naam.slice(0, 10) + '..' : t.naam}
@@ -1477,7 +1477,6 @@ export default function PlannerPage() {
                             <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{klas?.naam}</span>
                             <span style={{ fontSize: '0.84rem', color: kleur, fontWeight: 600 }}>{klas?.vak}</span>
                             <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{klas?.lokaal}</span>
-                            {isBlok && <span style={{ fontSize: '0.78rem', color: kleur, fontWeight: 600, background: kleur + '12', padding: '1px 6px', borderRadius: 3 }}>blok</span>}
                             {cellToetsen.map(t => (
                               <span key={t.id} style={{ fontSize: '0.78rem', fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: (toetsKleuren[t.type] || '#6B7280') + '18', color: toetsKleuren[t.type] || '#6B7280' }}>
                                 {t.type}: {t.naam.length > 15 ? t.naam.slice(0, 15) + '..' : t.naam}
