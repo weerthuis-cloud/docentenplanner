@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 
 /* ───── Types ───── */
 interface Klas { id: number; naam: string; vak: string; jaarlaag: string; lokaal: string; aantal_leerlingen: number; }
@@ -590,6 +591,7 @@ function ToetsRow({ t, klassen, klasKleurMap, editToets, setEditToets, saveEdit,
   saveEdit: () => void; deleteToets: (id: number) => void;
   today: string; isPast?: boolean;
 }) {
+  const router = useRouter();
   const tKleur = toetsKleuren[t.type] || '#8b95a5';
   const klas = klassen.find(k => k.id === t.klas_id);
   const klasKleur = klasKleurMap[t.klas_id] || '#6b7280';
@@ -634,6 +636,29 @@ function ToetsRow({ t, klassen, klasKleurMap, editToets, setEditToets, saveEdit,
       {urgencyLabel && (
         <span style={{ fontSize: '0.78rem', fontWeight: 700, color: urgencyColor, whiteSpace: 'nowrap' }}>{urgencyLabel}</span>
       )}
+
+      {/* Edit button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          router.push(`/toetsen/maker?id=${t.id}`);
+        }}
+        style={{
+          padding: '6px 10px',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '14px',
+          color: '#1e3a5f',
+          borderRadius: '6px',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f0f0')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        title="Bewerk deze toets"
+      >
+        ✏️
+      </button>
 
       {/* Datum + meta */}
       <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
