@@ -354,10 +354,10 @@ export default function PlannerPage() {
     const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
 
     return (
-      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 12, overflow: 'hidden', background: hasToets ? toetsAccent + '08' : kleur + '08', cursor: 'pointer', position: 'relative', border: `1px solid ${hasToets ? toetsAccent : kleur}18` }}
+      <div key={cellKey} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: isBlok ? 210 : 105, borderRadius: 12, overflow: 'hidden', background: hasToets ? toetsAccent + '22' : kleur + '22', cursor: 'pointer', position: 'relative' }}
         onClick={(e) => { if ((e.target as HTMLElement).closest('button') === null && (e.target as HTMLElement).closest('[contenteditable]') === null) setSelectedLesPanel({ klas_id: slot.klas_id, datum, uur: slot.uur }); }}>
-        {/* Header met gradient */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '4px 6px', background: `linear-gradient(180deg, ${hasToets ? toetsAccent : kleur}20 0%, ${hasToets ? toetsAccent : kleur}08 100%)`, flexWrap: 'wrap', flexShrink: 0 }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '5px 8px', flexWrap: 'wrap', flexShrink: 0 }}>
           <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 7px', borderRadius: 5 }}>{klas?.naam}</span>
           <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
           {isBlok && <span style={{ fontSize: '0.78rem', color: kleur, fontWeight: 600 }}>blok</span>}
@@ -430,7 +430,7 @@ export default function PlannerPage() {
 
   /* ───── Styles ───── */
   const th: React.CSSProperties = { padding: '0.5rem 0.4rem', fontWeight: 700, fontSize: '1.05rem', textAlign: 'center', background: '#f1f5f9', color: '#64748b', borderBottom: '1px solid #e2e8f0' };
-  const td: React.CSSProperties = { padding: 8, borderBottom: 'none', borderRight: 'none', verticalAlign: 'top' };
+  const td: React.CSSProperties = { padding: '6px 5px', borderBottom: 'none', borderRight: 'none', verticalAlign: 'top' };
   const navBtn: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', background: 'white', fontWeight: 600, fontSize: '1.0rem', color: '#334155' };
 
   /* ═══ Two-week data for klas/jaarlaag views ═══ */
@@ -1352,7 +1352,7 @@ export default function PlannerPage() {
 
         {/* ═══ WEEKPLANNER ═══ */}
         {view === 'week' && (
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: '#f1f5f9', borderRadius: 20, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
             <thead><tr>
               <th style={{ ...th, width: 42 }}>Uur</th>
               {days.map((d, idx) => {
@@ -1382,9 +1382,9 @@ export default function PlannerPage() {
                     /* Vakantie */
                     if (vakantie) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#fef2f2', padding: '0.3rem', verticalAlign: 'middle', textAlign: 'center' }}>{uur === 1 && <span style={{ fontSize: '0.9rem', color: '#f87171', fontWeight: 600 }}>{vakantie.naam}</span>}</td>;
                     /* Leeg uur */
-                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, background: '#ececec', verticalAlign: 'top' }}><div style={{ minHeight: isBlok ? 210 : 105 }} /></td>;
+                    if (!slot) return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td }}><div style={{ minHeight: isBlok ? 210 : 105, borderRadius: 12, background: '#e8eaed' }} /></td>;
                     /* Les cel — height:1px trick zodat height:100% in kinderen werkt */
-                    return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, padding: 0, height: '1px' }}>{renderCell(slot, d, isBlok)}</td>;
+                    return <td key={`${d}-${uur}`} rowSpan={isBlok ? 2 : 1} style={{ ...td, height: '1px' }}>{renderCell(slot, d, isBlok)}</td>;
                   })}
                 </tr>
               ))}
@@ -1548,7 +1548,7 @@ export default function PlannerPage() {
           });
 
           return (
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: '#f1f5f9', borderRadius: 20, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
               <thead><tr>
                 <th style={{ ...th, width: 42 }} />
                 {weekColumns.map((week, wi) => {
@@ -1613,7 +1613,7 @@ export default function PlannerPage() {
           });
 
           return (
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: '#f1f5f9', borderRadius: 20, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', background: 'white', borderRadius: 20, overflow: 'hidden' }}>
               <thead><tr>
                 <th style={{ ...th, width: 72 }}>Dag</th>
                 {jlKlassen.map(klas => {
