@@ -460,7 +460,7 @@ export default function Dashboard() {
       {/* TOP BAR - clean white style */}
       <div className="px-4 py-1.5 flex items-center justify-between text-sm relative z-40" style={{ background: 'white', borderBottom: '1px solid #e5e7eb' }}>
         <div className="flex items-center gap-3">
-          <span style={{ color: '#6b7280', fontSize: '0.875rem', tabularNums: 'unset' }}>{date}</span>
+          <span style={{ color: '#6b7280', fontSize: '0.875rem', fontVariantNumeric: 'normal' }}>{date}</span>
           <span style={{ color: '#e5e7eb' }}>|</span>
           <span style={{ color: '#374151', fontSize: '0.875rem', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }}>{clock}</span>
         </div>
