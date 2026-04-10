@@ -360,19 +360,23 @@ export default function PlannerPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '5px 8px', flexWrap: 'wrap', flexShrink: 0 }}>
           <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 7px', borderRadius: 5 }}>{klas?.naam}</span>
           <span style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{klas?.lokaal}</span>
-
-          {cellToetsen.map(t => (
-            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '18', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 6px', borderRadius: 4, fontSize: '0.78rem', fontWeight: 700 }}>
-              {t.type}: {t.naam.length > 10 ? t.naam.slice(0, 10) + '..' : t.naam}
-              <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.72rem', padding: 0 }}>✕</button>
-            </span>
-          ))}
           <button onClick={(e) => { e.stopPropagation(); const tk = `${slot.klas_id}-${datum}`; setInlineToetsCell(inlineToetsCell === tk ? null : tk); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
             title="Toets inplannen"
             style={{ background: 'none', border: 'none', color: '#c4892e', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, padding: '0 2px', marginLeft: 'auto', opacity: 0.5 }}>
             +T
           </button>
         </div>
+        {/* Toetsen blok */}
+        {cellToetsen.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0 6px 4px', flexShrink: 0 }}>
+            {cellToetsen.map(t => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: (toetsKleuren[t.type] || '#6B7280') + '20', color: toetsKleuren[t.type] || '#6B7280', padding: '3px 8px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700 }}>
+                <span>{t.type}: {t.naam}</span>
+                <button onClick={() => deleteToets(t.id)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.72rem', padding: 0, marginLeft: 'auto' }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
         {/* Inline toets form */}
         {inlineToetsCell === `${slot.klas_id}-${datum}` && (
           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 3, padding: '3px 6px', background: '#fef3c7', borderBottom: '1px solid #f59e0b40', alignItems: 'center', flexShrink: 0 }}>
@@ -1477,13 +1481,18 @@ export default function PlannerPage() {
                             <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'white', background: kleur, padding: '1px 8px', borderRadius: 5 }}>{klas?.naam}</span>
                             <span style={{ fontSize: '0.84rem', color: kleur, fontWeight: 600 }}>{klas?.vak}</span>
                             <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{klas?.lokaal}</span>
-                            {cellToetsen.map(t => (
-                              <span key={t.id} style={{ fontSize: '0.78rem', fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: (toetsKleuren[t.type] || '#6B7280') + '18', color: toetsKleuren[t.type] || '#6B7280' }}>
-                                {t.type}: {t.naam.length > 15 ? t.naam.slice(0, 15) + '..' : t.naam}
-                              </span>
-                            ))}
                             <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: '#b0b8c4' }}>▸</span>
                           </div>
+                          {/* Toetsen blok */}
+                          {cellToetsen.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0 10px 4px' }}>
+                              {cellToetsen.map(t => (
+                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: (toetsKleuren[t.type] || '#6B7280') + '20', color: toetsKleuren[t.type] || '#6B7280', padding: '3px 8px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700 }}>
+                                  {t.type}: {t.naam}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {/* Programma */}
                           <div style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.5, padding: '2px 12px' }}>
                             {programmaText
