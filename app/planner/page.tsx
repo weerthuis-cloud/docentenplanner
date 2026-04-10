@@ -557,19 +557,59 @@ export default function PlannerPage() {
                         { key: 'notities', icon: '💬', label: 'Notities' },
                       ];
                       const filledFields = les ? overzichtFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; }) : [];
+                      const ovToetsen = getToetsenForDateKlas(today, slot.klas_id);
+                      const ovToetsKey = `${slot.klas_id}-${today}`;
                       return (
                         <div key={slot.uur} onClick={() => setSelectedLesPanel({ klas_id: slot.klas_id, datum: today, uur: slot.uur })}
                           style={{ padding: '0.75rem 1rem', background: 'white', border: `1px solid ${kleur}30`, borderLeft: `3px solid ${kleur}`, borderRadius: 6, cursor: 'pointer' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.3rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, fontSize: '0.9rem', color: kleur, minWidth: 30 }}>Uur {slot.uur}</span>
                             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>{klas?.naam}</span>
                             <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>({klas?.lokaal})</span>
+                            {ovToetsen.map(t => (
+                              <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: (toetsKleuren[t.type] || '#6B7280') + '15', color: toetsKleuren[t.type] || '#6B7280', padding: '1px 5px', borderRadius: 3, fontSize: '0.68rem', fontWeight: 700 }}>
+                                {t.type}: {t.naam}
+                                <button onClick={(e) => { e.stopPropagation(); deleteToets(t.id); }} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.55rem', padding: 0 }}>✕</button>
+                              </span>
+                            ))}
+                            <button onClick={(e) => { e.stopPropagation(); setInlineToetsCell(inlineToetsCell === ovToetsKey ? null : ovToetsKey); setInlineToetsNaam(''); setInlineToetsType('SO'); }}
+                              title="Toets inplannen" style={{ background: '#fef3c7', border: '1px solid #f59e0b40', color: '#c4892e', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>+T</button>
                             {filledFields.length > 0 && (
                               <span style={{ display: 'flex', gap: 3, marginLeft: 'auto' }}>
                                 {filledFields.map(f => <span key={f.key} title={f.label} style={{ fontSize: '0.6rem', opacity: 0.7 }}>{f.icon}</span>)}
                               </span>
                             )}
                           </div>
+                          {/* Inline toets form in overzicht */}
+                          {inlineToetsCell === ovToetsKey && (
+                            <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 4, padding: '4px 0', alignItems: 'center' }}>
+                              <select value={inlineToetsType} onChange={e => setInlineToetsType(e.target.value)}
+                                style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 4px', fontSize: '0.75rem', fontWeight: 700 }}>
+                                {Object.entries(toetsLabels).map(([k]) => <option key={k} value={k}>{k}</option>)}
+                              </select>
+                              <input value={inlineToetsNaam} onChange={e => setInlineToetsNaam(e.target.value)} placeholder="Naam toets..."
+                                autoFocus
+                                onKeyDown={async (e) => {
+                                  if (e.key === 'Enter' && inlineToetsNaam.trim()) {
+                                    await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ klas_id: slot.klas_id, naam: inlineToetsNaam.trim(), type: inlineToetsType, datum: today, kleur: toetsKleuren[inlineToetsType] || '#6B7280' }) });
+                                    fetch('/api/toetsen').then(r => r.json()).then(setToetsen);
+                                    setInlineToetsCell(null); setInlineToetsNaam('');
+                                  }
+                                  if (e.key === 'Escape') { setInlineToetsCell(null); setInlineToetsNaam(''); }
+                                }}
+                                style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 6px', fontSize: '0.75rem' }} />
+                              <button onClick={async () => {
+                                if (!inlineToetsNaam.trim()) return;
+                                await fetch('/api/toetsen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ klas_id: slot.klas_id, naam: inlineToetsNaam.trim(), type: inlineToetsType, datum: today, kleur: toetsKleuren[inlineToetsType] || '#6B7280' }) });
+                                fetch('/api/toetsen').then(r => r.json()).then(setToetsen);
+                                setInlineToetsCell(null); setInlineToetsNaam('');
+                              }} style={{ background: '#c4892e', color: 'white', border: 'none', borderRadius: 4, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>✓</button>
+                              <button onClick={() => { setInlineToetsCell(null); setInlineToetsNaam(''); }}
+                                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
+                            </div>
+                          )}
                           {les?.programma && <div style={{ fontSize: '0.82rem', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stripHtml(les.programma).slice(0, 80)}</div>}
                           {!les?.programma && <div style={{ fontSize: '0.82rem', color: '#d1d5db', fontStyle: 'italic' }}>Niet gepland...</div>}
                         </div>
