@@ -9,12 +9,13 @@ const InlineEditor = dynamic(() => import('@/components/InlineEditor'), { ssr: f
 /* ───── Types ───── */
 interface Klas { id: number; naam: string; vak: string; jaarlaag: string; lokaal: string; }
 interface RoosterSlot { id?: number; klas_id: number; dag: number; uur: number; vak: string; lokaal: string; is_blokuur: boolean; periode_id?: number; }
-interface Les { id?: number; klas_id: number; datum: string; uur: number | null; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; }
+interface Les { id?: number; klas_id: number; datum: string; uur: number | null; startopdracht: string; terugkijken: string; programma: string; leerdoelen: string; huiswerk: string; niet_vergeten: string; notities: string; custom_velden?: Record<string, string>; }
 interface Toets { id: number; klas_id: number; naam: string; type: string; datum: string; kleur: string; les_id: number | null; }
 interface Vakantie { id: number; naam: string; start_datum: string; eind_datum: string; }
 interface Jaarplanner { id: number; vak: string; jaarlaag: string; schooljaar: string; naam: string; data: Array<{ week: number; les: number; planning: string; toetsen: string }>; created_at: string; }
 interface RoosterPeriode { id: number; naam: string; start_datum: string; eind_datum: string; bron: string; created_at: string; }
 interface Vervallen { id: number; datum: string; uur: number | null; reden: string; created_at: string; }
+interface LesveldConfig { id: number; veld_key: string; label: string; icoon: string; zichtbaar: boolean; volgorde: number; is_custom: boolean; }
 
 function stripHtml(html: string): string {
   if (!html) return '';
@@ -109,6 +110,12 @@ export default function PlannerPage() {
   const [vervallenReden, setVervallenReden] = useState('');
   const [editVervallenId, setEditVervallenId] = useState<number | null>(null);
 
+  // Lesveld configuratie
+  const [lesveldConfig, setLesveldConfig] = useState<LesveldConfig[]>([]);
+  const [showLesveldSettings, setShowLesveldSettings] = useState(false);
+  const [newLesveldLabel, setNewLesveldLabel] = useState('');
+  const [newLesveldIcoon, setNewLesveldIcoon] = useState('📌');
+
   // Overzicht aanpasbaar
   const [overzichtItems, setOverzichtItems] = useState<Array<{ id: number; type: string; titel: string; inhoud: string; datum: string | null; kleur: string }>>([]);
   const [overzichtInstellingen, setOverzichtInstellingen] = useState<Record<string, boolean>>({ vandaag: true, lege_lessen: true, komende_toetsen: true, notities: true, agenda: true });
@@ -142,11 +149,16 @@ export default function PlannerPage() {
     });
   }, [selectedPeriodeId]);
 
+  const fetchLesveldConfig = useCallback(() => {
+    fetch('/api/lesvelden').then(r => r.json()).then(setLesveldConfig);
+  }, []);
+
   useEffect(() => {
     fetch('/api/klassen').then(r => r.json()).then(setKlassen);
     fetch('/api/vakanties').then(r => r.json()).then(setVakanties);
     fetch('/api/jaarplanners').then(r => r.json()).then(setJaarplanners);
     fetchPeriodes();
+    fetchLesveldConfig();
   }, []);
 
   const fetchAllRooster = useCallback(() => {
@@ -212,6 +224,19 @@ export default function PlannerPage() {
   const isBlokuurSecond = (dag: number, uur: number): boolean => { const s = getSlot(dag, uur); const p = getSlot(dag, uur - 1); return !!(s && p && s.klas_id === p.klas_id && p.is_blokuur); };
   const canBeBlokuur = (dag: number, uur: number): boolean => { const s = getSlot(dag, uur); const n = getSlot(dag, uur + 1); return !!(s && n && s.klas_id === n.klas_id); };
 
+  /* ───── Lesveld helpers ───── */
+  const standardKeys = ['programma', 'startopdracht', 'terugkijken', 'leerdoelen', 'huiswerk', 'niet_vergeten', 'notities'];
+  const visibleFields = lesveldConfig.filter(f => f.zichtbaar).sort((a, b) => a.volgorde - b.volgorde);
+
+  function getFieldValue(les: Les, key: string): string {
+    if (standardKeys.includes(key)) return (les as unknown as Record<string, string>)[key] || '';
+    return (les.custom_velden || {})[key] || '';
+  }
+
+  function isFieldFilled(les: Les, key: string): boolean {
+    return stripHtml(getFieldValue(les, key)).length > 0;
+  }
+
   /* ───── Vervallen helpers ───── */
   const isVervallenDag = (datum: string): Vervallen | undefined => vervallen.find(v => v.datum === datum && v.uur === null);
   const isVervallenUur = (datum: string, uur: number): Vervallen | undefined => vervallen.find(v => v.datum === datum && v.uur === uur);
@@ -263,7 +288,12 @@ export default function PlannerPage() {
   }
 
   function updateCell(key: string, les: Les, field: string, value: string) {
-    const updated = { ...les, [field]: value };
+    let updated: Les;
+    if (field === 'custom_velden') {
+      updated = { ...les, custom_velden: JSON.parse(value) };
+    } else {
+      updated = { ...les, [field]: value };
+    }
     setEditState(prev => ({ ...prev, [key]: updated }));
     if (saveTimerRef.current[key]) clearTimeout(saveTimerRef.current[key]);
     saveTimerRef.current[key] = setTimeout(() => { saveLes(updated); }, 1500);
@@ -300,15 +330,8 @@ export default function PlannerPage() {
     const jpSuggestion = getJpSuggestion(slot.klas_id, datum);
 
     /* Content indicators: welke extra velden zijn ingevuld? */
-    const extraFields: Array<{ key: keyof Les; icon: string; label: string }> = [
-      { key: 'startopdracht', icon: '🚀', label: 'Start' },
-      { key: 'terugkijken', icon: '🔄', label: 'Terugkijken' },
-      { key: 'leerdoelen', icon: '🎯', label: 'Doelen' },
-      { key: 'huiswerk', icon: '📝', label: 'Huiswerk' },
-      { key: 'niet_vergeten', icon: '⚡', label: 'Onthoud' },
-      { key: 'notities', icon: '💬', label: 'Notities' },
-    ];
-    const filledExtras = extraFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; });
+    const extraVelden = visibleFields.filter(f => f.veld_key !== 'programma');
+    const filledExtras = extraVelden.filter(f => isFieldFilled(les, f.veld_key));
 
     const hasToets = cellToetsen.length > 0;
     const toetsAccent = hasToets ? (toetsKleuren[cellToetsen[0].type] || '#6B7280') : '';
@@ -380,7 +403,7 @@ export default function PlannerPage() {
         {filledExtras.length > 0 && (
           <div style={{ display: 'flex', gap: 2, padding: '2px 6px 3px', flexShrink: 0, flexWrap: 'wrap' }}>
             {filledExtras.map(f => (
-              <span key={f.key} title={f.label} style={{ fontSize: '0.8rem', lineHeight: 1, opacity: 0.7 }}>{f.icon}</span>
+              <span key={f.veld_key} title={f.label} style={{ fontSize: '0.8rem', lineHeight: 1, opacity: 0.7 }}>{f.icoon}</span>
             ))}
           </div>
         )}
@@ -643,15 +666,8 @@ export default function PlannerPage() {
                       const les = getLes(slot.klas_id, today, slot.uur);
                       const klas = klassen.find(k => k.id === slot.klas_id);
                       const kleur = klasKleurMap[slot.klas_id] || '#6B7280';
-                      const overzichtFields: Array<{ key: keyof Les; icon: string; label: string }> = [
-                        { key: 'startopdracht', icon: '🚀', label: 'Start' },
-                        { key: 'terugkijken', icon: '🔄', label: 'Terugkijken' },
-                        { key: 'leerdoelen', icon: '🎯', label: 'Doelen' },
-                        { key: 'huiswerk', icon: '📝', label: 'Huiswerk' },
-                        { key: 'niet_vergeten', icon: '⚡', label: 'Onthoud' },
-                        { key: 'notities', icon: '💬', label: 'Notities' },
-                      ];
-                      const filledFields = les ? overzichtFields.filter(f => { const v = les[f.key]; return typeof v === 'string' && stripHtml(v).length > 0; }) : [];
+                      const ovExtraVelden = visibleFields.filter(f => f.veld_key !== 'programma');
+                      const filledFields = les ? ovExtraVelden.filter(f => isFieldFilled(les, f.veld_key)) : [];
                       const ovToetsen = getToetsenForDateKlas(today, slot.klas_id);
                       const ovToetsKey = `${slot.klas_id}-${today}`;
                       return (
@@ -671,7 +687,7 @@ export default function PlannerPage() {
                               title="Toets inplannen" style={{ background: '#fef3c7', border: '1px solid #f59e0b40', color: '#c4892e', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>+T</button>
                             {filledFields.length > 0 && (
                               <span style={{ display: 'flex', gap: 3, marginLeft: 'auto' }}>
-                                {filledFields.map(f => <span key={f.key} title={f.label} style={{ fontSize: '0.86rem', opacity: 0.7 }}>{f.icon}</span>)}
+                                {filledFields.map(f => <span key={f.veld_key} title={f.label} style={{ fontSize: '0.86rem', opacity: 0.7 }}>{f.icoon}</span>)}
                               </span>
                             )}
                           </div>
@@ -1431,15 +1447,7 @@ export default function PlannerPage() {
           const dagSlots = allRooster.filter(r => r.dag === dagNr).sort((a, b) => a.uur - b.uur).filter(s => !isBlokuurSecond(dagNr, s.uur));
           if (dagSlots.length === 0) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', padding: '3rem' }}>Geen lessen op deze dag.</div>;
 
-          const dagFields: Array<{ key: keyof Les; label: string; placeholder: string }> = [
-            { key: 'startopdracht', label: '🚀 Start', placeholder: 'Startopdracht...' },
-            { key: 'terugkijken', label: '🔄 Terugkijken', placeholder: 'Wat bespreken we?' },
-            { key: 'programma', label: '📋 Programma', placeholder: 'Plan les...' },
-            { key: 'leerdoelen', label: '🎯 Leerdoelen', placeholder: 'Wat moeten ze leren?' },
-            { key: 'huiswerk', label: '📝 Huiswerk', placeholder: 'Huiswerk opgave...' },
-            { key: 'niet_vergeten', label: '⚡ Onthoud', placeholder: 'Niet vergeten...' },
-            { key: 'notities', label: '💬 Notities', placeholder: 'Notities...' },
-          ];
+          const dagFields = visibleFields.map(f => ({ key: f.veld_key, label: `${f.icoon} ${f.label}`, placeholder: f.label + '...', isCustom: f.is_custom }));
 
           return (
             <div style={{ maxWidth: 700, margin: '0 auto', padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1481,8 +1489,15 @@ export default function PlannerPage() {
                           }}>
                             <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.02em' }}>{field.label}</div>
                             <InlineEditor
-                              content={(les[field.key] as string) || ''}
-                              onChange={(val) => updateCell(cellKey, les, field.key, val)}
+                              content={getFieldValue(les, field.key)}
+                              onChange={(val) => {
+                                if (field.isCustom) {
+                                  const newCustom = { ...(les.custom_velden || {}), [field.key]: val };
+                                  updateCell(cellKey, les, 'custom_velden', JSON.stringify(newCustom));
+                                } else {
+                                  updateCell(cellKey, les, field.key, val);
+                                }
+                              }}
                               onFocus={(editor) => setActiveEditor(editor)}
                               placeholder={field.placeholder}
                               borderColor={kleur}
@@ -1646,17 +1661,9 @@ export default function PlannerPage() {
           const panelKlas = klassen.find(k => k.id === selectedLesPanel.klas_id);
           const panelKleur = klasKleurMap[selectedLesPanel.klas_id] || '#6B7280';
           const panelKey = `${selectedLesPanel.klas_id}-${selectedLesPanel.datum}-${selectedLesPanel.uur}`;
-          const tabs: Array<{ key: keyof Les; label: string; placeholder: string; icon: string }> = [
-            { key: 'programma', label: 'Programma', placeholder: 'Plan les...', icon: '📋' },
-            { key: 'startopdracht', label: 'Start', placeholder: 'Startopdracht...', icon: '🚀' },
-            { key: 'terugkijken', label: 'Terugkijken', placeholder: 'Wat bespreken we?', icon: '🔄' },
-            { key: 'leerdoelen', label: 'Doelen', placeholder: 'Wat moeten ze leren?', icon: '🎯' },
-            { key: 'huiswerk', label: 'Huiswerk', placeholder: 'Huiswerk opgave...', icon: '📝' },
-            { key: 'niet_vergeten', label: 'Onthoud', placeholder: 'Niet vergeten...', icon: '⚡' },
-            { key: 'notities', label: 'Notities', placeholder: 'Notities...', icon: '💬' },
-          ];
+          const tabs = visibleFields.map(f => ({ key: f.veld_key, label: f.label, placeholder: f.label + '...', icon: f.icoon, isCustom: f.is_custom }));
           const activeTab = tabs.find(t => t.key === panelTab) || tabs[0];
-          const hasContent = (key: keyof Les) => { const v = panelLes[key]; return typeof v === 'string' && stripHtml(v).length > 0; };
+          const hasContent = (key: string) => isFieldFilled(panelLes, key);
 
           return (
             <div style={{ width: 380, background: 'white', borderLeft: `1px solid #e5e7eb`, display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 12px rgba(0,0,0,0.06)' }}>
@@ -1683,19 +1690,93 @@ export default function PlannerPage() {
                     {hasContent(tab.key) && panelTab !== tab.key && <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: panelKleur, marginLeft: 3, verticalAlign: 'middle' }} />}
                   </button>
                 ))}
+                <button onClick={() => setShowLesveldSettings(!showLesveldSettings)}
+                  style={{ padding: '0.45rem 0.6rem', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: '0.92rem', color: '#94a3b8', background: showLesveldSettings ? '#f1f5f9' : 'transparent', marginLeft: 'auto' }}>⚙</button>
               </div>
+
+              {/* Lesveld instellingen */}
+              {showLesveldSettings && (
+                <div style={{ padding: '0.5rem 0.75rem', background: '#f1f5f9', borderBottom: '1px solid #e5e7eb', flexShrink: 0, fontSize: '0.92rem' }}>
+                  <div style={{ fontWeight: 700, color: '#374151', marginBottom: '0.4rem' }}>Velden instellen</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    {lesveldConfig.sort((a, b) => a.volgorde - b.volgorde).map((f, idx) => (
+                      <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '2px 4px', background: 'white', borderRadius: 4, border: '1px solid #e5e7eb' }}>
+                        <span style={{ fontSize: '1.0rem', cursor: 'grab' }}>{f.icoon}</span>
+                        <input value={f.label} onChange={e => {
+                          setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, label: e.target.value } : p));
+                        }}
+                          onBlur={async () => {
+                            await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: f.id, label: f.label }) });
+                          }}
+                          style={{ flex: 1, border: 'none', fontSize: '0.92rem', fontWeight: 600, padding: '2px 4px', background: 'transparent' }} />
+                        <input value={f.icoon} onChange={e => {
+                          setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, icoon: e.target.value } : p));
+                        }}
+                          onBlur={async () => {
+                            await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: f.id, icoon: f.icoon }) });
+                          }}
+                          style={{ width: 32, border: '1px solid #e5e7eb', borderRadius: 3, fontSize: '1.0rem', textAlign: 'center', padding: '2px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={f.zichtbaar} onChange={async () => {
+                            const newVal = !f.zichtbaar;
+                            setLesveldConfig(prev => prev.map(p => p.id === f.id ? { ...p, zichtbaar: newVal } : p));
+                            await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: f.id, zichtbaar: newVal }) });
+                          }} />
+                          <span style={{ fontSize: '0.86rem', color: '#6B7280' }}>Aan</span>
+                        </label>
+                        {idx > 0 && <button onClick={async () => {
+                          const sorted = [...lesveldConfig].sort((a, b) => a.volgorde - b.volgorde);
+                          const curIdx = sorted.findIndex(s => s.id === f.id);
+                          if (curIdx <= 0) return;
+                          const items = [{ id: sorted[curIdx].id, volgorde: sorted[curIdx - 1].volgorde }, { id: sorted[curIdx - 1].id, volgorde: sorted[curIdx].volgorde }];
+                          await fetch('/api/lesvelden', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reorder', items }) });
+                          fetchLesveldConfig();
+                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.86rem', color: '#94a3b8' }}>▲</button>}
+                        {f.is_custom && <button onClick={async () => {
+                          await fetch(`/api/lesvelden?id=${f.id}`, { method: 'DELETE' });
+                          fetchLesveldConfig();
+                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.86rem', color: '#DC2626' }}>✕</button>}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Nieuw veld toevoegen */}
+                  <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem', alignItems: 'center' }}>
+                    <input value={newLesveldIcoon} onChange={e => setNewLesveldIcoon(e.target.value)} style={{ width: 32, border: '1px solid #d1d5db', borderRadius: 3, fontSize: '1.0rem', textAlign: 'center', padding: '2px' }} />
+                    <input value={newLesveldLabel} onChange={e => setNewLesveldLabel(e.target.value)} placeholder="Nieuw veld..." style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', fontSize: '0.92rem' }} />
+                    <button onClick={async () => {
+                      if (!newLesveldLabel.trim()) return;
+                      await fetch('/api/lesvelden', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ label: newLesveldLabel.trim(), icoon: newLesveldIcoon || '📌' }) });
+                      setNewLesveldLabel(''); setNewLesveldIcoon('📌');
+                      fetchLesveldConfig();
+                    }} style={{ background: '#2d8a4e', color: 'white', border: 'none', borderRadius: 4, padding: '4px 10px', fontSize: '0.92rem', fontWeight: 700, cursor: 'pointer' }}>+</button>
+                  </div>
+                </div>
+              )}
 
               {/* Active tab content - full height editor */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <InlineEditor
-                  key={`${panelKey}-${activeTab.key}`}
-                  content={(panelLes[activeTab.key] as string) || ''}
-                  onChange={(val) => updateCell(panelKey, panelLes, activeTab.key, val)}
-                  onFocus={(editor) => setActiveEditor(editor)}
-                  placeholder={activeTab.placeholder}
-                  borderColor={panelKleur}
-                  grow
-                />
+                {activeTab && (
+                  <InlineEditor
+                    key={`${panelKey}-${activeTab.key}`}
+                    content={getFieldValue(panelLes, activeTab.key)}
+                    onChange={(val) => {
+                      if (activeTab.isCustom) {
+                        const newCustom = { ...(panelLes.custom_velden || {}), [activeTab.key]: val };
+                        updateCell(panelKey, panelLes, 'custom_velden' as keyof Les, JSON.stringify(newCustom));
+                      } else {
+                        updateCell(panelKey, panelLes, activeTab.key as keyof Les, val);
+                      }
+                    }}
+                    onFocus={(editor) => setActiveEditor(editor)}
+                    placeholder={activeTab.placeholder}
+                    borderColor={panelKleur}
+                    grow
+                  />
+                )}
               </div>
             </div>
           );

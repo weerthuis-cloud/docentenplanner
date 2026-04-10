@@ -59,13 +59,14 @@ export async function POST(req: Request) {
 
   const { data: existing } = await existingQuery;
 
-  const lesData = {
+  const lesData: Record<string, unknown> = {
     klas_id: body.klas_id, datum, uur: body.uur ?? null,
     startopdracht: body.startopdracht, terugkijken: body.terugkijken,
     programma: body.programma, leerdoelen: body.leerdoelen,
     huiswerk: body.huiswerk, niet_vergeten: body.niet_vergeten,
     notities: body.notities,
   };
+  if (body.custom_velden !== undefined) lesData.custom_velden = body.custom_velden;
 
   if (existing && existing.length > 0) {
     const { error } = await supabase.from('lessen').update(lesData).eq('id', existing[0].id);
@@ -80,12 +81,14 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const body = await req.json();
-  const { error } = await supabase.from('lessen').update({
+  const updateData: Record<string, unknown> = {
     startopdracht: body.startopdracht, terugkijken: body.terugkijken,
     programma: body.programma, leerdoelen: body.leerdoelen,
     huiswerk: body.huiswerk, niet_vergeten: body.niet_vergeten,
     notities: body.notities, uur: body.uur,
-  }).eq('id', body.id);
+  };
+  if (body.custom_velden !== undefined) updateData.custom_velden = body.custom_velden;
+  const { error } = await supabase.from('lessen').update(updateData).eq('id', body.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
