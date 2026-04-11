@@ -124,9 +124,9 @@ const estimatedMinutesPerType: Record<string, number> = {
 
 // ===================== HELPER FUNCTIONS =====================
 function extractJaarlaag(klasNaam: string, jaarlaag?: string): string {
-  if (jaarlaag && jaarlaag.match(/^[VHM]\d+$/)) return jaarlaag;
-  const match = klasNaam.match(/([VHM])(\d)/);
-  return match ? `${match[1]}${match[2]}` : 'V3';
+  if (jaarlaag && jaarlaag.match(/^[VHMvhm]\d+$/i)) return jaarlaag.toUpperCase();
+  const match = klasNaam.match(/([VHMvhm])(\d)/i);
+  return match ? `${match[1].toUpperCase()}${match[2]}` : 'V3';
 }
 
 function bloomMapFromWDS(wds: 'weten' | 'doen' | 'snappen'): string {
