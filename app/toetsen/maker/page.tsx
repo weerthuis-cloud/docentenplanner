@@ -126,6 +126,19 @@ function ToetsenMakerContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // New toets form (when no id provided)
+  const [isNewMode, setIsNewMode] = useState(!toetsId);
+  const [newForm, setNewForm] = useState({
+    naam: '',
+    type: 'SO',
+    klas_id: 0,
+    datum: '',
+    weging: 1.0,
+    max_score: 10,
+    omschrijving: '',
+  });
+  const [creatingToets, setCreatingToets] = useState(false);
+
   // AI States
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -151,9 +164,22 @@ function ToetsenMakerContent() {
   const [showPrintMenu, setShowPrintMenu] = useState(false);
 
   useEffect(() => {
-    if (!toetsId) return;
-    fetchData();
-  }, [toetsId]);
+    if (isNewMode) {
+      // Only fetch klassen for the new toets form
+      fetch('/api/klassen')
+        .then(r => r.json())
+        .then(data => {
+          setKlassen(data || []);
+          if (data.length > 0 && newForm.klas_id === 0) {
+            setNewForm(prev => ({ ...prev, klas_id: data[0].id }));
+          }
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    } else if (toetsId) {
+      fetchData();
+    }
+  }, [toetsId, isNewMode]);
 
   async function fetchData() {
     try {
@@ -174,6 +200,37 @@ function ToetsenMakerContent() {
       console.error('Error loading toets:', e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function createNewToets() {
+    if (!newForm.naam.trim() || !newForm.klas_id) return;
+    try {
+      setCreatingToets(true);
+      const res = await fetch('/api/toetsen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newForm,
+          kleur: toetsKleuren[newForm.type] || '#8b95a5',
+        }),
+      });
+      const created = await res.json();
+      // Switch to edit mode with the new toets
+      window.history.replaceState(null, '', `/toetsen/maker?id=${created.id}`);
+      setIsNewMode(false);
+      // Fetch full data for the newly created toets
+      const [toetsenRes, vragenRes] = await Promise.all([
+        fetch(`/api/toetsen?id=${created.id}`),
+        fetch(`/api/toets-vragen?toets_id=${created.id}`),
+      ]);
+      const toetsenData = await toetsenRes.json();
+      setToets(toetsenData[0] || null);
+      setVragen(await vragenRes.json());
+    } catch (e) {
+      console.error('Error creating toets:', e);
+    } finally {
+      setCreatingToets(false);
     }
   }
 
@@ -625,6 +682,172 @@ function ToetsenMakerContent() {
         }}
       >
         Toets laden...
+      </div>
+    );
+  }
+
+  /* ───── New Toets Form ───── */
+  if (isNewMode) {
+    const selectedKlas = klassen.find(k => k.id === newForm.klas_id);
+    const selectedKlasKleur = selectedKlas ? klasKleuren[klassen.indexOf(selectedKlas) % klasKleuren.length] : '#999';
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f7f8fa' }}>
+        {/* Top Bar */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 24px', background: 'white', borderBottom: '1px solid #e5e7eb',
+        }}>
+          <button onClick={() => router.push('/toetsen')} style={{
+            background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer',
+            color: '#1e3a5f', padding: '4px 8px', borderRadius: '4px',
+          }}>
+            ← Terug naar toetsen
+          </button>
+          <div style={{ fontSize: '18px', fontWeight: '600', color: '#1e3a5f' }}>Nieuwe toets maken</div>
+          <div style={{ width: '160px' }} />
+        </div>
+
+        {/* Form */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 24px' }}>
+          <div style={{
+            background: 'white', borderRadius: '16px', padding: '32px', maxWidth: '600px', width: '100%',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '1px solid #e5e7eb',
+          }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1e3a5f', margin: '0 0 24px 0' }}>
+              Toetsgegevens
+            </h2>
+
+            {/* Naam */}
+            <label style={{ display: 'block', marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Naam *</div>
+              <input type="text" value={newForm.naam}
+                onChange={e => setNewForm({ ...newForm, naam: e.target.value })}
+                onKeyDown={e => { if (e.key === 'Enter' && newForm.naam.trim()) createNewToets(); }}
+                placeholder="bijv. Grammatica hoofdstuk 3"
+                autoFocus
+                style={{
+                  width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
+                  borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+                }}
+              />
+            </label>
+
+            {/* Klas + Type */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <label>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Klas *</div>
+                <select value={newForm.klas_id}
+                  onChange={e => setNewForm({ ...newForm, klas_id: Number(e.target.value) })}
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
+                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+                  }}
+                >
+                  {klassen.map((k, idx) => (
+                    <option key={k.id} value={k.id}>
+                      {k.naam} — {k.vak}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Type</div>
+                <select value={newForm.type}
+                  onChange={e => setNewForm({ ...newForm, type: e.target.value })}
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
+                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+                  }}
+                >
+                  {Object.entries(toetsLabels).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {/* Datum + Weging + Max score */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <label>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Datum</div>
+                <input type="date" value={newForm.datum}
+                  onChange={e => setNewForm({ ...newForm, datum: e.target.value })}
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
+                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+                  }}
+                />
+              </label>
+              <label>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Weging</div>
+                <input type="number" step="0.5" min="0.5" value={newForm.weging}
+                  onChange={e => setNewForm({ ...newForm, weging: Number(e.target.value) })}
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
+                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+                  }}
+                />
+              </label>
+              <label>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Max score</div>
+                <input type="number" min="1" value={newForm.max_score}
+                  onChange={e => setNewForm({ ...newForm, max_score: Number(e.target.value) })}
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
+                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* Omschrijving */}
+            <label style={{ display: 'block', marginBottom: '24px' }}>
+              <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Omschrijving (optioneel)</div>
+              <input type="text" value={newForm.omschrijving}
+                onChange={e => setNewForm({ ...newForm, omschrijving: e.target.value })}
+                placeholder="Hoofdstuk 3 + 4, schrijfvaardigheid..."
+                style={{
+                  width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
+                  borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+                }}
+              />
+            </label>
+
+            {/* Preview badge */}
+            {newForm.naam && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px',
+                background: '#f9fafb', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e5e7eb',
+              }}>
+                <span style={{
+                  display: 'inline-block', background: toetsKleuren[newForm.type] || '#8b95a5',
+                  color: 'white', padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                }}>{toetsLabels[newForm.type] || newForm.type}</span>
+                <span style={{ fontWeight: '600', color: '#1e3a5f', fontSize: '14px' }}>{newForm.naam}</span>
+                {selectedKlas && (
+                  <span style={{
+                    display: 'inline-block', background: selectedKlasKleur,
+                    color: 'white', padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                  }}>{selectedKlas.naam}</span>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={createNewToets} disabled={!newForm.naam.trim() || creatingToets}
+                style={{
+                  flex: 1, padding: '12px 20px', background: !newForm.naam.trim() ? '#ccc' : '#2B5BA0',
+                  color: 'white', border: 'none', borderRadius: '8px', cursor: !newForm.naam.trim() ? 'default' : 'pointer',
+                  fontSize: '14px', fontWeight: '600',
+                }}
+              >
+                {creatingToets ? 'Aanmaken...' : 'Toets aanmaken & vragen toevoegen →'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

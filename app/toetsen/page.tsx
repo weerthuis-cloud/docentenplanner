@@ -99,15 +99,20 @@ export default function ToetsenPage() {
   }, [toetsen, today]);
 
   /* ───── CRUD ───── */
-  async function createToets() {
+  async function createToets(openMaker = false) {
     if (!newToets.naam.trim() || filterKlas === 'alle') return;
-    await fetch('/api/toetsen', {
+    const res = await fetch('/api/toetsen', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...newToets, klas_id: filterKlas, kleur: toetsKleuren[newToets.type] || '#8b95a5' }),
     });
+    const created = await res.json();
     setNewToets({ naam: '', type: 'SO', datum: '', weging: 1.0, max_score: 10, omschrijving: '' });
     setShowNew(false);
-    fetchToetsen();
+    if (openMaker && created?.id) {
+      window.location.href = `/toetsen/maker?id=${created.id}`;
+    } else {
+      fetchToetsen();
+    }
   }
 
   async function saveEdit() {
@@ -283,7 +288,8 @@ export default function ToetsenPage() {
                 value={newToets.omschrijving} onChange={e => setNewToets({ ...newToets, omschrijving: e.target.value })} placeholder="Hoofdstuk 3 + 4, schrijfvaardigheid..." />
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={createToets} style={{ background: '#2B5BA0', color: 'white', border: 'none', borderRadius: 8, padding: '0.45rem 1rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>Opslaan</button>
+              <button onClick={() => createToets(false)} style={{ background: '#2B5BA0', color: 'white', border: 'none', borderRadius: 8, padding: '0.45rem 1rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>Opslaan</button>
+              <button onClick={() => createToets(true)} style={{ background: '#34d399', color: 'white', border: 'none', borderRadius: 8, padding: '0.45rem 1rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>Opslaan & vragen maken →</button>
               <button onClick={() => setShowNew(false)} style={{ background: '#f1f5f9', color: '#6b7280', border: 'none', borderRadius: 8, padding: '0.45rem 1rem', cursor: 'pointer', fontSize: '0.95rem' }}>Annuleren</button>
             </div>
           </div>
