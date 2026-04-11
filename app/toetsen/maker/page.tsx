@@ -1480,6 +1480,10 @@ function VraagCard({
                         { antwoord_tekst: 'Waar', is_correct: true, volgorde: 0 },
                         { antwoord_tekst: 'Onwaar', is_correct: false, volgorde: 1 },
                       ]
+                    : type.key === 'invul'
+                    ? [
+                        { antwoord_tekst: '', is_correct: true, volgorde: 0 },
+                      ]
                     : type.key === 'koppel'
                     ? [
                         { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: 0 },
@@ -1694,6 +1698,104 @@ function VraagCard({
               Onwaar
             </label>
           </div>
+        </div>
+      )}
+
+      {edited.vraag_type === 'invul' && (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Correct antwoord(en)</div>
+          <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>
+            Gebruik een underscore (_____) in de vraagtekst om het invulvak aan te geven. Vul hieronder het juiste antwoord in.
+          </div>
+          {edited.antwoorden.length === 0 ? (
+            <button
+              onClick={() => {
+                setEdited({
+                  ...edited,
+                  antwoorden: [{ antwoord_tekst: '', is_correct: true, volgorde: 0 }],
+                });
+              }}
+              style={{
+                padding: '8px 12px',
+                background: '#f0f0f0',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                color: '#333',
+              }}
+            >
+              + Invulantwoord toevoegen
+            </button>
+          ) : (
+            edited.antwoorden.map((antw, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#888', fontWeight: '600', minWidth: '20px' }}>{idx + 1}.</span>
+                <input
+                  type="text"
+                  value={antw.antwoord_tekst}
+                  onChange={(e) => {
+                    const newAntwoorden = [...edited.antwoorden];
+                    newAntwoorden[idx] = { ...newAntwoorden[idx], antwoord_tekst: e.target.value };
+                    setEdited({ ...edited, antwoorden: newAntwoorden });
+                  }}
+                  placeholder="Juist antwoord"
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    setEdited({
+                      ...edited,
+                      antwoorden: edited.antwoorden.filter((_, i) => i !== idx),
+                    });
+                  }}
+                  style={{
+                    padding: '6px 10px',
+                    background: '#fff',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    color: '#c33',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))
+          )}
+          {edited.antwoorden.length > 0 && (
+            <button
+              onClick={() => {
+                setEdited({
+                  ...edited,
+                  antwoorden: [
+                    ...edited.antwoorden,
+                    { antwoord_tekst: '', is_correct: true, volgorde: edited.antwoorden.length },
+                  ],
+                });
+              }}
+              style={{
+                marginTop: '4px',
+                padding: '8px 12px',
+                background: '#f0f0f0',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                color: '#333',
+              }}
+            >
+              + Nog een antwoord (alternatief)
+            </button>
+          )}
         </div>
       )}
 
