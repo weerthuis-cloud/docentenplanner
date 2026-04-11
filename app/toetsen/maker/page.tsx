@@ -49,7 +49,7 @@ interface Doel {
 
 interface Toets {
   id: number;
-  klas_id: number;
+  klas_id: number | null;
   naam: string;
   type: string;
   datum: string;
@@ -65,6 +65,9 @@ interface Toets {
   wds_weten_pct: number;
   wds_doen_pct: number;
   wds_snappen_pct: number;
+  niveau: string | null;
+  jaarlaag_code: string | null;
+  status: string;
 }
 
 // ===================== CONSTANTS =====================
@@ -166,6 +169,12 @@ function WDSBar({ weten, doen, snappen }: { weten: number; doen: number; snappen
 }
 
 // ===================== STEP 1: BASISGEGEVENS =====================
+const niveauOptions = [
+  { key: 'vwo', label: 'VWO', jaren: ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'] },
+  { key: 'havo', label: 'HAVO', jaren: ['H1', 'H2', 'H3', 'H4', 'H5'] },
+  { key: 'mavo', label: 'MAVO', jaren: ['M1', 'M2', 'M3', 'M4'] },
+];
+
 function Step1({ toets, setToets, klassen, onNext }: {
   toets: Partial<Toets>;
   setToets: (t: Partial<Toets>) => void;
@@ -174,16 +183,62 @@ function Step1({ toets, setToets, klassen, onNext }: {
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Determine jaarlaag from either klas or direct niveau/jaarlaag_code
   const selectedKlas = klassen.find((k) => k.id === toets.klas_id);
-  const jaarlaag = extractJaarlaag(selectedKlas?.naam || '', selectedKlas?.jaarlaag);
+  const jaarlaag = toets.jaarlaag_code || (selectedKlas ? extractJaarlaag(selectedKlas.naam, selectedKlas.jaarlaag) : '');
+  const currentNiveau = toets.niveau || (jaarlaag.startsWith('H') ? 'havo' : jaarlaag.startsWith('M') ? 'mavo' : jaarlaag.startsWith('V') ? 'vwo' : '');
   const recommended = wdsLeerlijn[jaarlaag] || { weten: 15, doen: 40, snappen: 45 };
+  const selectedNiveauObj = niveauOptions.find(n => n.key === currentNiveau);
+
+  const handleSelectNiveau = (niveau: string) => {
+    const jaren = niveauOptions.find(n => n.key === niveau)?.jaren || [];
+    const defaultJaar = jaren[0] || '';
+    const rec = wdsLeerlijn[defaultJaar] || { weten: 15, doen: 40, snappen: 45 };
+    setToets({
+      ...toets,
+      niveau,
+      jaarlaag_code: defaultJaar,
+      klas_id: null,
+      wds_weten_pct: rec.weten,
+      wds_doen_pct: rec.doen,
+      wds_snappen_pct: rec.snappen,
+    });
+  };
+
+  const handleSelectJaarlaag = (code: string) => {
+    const rec = wdsLeerlijn[code] || { weten: 15, doen: 40, snappen: 45 };
+    setToets({
+      ...toets,
+      jaarlaag_code: code,
+      wds_weten_pct: rec.weten,
+      wds_doen_pct: rec.doen,
+      wds_snappen_pct: rec.snappen,
+    });
+  };
+
+  const handleSelectKlas = (klasId: number) => {
+    const klas = klassen.find(k => k.id === klasId);
+    if (klas) {
+      const j = extractJaarlaag(klas.naam, klas.jaarlaag);
+      const niv = j.startsWith('H') ? 'havo' : j.startsWith('M') ? 'mavo' : 'vwo';
+      const rec = wdsLeerlijn[j] || { weten: 15, doen: 40, snappen: 45 };
+      setToets({
+        ...toets,
+        klas_id: klasId,
+        niveau: niv,
+        jaarlaag_code: j,
+        wds_weten_pct: rec.weten,
+        wds_doen_pct: rec.doen,
+        wds_snappen_pct: rec.snappen,
+      });
+    }
+  };
 
   const handleValidateAndNext = () => {
     const newErrors: Record<string, string> = {};
-    if (!toets.klas_id) newErrors.klas_id = 'Selecteer een klas';
     if (!toets.naam || toets.naam.trim() === '') newErrors.naam = 'Naam is verplicht';
     if (!toets.type) newErrors.type = 'Type is verplicht';
-    if (!toets.datum) newErrors.datum = 'Datum is verplicht';
+    if (!currentNiveau || !jaarlaag) newErrors.niveau = 'Kies een niveau en jaarlaag';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -194,33 +249,85 @@ function Step1({ toets, setToets, klassen, onNext }: {
     onNext();
   };
 
+  const pillStyle = (active: boolean, color?: string) => ({
+    padding: '8px 16px',
+    borderRadius: '20px',
+    border: active ? `2px solid ${color || '#2B5BA0'}` : '2px solid #e0e0e0',
+    backgroundColor: active ? (color || '#2B5BA0') : '#fff',
+    color: active ? '#fff' : '#666',
+    fontSize: '14px',
+    fontWeight: active ? '700' as const : '500' as const,
+    cursor: 'pointer' as const,
+    fontFamily: 'inherit',
+    transition: 'all 0.15s',
+  });
+
   return (
     <div style={{ padding: '24px', maxWidth: '800px' }}>
       <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1e3a5f' }}>Stap 1: Basisgegevens</h2>
 
+      {/* Niveau */}
       <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Klas *</label>
-        <select
-          value={toets.klas_id || ''}
-          onChange={(e) => setToets({ ...toets, klas_id: Number(e.target.value) })}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            borderRadius: '6px',
-            border: errors.klas_id ? '2px solid #ef4444' : '1px solid #d0d0d0',
-            fontSize: '14px',
-            fontFamily: 'inherit',
-          }}
-        >
-          <option value="">-- Selecteer een klas --</option>
-          {klassen.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.naam} ({k.vak})
-            </option>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '10px', color: '#1e3a5f' }}>Niveau *</label>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {niveauOptions.map(n => (
+            <button key={n.key} onClick={() => handleSelectNiveau(n.key)} style={pillStyle(currentNiveau === n.key, '#1e3a5f')}>
+              {n.label}
+            </button>
           ))}
-        </select>
-        {errors.klas_id && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.klas_id}</div>}
+        </div>
+        {errors.niveau && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px' }}>{errors.niveau}</div>}
       </div>
+
+      {/* Jaarlaag */}
+      {selectedNiveauObj && (
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '10px', color: '#1e3a5f' }}>Leerjaar *</label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {selectedNiveauObj.jaren.map(j => (
+              <button key={j} onClick={() => handleSelectJaarlaag(j)} style={pillStyle(jaarlaag === j, '#2B5BA0')}>
+                {j.replace(/([A-Z])(\d)/, '$1 $2')}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Optioneel: koppel aan klas */}
+      {currentNiveau && (
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>
+            Koppel aan klas <span style={{ color: '#999', fontWeight: '400', fontSize: '12px' }}>(optioneel, kan later)</span>
+          </label>
+          <select
+            value={toets.klas_id || ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val) {
+                handleSelectKlas(Number(val));
+              } else {
+                setToets({ ...toets, klas_id: null });
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: '6px',
+              border: '1px solid #d0d0d0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              color: toets.klas_id ? '#333' : '#999',
+            }}
+          >
+            <option value="">-- Nog niet koppelen --</option>
+            {klassen.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.naam} ({k.vak})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
         <div>
@@ -269,26 +376,7 @@ function Step1({ toets, setToets, klassen, onNext }: {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-        <div>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Datum *</label>
-          <input
-            type="date"
-            value={toets.datum || ''}
-            onChange={(e) => setToets({ ...toets, datum: e.target.value })}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: '6px',
-              border: errors.datum ? '2px solid #ef4444' : '1px solid #d0d0d0',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }}
-          />
-          {errors.datum && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.datum}</div>}
-        </div>
-
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '20px' }}>
         <div>
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Tijd (minuten)</label>
           <input
@@ -297,7 +385,7 @@ function Step1({ toets, setToets, klassen, onNext }: {
             onChange={(e) => setToets({ ...toets, tijd_minuten: Number(e.target.value) })}
             min="0"
             style={{
-              width: '100%',
+              width: '200px',
               padding: '10px 12px',
               borderRadius: '6px',
               border: '1px solid #d0d0d0',
@@ -354,8 +442,9 @@ function Step1({ toets, setToets, klassen, onNext }: {
         </div>
       </div>
 
+      {jaarlaag && (
       <div style={{ backgroundColor: '#f7f8fa', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f', margin: '0 0 12px 0' }}>WDS-verdeling doel (jaar {jaarlaag})</h3>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f', margin: '0 0 12px 0' }}>WDS-verdeling doel ({selectedNiveauObj?.label} {jaarlaag})</h3>
         <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px', margin: '0 0 12px 0' }}>Aanbevolen: Weten {recommended.weten}% | Doen {recommended.doen}% | Snappen {recommended.snappen}%</p>
 
         <div style={{ marginBottom: '16px' }}>
@@ -413,6 +502,7 @@ function Step1({ toets, setToets, klassen, onNext }: {
 
         <WDSBar weten={toets.wds_weten_pct || recommended.weten} doen={toets.wds_doen_pct || recommended.doen} snappen={toets.wds_snappen_pct || recommended.snappen} />
       </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
         <button
@@ -484,10 +574,10 @@ function Step2({ toets, doelen, setDoelen, klassen, onPrev, onNext }: {
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'handmatig' | 'leerlijn' | 'ai'>('handmatig');
 
-  // Determine track and year from selected klas
+  // Determine track and year from toets.jaarlaag_code/niveau or fallback to klas
   const selectedKlas = klassen.find(k => k.id === toets.klas_id);
-  const jaarlaag = selectedKlas ? extractJaarlaag(selectedKlas.naam, selectedKlas.jaarlaag) : '';
-  const trackKey = jaarlaag.startsWith('H') ? 'havo' : jaarlaag.startsWith('M') ? 'mavo' : jaarlaag.startsWith('V') ? 'vwo' : '';
+  const jaarlaag = toets.jaarlaag_code || (selectedKlas ? extractJaarlaag(selectedKlas.naam, selectedKlas.jaarlaag) : '');
+  const trackKey = toets.niveau || (jaarlaag.startsWith('H') ? 'havo' : jaarlaag.startsWith('M') ? 'mavo' : jaarlaag.startsWith('V') ? 'vwo' : '');
   const trackLabel = trackKey === 'havo' ? 'HAVO' : trackKey === 'mavo' ? 'MAVO' : trackKey === 'vwo' ? 'VWO' : '';
 
   // Load leerlijn data
@@ -1919,10 +2009,10 @@ function ToetsenMakerContent() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [toets, setToets] = useState<Partial<Toets>>({
-    klas_id: undefined,
+    klas_id: null,
     naam: '',
     type: '',
-    datum: new Date().toISOString().split('T')[0],
+    datum: '',
     cesuur_percentage: 0.6,
     cesuur_cijfer: 5.5,
     wizard_stap: 1,
@@ -1930,6 +2020,9 @@ function ToetsenMakerContent() {
     wds_weten_pct: 15,
     wds_doen_pct: 40,
     wds_snappen_pct: 45,
+    niveau: null,
+    jaarlaag_code: null,
+    status: 'concept',
   });
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [doelen, setDoelen] = useState<Doel[]>([]);
@@ -2071,7 +2164,7 @@ function ToetsenMakerContent() {
         await fetch('/api/toetsen', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...toets, wizard_stap: 5 }),
+          body: JSON.stringify({ ...toets, wizard_stap: 5, status: toets.klas_id ? 'gepland' : 'klaar' }),
         });
       }
       router.push('/toetsen');
