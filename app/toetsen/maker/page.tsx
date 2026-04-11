@@ -1466,7 +1466,29 @@ function VraagCard({
           {vraagTypes.map((type) => (
             <button
               key={type.key}
-              onClick={() => setEdited({ ...edited, vraag_type: type.key as any, antwoorden: [] })}
+              onClick={() => {
+                const defaultAntwoorden: Antwoord[] =
+                  type.key === 'meerkeuze'
+                    ? [
+                        { antwoord_tekst: '', is_correct: true, volgorde: 0 },
+                        { antwoord_tekst: '', is_correct: false, volgorde: 1 },
+                        { antwoord_tekst: '', is_correct: false, volgorde: 2 },
+                        { antwoord_tekst: '', is_correct: false, volgorde: 3 },
+                      ]
+                    : type.key === 'waar_onwaar'
+                    ? [
+                        { antwoord_tekst: 'Waar', is_correct: true, volgorde: 0 },
+                        { antwoord_tekst: 'Onwaar', is_correct: false, volgorde: 1 },
+                      ]
+                    : type.key === 'koppel'
+                    ? [
+                        { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: 0 },
+                        { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: 1 },
+                        { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: 2 },
+                      ]
+                    : [];
+                setEdited({ ...edited, vraag_type: type.key as any, antwoorden: defaultAntwoorden });
+              }}
               style={{
                 padding: '8px 12px',
                 background: edited.vraag_type === type.key ? '#1e3a5f' : '#f0f0f0',
