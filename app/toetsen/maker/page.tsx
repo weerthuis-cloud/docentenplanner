@@ -436,19 +436,73 @@ function Step1({ toets, setToets, klassen, onNext }: {
 }
 
 // ===================== STEP 2: TOETSDOELEN =====================
-function Step2({ toets, doelen, setDoelen, onPrev, onNext }: {
+// ===================== LEERLIJN TYPES =====================
+interface LeerlijnDomein {
+  naam: string;
+  kerndoelen: string;
+  leerdoelen: Record<string, string[]>;
+}
+
+interface LeerlijnTrack {
+  leerjaren: string[];
+  domeinen: Record<string, LeerlijnDomein>;
+}
+
+interface LeerlijnData {
+  havo: LeerlijnTrack;
+  mavo: LeerlijnTrack;
+  vwo: LeerlijnTrack;
+}
+
+const domeinIcons: Record<string, string> = {
+  leesvaardigheid: '📖',
+  mondelinge_taalvaardigheid: '🗣️',
+  schrijfvaardigheid: '✍️',
+  luistervaardigheid: '👂',
+  literatuur: '📚',
+  orientatie: '🧭',
+};
+
+function Step2({ toets, doelen, setDoelen, klassen, onPrev, onNext }: {
   toets: Partial<Toets>;
   doelen: Doel[];
   setDoelen: (d: Doel[]) => void;
+  klassen: Klas[];
   onPrev: () => void;
   onNext: () => void;
 }) {
   const [newGoal, setNewGoal] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Partial<Doel>>({});
+  const [leerlijnData, setLeerlijnData] = useState<LeerlijnData | null>(null);
+  const [expandedDomein, setExpandedDomein] = useState<string | null>(null);
+  const [showLeerlijn, setShowLeerlijn] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [steekwoorden, setSteekwoorden] = useState('');
+  const [theorieContext, setTheorieContext] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'handmatig' | 'leerlijn' | 'ai'>('handmatig');
+
+  // Determine track and year from selected klas
+  const selectedKlas = klassen.find(k => k.id === toets.klas_id);
+  const jaarlaag = selectedKlas ? extractJaarlaag(selectedKlas.naam, selectedKlas.jaarlaag) : '';
+  const trackKey = jaarlaag.startsWith('H') ? 'havo' : jaarlaag.startsWith('M') ? 'mavo' : jaarlaag.startsWith('V') ? 'vwo' : '';
+  const trackLabel = trackKey === 'havo' ? 'HAVO' : trackKey === 'mavo' ? 'MAVO' : trackKey === 'vwo' ? 'VWO' : '';
+
+  // Load leerlijn data
+  useEffect(() => {
+    fetch('/leerlijn-data.json')
+      .then(res => res.json())
+      .then(data => setLeerlijnData(data))
+      .catch(err => console.error('Leerlijn laden mislukt:', err));
+  }, []);
+
+  const currentTrack = leerlijnData && trackKey ? (leerlijnData as any)[trackKey] as LeerlijnTrack : null;
+  const currentDomeinen = currentTrack?.domeinen || {};
 
   const handleAddGoal = () => {
-    if (!newGoal.trim()) return;
+    if (!newGoal.trim() || doelen.length >= 10) return;
     const goal: Doel = {
       toets_id: toets.id || 0,
       naam: newGoal,
@@ -460,6 +514,78 @@ function Step2({ toets, doelen, setDoelen, onPrev, onNext }: {
     };
     setDoelen([...doelen, goal]);
     setNewGoal('');
+  };
+
+  const handleAddFromLeerlijn = (goalText: string, domeinNaam: string) => {
+    if (doelen.length >= 10) return;
+    const goal: Doel = {
+      toets_id: toets.id || 0,
+      naam: goalText.length > 120 ? goalText.substring(0, 117) + '...' : goalText,
+      omschrijving: `Bron: ${domeinNaam} (${trackLabel} ${jaarlaag})`,
+      weten_punten: 0,
+      doen_punten: 0,
+      snappen_punten: 0,
+      volgorde: doelen.length,
+    };
+    setDoelen([...doelen, goal]);
+  };
+
+  const handleAiGenerate = async () => {
+    if (!steekwoorden.trim()) return;
+    setAiGenerating(true);
+    setAiSuggestions([]);
+    try {
+      // Gather relevant leerlijn context for the AI
+      let leerlijnContext = '';
+      if (currentTrack && jaarlaag) {
+        Object.entries(currentDomeinen).forEach(([, domein]) => {
+          const goals = domein.leerdoelen[jaarlaag];
+          if (goals && goals.length > 0) {
+            leerlijnContext += `\n${domein.naam} (kerndoelen ${domein.kerndoelen}):\n`;
+            goals.forEach(g => { leerlijnContext += `- ${g}\n`; });
+          }
+        });
+      }
+
+      const res = await fetch('/api/ai-doelen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          steekwoorden: steekwoorden.trim(),
+          theorie_context: theorieContext.trim(),
+          track: trackLabel,
+          jaarlaag,
+          leerlijn_context: leerlijnContext,
+          bestaande_doelen: doelen.map(d => d.naam),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAiSuggestions(data.doelen || []);
+      } else {
+        setAiSuggestions(['Er ging iets mis bij het genereren. Probeer het opnieuw.']);
+      }
+    } catch {
+      setAiSuggestions(['Fout bij verbinden met AI. Controleer je internetverbinding.']);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleAddAiSuggestion = (suggestion: string) => {
+    if (doelen.length >= 10) return;
+    const goal: Doel = {
+      toets_id: toets.id || 0,
+      naam: suggestion,
+      omschrijving: 'Gegenereerd met AI-formuleercoach',
+      weten_punten: 0,
+      doen_punten: 0,
+      snappen_punten: 0,
+      volgorde: doelen.length,
+    };
+    setDoelen([...doelen, goal]);
+    setAiSuggestions(aiSuggestions.filter(s => s !== suggestion));
   };
 
   const handleStartEdit = (goal: Doel, index: number) => {
@@ -487,60 +613,298 @@ function Step2({ toets, doelen, setDoelen, onPrev, onNext }: {
     setDoelen(newDoelen);
   };
 
-  return (
-    <div style={{ padding: '24px', maxWidth: '900px' }}>
-      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1e3a5f' }}>Stap 2: Toetsdoelen</h2>
+  const tabStyle = (tab: string) => ({
+    padding: '10px 16px',
+    fontSize: '13px',
+    fontWeight: activeTab === tab ? '700' as const : '500' as const,
+    color: activeTab === tab ? '#1e3a5f' : '#666',
+    borderBottom: activeTab === tab ? '3px solid #2B5BA0' : '3px solid transparent',
+    cursor: 'pointer' as const,
+    background: 'none',
+    border: 'none',
+    borderBottomStyle: 'solid' as const,
+    borderBottomWidth: '3px',
+    borderBottomColor: activeTab === tab ? '#2B5BA0' : 'transparent',
+    fontFamily: 'inherit',
+  });
 
-      <div style={{ backgroundColor: '#f0f4ff', padding: '12px', borderRadius: '6px', marginBottom: '24px', fontSize: '12px', color: '#1e3a5f' }}>
-        💡 Formuleer concrete, meetbare doelen. Bijvoorbeeld: "De leerling kan de onvoltooid tegenwoordige tijd correct vervoegen."
+  return (
+    <div style={{ padding: '24px', maxWidth: '960px' }}>
+      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#1e3a5f' }}>Stap 2: Toetsdoelen</h2>
+
+      {selectedKlas && (
+        <div style={{ fontSize: '13px', color: '#2B5BA0', marginBottom: '20px', fontWeight: '500' }}>
+          {trackLabel} {jaarlaag} — {selectedKlas.vak || 'Nederlands'}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #e0e0e0', marginBottom: '20px' }}>
+        <button onClick={() => setActiveTab('handmatig')} style={tabStyle('handmatig')}>✏️ Handmatig</button>
+        <button onClick={() => setActiveTab('leerlijn')} style={tabStyle('leerlijn')}>📋 Leerlijn</button>
+        <button onClick={() => setActiveTab('ai')} style={tabStyle('ai')}>🤖 AI Coach</button>
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Nieuw doel toevoegen</label>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input
-            type="text"
-            value={newGoal}
-            onChange={(e) => setNewGoal(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleAddGoal()}
-            placeholder="Beschrijf het leerdoel..."
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              borderRadius: '6px',
-              border: '1px solid #d0d0d0',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }}
-          />
+      {/* Tab: Handmatig */}
+      {activeTab === 'handmatig' && (
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ backgroundColor: '#f0f4ff', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '12px', color: '#1e3a5f' }}>
+            💡 Formuleer concrete, meetbare doelen. Gebruik werkwoorden als: herkennen, benoemen (Weten), beschrijven, samenvatten (Doen), onderbouwen, beoordelen (Snappen).
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={newGoal}
+              onChange={(e) => setNewGoal(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddGoal()}
+              placeholder="Beschrijf het leerdoel..."
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid #d0d0d0',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              onClick={handleAddGoal}
+              disabled={doelen.length >= 10}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: doelen.length >= 10 ? '#999' : '#2B5BA0',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: doelen.length >= 10 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              + Toevoegen
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Leerlijn Browser */}
+      {activeTab === 'leerlijn' && (
+        <div style={{ marginBottom: '24px' }}>
+          {!currentTrack ? (
+            <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#fff8e1', borderRadius: '6px', color: '#856404' }}>
+              {!leerlijnData ? 'Leerlijn wordt geladen...' : 'Selecteer eerst een klas in Stap 1 om de leerlijn te zien.'}
+            </div>
+          ) : (
+            <div>
+              <div style={{ backgroundColor: '#f0f4ff', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '12px', color: '#1e3a5f' }}>
+                📋 Klik op een domein om de leerdoelen voor <strong>{trackLabel} {jaarlaag}</strong> te bekijken. Klik op een doel om het als toetsdoel over te nemen.
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {Object.entries(currentDomeinen).map(([domeinKey, domein]) => {
+                  const goals = domein.leerdoelen[jaarlaag] || [];
+                  const isExpanded = expandedDomein === domeinKey;
+                  const icon = domeinIcons[domeinKey] || '📄';
+
+                  return (
+                    <div key={domeinKey} style={{ border: '1px solid #d0d0d0', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#fff' }}>
+                      <button
+                        onClick={() => setExpandedDomein(isExpanded ? null : domeinKey)}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          background: isExpanded ? '#EEF2FF' : '#fff',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a5f' }}>
+                          {icon} {domein.naam}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', color: '#888', backgroundColor: '#f0f0f0', padding: '2px 8px', borderRadius: '10px' }}>
+                            {goals.length} doelen
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#888' }}>
+                            KD {domein.kerndoelen}
+                          </span>
+                          <span style={{ fontSize: '16px', color: '#999', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                        </span>
+                      </button>
+
+                      {isExpanded && goals.length > 0 && (
+                        <div style={{ padding: '8px 16px 16px', borderTop: '1px solid #e0e0e0' }}>
+                          {goals.map((goal, gIdx) => {
+                            const alreadyAdded = doelen.some(d => d.naam === (goal.length > 120 ? goal.substring(0, 117) + '...' : goal));
+                            return (
+                              <div
+                                key={gIdx}
+                                onClick={() => !alreadyAdded && doelen.length < 10 && handleAddFromLeerlijn(goal, domein.naam)}
+                                style={{
+                                  padding: '10px 12px',
+                                  margin: '4px 0',
+                                  borderRadius: '4px',
+                                  fontSize: '13px',
+                                  color: alreadyAdded ? '#999' : '#333',
+                                  backgroundColor: alreadyAdded ? '#f5f5f5' : '#fafafa',
+                                  cursor: alreadyAdded || doelen.length >= 10 ? 'default' : 'pointer',
+                                  borderLeft: alreadyAdded ? '3px solid #34d399' : '3px solid #d0d0d0',
+                                  lineHeight: '1.5',
+                                  transition: 'background-color 0.15s',
+                                }}
+                                onMouseEnter={(e) => { if (!alreadyAdded) (e.currentTarget.style.backgroundColor = '#EEF2FF'); }}
+                                onMouseLeave={(e) => { if (!alreadyAdded) (e.currentTarget.style.backgroundColor = '#fafafa'); }}
+                              >
+                                {alreadyAdded && <span style={{ fontSize: '11px', color: '#34d399', marginRight: '6px' }}>✓</span>}
+                                {goal}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {isExpanded && goals.length === 0 && (
+                        <div style={{ padding: '12px 16px', color: '#999', fontSize: '13px', borderTop: '1px solid #e0e0e0' }}>
+                          Geen leerdoelen beschikbaar voor {jaarlaag} in dit domein.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: AI Coach */}
+      {activeTab === 'ai' && (
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ backgroundColor: '#fff8e1', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '12px', color: '#856404' }}>
+            🤖 De AI-formuleercoach helpt je steekwoorden omzetten in goed geformuleerde WDS-doelen. Jij bepaalt de inhoud, de AI helpt met de formulering op basis van de leerlijn {trackLabel} {jaarlaag}.
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#1e3a5f' }}>
+              Steekwoorden / onderwerp *
+            </label>
+            <textarea
+              value={steekwoorden}
+              onChange={(e) => setSteekwoorden(e.target.value)}
+              placeholder="Bijv.: werkwoordspelling, voltooid deelwoord, sterke werkwoorden, t/d-regels..."
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid #d0d0d0',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                minHeight: '60px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#1e3a5f' }}>
+              Theorie / oefeningen context (optioneel)
+            </label>
+            <textarea
+              value={theorieContext}
+              onChange={(e) => setTheorieContext(e.target.value)}
+              placeholder="Welke theorie is behandeld? Welke oefeningen zijn gemaakt? Welke hoofdstukken?"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid #d0d0d0',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                minHeight: '60px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
           <button
-            onClick={handleAddGoal}
-            disabled={doelen.length >= 10}
+            onClick={handleAiGenerate}
+            disabled={!steekwoorden.trim() || aiGenerating || doelen.length >= 10}
             style={{
-              padding: '10px 16px',
-              backgroundColor: doelen.length >= 10 ? '#999' : '#2B5BA0',
+              padding: '10px 20px',
+              backgroundColor: !steekwoorden.trim() || aiGenerating || doelen.length >= 10 ? '#999' : '#2B5BA0',
               color: '#fff',
               border: 'none',
               borderRadius: '6px',
               fontSize: '14px',
               fontWeight: '600',
-              cursor: doelen.length >= 10 ? 'not-allowed' : 'pointer',
+              cursor: !steekwoorden.trim() || aiGenerating || doelen.length >= 10 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
             }}
           >
-            + Toevoegen
+            {aiGenerating ? '⏳ Bezig met genereren...' : '🤖 Genereer doelen'}
           </button>
-        </div>
-        {doelen.length >= 10 && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>Maximum 10 doelen bereikt</div>}
-      </div>
 
+          {/* AI Suggestions */}
+          {aiSuggestions.length > 0 && (
+            <div style={{ marginTop: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>
+                Voorgestelde doelen — klik om over te nemen:
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {aiSuggestions.map((suggestion, sIdx) => (
+                  <div
+                    key={sIdx}
+                    onClick={() => handleAddAiSuggestion(suggestion)}
+                    style={{
+                      padding: '10px 14px',
+                      backgroundColor: '#f0f9ff',
+                      border: '1px solid #bae6fd',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#1e3a5f',
+                      cursor: doelen.length >= 10 ? 'not-allowed' : 'pointer',
+                      lineHeight: '1.5',
+                      transition: 'background-color 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e0f2fe'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f0f9ff'; }}
+                  >
+                    <span style={{ marginRight: '8px', color: '#2B5BA0' }}>+</span>
+                    {suggestion}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Doelen overzicht */}
       <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1e3a5f', margin: 0 }}>
+            Geselecteerde doelen ({doelen.length}/10)
+          </h3>
+        </div>
+
         {doelen.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#f7f8fa', borderRadius: '6px', color: '#999' }}>Nog geen doelen toegevoegd</div>
+          <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#f7f8fa', borderRadius: '6px', color: '#999', fontSize: '13px' }}>
+            Nog geen doelen. Voeg ze handmatig toe, selecteer uit de leerlijn, of laat de AI-coach helpen.
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {doelen.map((goal, idx) => (
-              <div key={idx} style={{ border: '1px solid #d0d0d0', borderRadius: '6px', padding: '16px', backgroundColor: '#fff' }}>
+              <div key={idx} style={{ border: '1px solid #d0d0d0', borderRadius: '6px', padding: '12px 16px', backgroundColor: '#fff' }}>
                 {editingId === idx ? (
                   <div>
                     <input
@@ -571,76 +935,30 @@ function Step2({ toets, doelen, setDoelen, onPrev, onNext }: {
                         fontSize: '14px',
                         fontFamily: 'inherit',
                         resize: 'vertical',
-                        minHeight: '60px',
+                        minHeight: '50px',
                         marginBottom: '8px',
                         boxSizing: 'border-box',
                       }}
                     />
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={handleSaveEdit}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: '#2B5BA0',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Opslaan
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: '#999',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Annuleren
-                      </button>
+                      <button onClick={handleSaveEdit} style={{ padding: '6px 12px', backgroundColor: '#2B5BA0', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Opslaan</button>
+                      <button onClick={() => setEditingId(null)} style={{ padding: '6px 12px', backgroundColor: '#999', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Annuleren</button>
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a5f', margin: 0 }}>{goal.naam}</h4>
-                      <span style={{ fontSize: '11px', color: '#999' }}>#{idx + 1}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '11px', color: '#999', fontWeight: '600' }}>#{idx + 1}</span>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a5f' }}>{goal.naam}</span>
+                      </div>
+                      {goal.omschrijving && <p style={{ fontSize: '12px', color: '#888', margin: '2px 0 0', fontStyle: 'italic' }}>{goal.omschrijving}</p>}
                     </div>
-                    {goal.omschrijving && <p style={{ fontSize: '13px', color: '#666', margin: '6px 0', fontStyle: 'italic' }}>{goal.omschrijving}</p>}
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                      <button onClick={() => handleStartEdit(goal, idx)} style={{ padding: '4px 8px', backgroundColor: '#2B5BA0', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>
-                        Bewerk
-                      </button>
-                      <button onClick={() => handleMoveGoal(idx, 'up')} disabled={idx === 0} style={{ padding: '4px 8px', backgroundColor: idx === 0 ? '#ddd' : '#4a80d4', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}>
-                        ↑
-                      </button>
-                      <button onClick={() => handleMoveGoal(idx, 'down')} disabled={idx === doelen.length - 1} style={{ padding: '4px 8px', backgroundColor: idx === doelen.length - 1 ? '#ddd' : '#4a80d4', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: idx === doelen.length - 1 ? 'not-allowed' : 'pointer' }}>
-                        ↓
-                      </button>
-                      <button
-                        onClick={() => handleDeleteGoal(idx)}
-                        style={{
-                          padding: '4px 8px',
-                          backgroundColor: '#ef4444',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          marginLeft: 'auto',
-                        }}
-                      >
-                        Verwijder
-                      </button>
+                    <div style={{ display: 'flex', gap: '4px', marginLeft: '12px', flexShrink: 0 }}>
+                      <button onClick={() => handleStartEdit(goal, idx)} style={{ padding: '4px 8px', backgroundColor: '#2B5BA0', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>Bewerk</button>
+                      <button onClick={() => handleMoveGoal(idx, 'up')} disabled={idx === 0} style={{ padding: '4px 6px', backgroundColor: idx === 0 ? '#ddd' : '#4a80d4', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}>↑</button>
+                      <button onClick={() => handleMoveGoal(idx, 'down')} disabled={idx === doelen.length - 1} style={{ padding: '4px 6px', backgroundColor: idx === doelen.length - 1 ? '#ddd' : '#4a80d4', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: idx === doelen.length - 1 ? 'not-allowed' : 'pointer' }}>↓</button>
+                      <button onClick={() => handleDeleteGoal(idx)} style={{ padding: '4px 8px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>✕</button>
                     </div>
                   </div>
                 )}
@@ -648,6 +966,7 @@ function Step2({ toets, doelen, setDoelen, onPrev, onNext }: {
             ))}
           </div>
         )}
+        {doelen.length >= 10 && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px' }}>Maximum 10 doelen bereikt.</div>}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
@@ -1780,7 +2099,7 @@ function ToetsenMakerContent() {
 
       <div style={{ paddingBottom: '40px' }}>
         {currentStep === 1 && <Step1 toets={toets} setToets={setToets} klassen={klassen} onNext={() => handleSaveAndNext(2)} />}
-        {currentStep === 2 && <Step2 toets={toets} doelen={doelen} setDoelen={setDoelen} onPrev={() => setCurrentStep(1)} onNext={() => handleSaveAndNext(3)} />}
+        {currentStep === 2 && <Step2 toets={toets} doelen={doelen} setDoelen={setDoelen} klassen={klassen} onPrev={() => setCurrentStep(1)} onNext={() => handleSaveAndNext(3)} />}
         {currentStep === 3 && <Step3 toets={toets} doelen={doelen} matrijsData={matrijsData} setMatrijsData={setMatrijsData} onPrev={() => setCurrentStep(2)} onNext={() => handleSaveAndNext(4)} />}
         {currentStep === 4 && <Step4 toets={toets} doelen={doelen} matrijsData={matrijsData} vragen={vragen} setVragen={setVragen} onPrev={() => setCurrentStep(3)} onNext={() => handleSaveAndNext(5)} />}
         {currentStep === 5 && <Step5 toets={toets} doelen={doelen} vragen={vragen} matrijsData={matrijsData} klassen={klassen} onPrev={() => setCurrentStep(4)} onComplete={handleComplete} />}

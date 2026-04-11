@@ -1,0 +1,729 @@
+{
+  "havo": {
+    "leerjaren": [
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5"
+    ],
+    "domeinen": {
+      "leesvaardigheid": {
+        "naam": "Leesvaardigheid",
+        "kerndoelen": "7, 8, 9",
+        "leerdoelen": {
+          "H1": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Uiteenzetting Verslag Kort verhaal.",
+            "verschillende bronnen, nl ..",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "Reflectie."
+          ],
+          "H2": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Betoog Argumenten Kort verhaal.",
+            "verschillende bronnen, nl. e-mails /brieven.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "Reflectie."
+          ],
+          "H3": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Beschouwing Kort verhaal.",
+            "verschillende bronnen, nl ..",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "Reflectie."
+          ],
+          "H4": [
+            "Kan vaststellen tot welke tekstsoort een tekst(gedeelte) behoort. Kan hoofdgedachte weergeven Kan de relaties tussen delen van een tekst aangeven Kan conclusies trekken over intenties, opvattingen en gevoelens van de auteur Kan standpunten en verschillende soorten argumenten onderscheiden. Kan argumentatieschema’s herkennen. Kan aanvaardbaarheid van een betoog beoordelen en drogredenen herkennen Kan teksten en tekstgedeeltes beknopt samenvatten.",
+            "Uiteenzetting en betoog.",
+            "verschillende bronnen, nl ..",
+            "Argumentatie-structuren: enkelvoudig, onder- en nevenschikkend.",
+            "Alle structuren, expliciete structuur Samenvatten.",
+            "Reflectie."
+          ],
+          "H5": [
+            "Kan vaststellen tot welke tekstsoort een tekst(gedeelte) behoort. Kan hoofdgedachte weergeven Kan de relaties tussen delen van een tekst aangeven Kan conclusies trekken over intenties, opvattingen en gevoelens van de auteur Kan standpunten en verschillende soorten argumenten onderscheiden. Kan argumentatieschema’s herkennen. Kan aanvaardbaarheid van een betoog beoordelen en drogredenen herkennen Kan teksten en tekstgedeeltes beknopt samenvatten.",
+            "beschouwing.",
+            "verschillende bronnen, nl ..",
+            "Argumentatieschema’s (oorzaak-gevolg, vergelijking, enz.) Drogreden opzoeken.",
+            "Reflectie."
+          ]
+        }
+      },
+      "mondelinge_taalvaardigheid": {
+        "naam": "Mondelinge taalvaardigheid",
+        "kerndoelen": "4, 5, 7, 8, 9, 10, 11",
+        "leerdoelen": {
+          "H1": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Uiteenzetting Verslag.",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "H2": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Betoog Argumenten.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "H3": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Beschouwing.",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "H4": [
+            "Kan een voordracht, discussie of debat voeren. Kan een betoog opzetten. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (taalconventies, doel en publiek). Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers.",
+            "Uiteenzetting en betoog.",
+            "Argumentatie-structuren: enkelvoudig, onder- en nevenschikkend.",
+            "Alle structuren, expliciete structuur.",
+            "formulering.",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "H5": [
+            "Kan een voordracht, discussie of debat voeren. Kan een betoog opzetten. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (taalconventies, doel en publiek). Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers.",
+            "beschouwing.",
+            "Argumentatieschema’s (oorzaak-gevolg, vergelijking, enz.) Drogreden opzoeken.",
+            "Reageren.",
+            "formulering.",
+            "Informatie verzamelen.",
+            "Reflectie."
+          ]
+        }
+      },
+      "schrijfvaardigheid": {
+        "naam": "Schrijfvaardigheid",
+        "kerndoelen": "4, 5, 6, 7, 8, 9",
+        "leerdoelen": {
+          "H1": [
+            "Je schrijft afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taaluiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Uiteenzetting Verslag Kort verhaal.",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica) werkwoorden.",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "H2": [
+            "Je schrijft afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taaluiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Betoog Argumenten Kort verhaal.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica) Overige woorden.",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "H3": [
+            "Je schrijft afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taaluiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Beschouwing Kort verhaal.",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica).",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "H4": [
+            "Kan een gedocumenteerde uiteenzetting, beschouwing en betoog schrijven en reviseren. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (spellingconventies, doel en publiek).",
+            "Uiteenzetting en betoog.",
+            "Argumentatie-structuren: enkelvoudig, onder- en nevenschikkend.",
+            "Alle structuren, expliciete structuur.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "Spellingeisen (word jij / wordt je broer Beoordeelt /beoordeeld) Tussenklanken, trema, koppelteken Aaneenschrijven lastige woorden spellingeisen.",
+            "formulering Samengestelde zinnen.",
+            "Reflectie."
+          ],
+          "H5": [
+            "Kan een gedocumenteerde uiteenzetting, beschouwing en betoog schrijven en reviseren. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (spellingconventies, doel en publiek).",
+            "beschouwing.",
+            "Argumentatieschema’s (oorzaak-gevolg, vergelijking, enz.) Drogreden opzoeken.",
+            "Informatie verzamelen.",
+            "reviseren.",
+            "Spellingeisen (word jij / wordt je broer Beoordeelt /beoordeeld) Tussenklanken, trema, koppelteken Aaneenschrijven lastige woorden spellingeisen.",
+            "Formulering.",
+            "Reflectie."
+          ]
+        }
+      },
+      "luistervaardigheid": {
+        "naam": "Luistervaardigheid",
+        "kerndoelen": "9",
+        "leerdoelen": {
+          "H1": [
+            "De leerling toont begrip van beluisterde, bekeken teksten, kan een tekst analyseren. (3 en 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Reflectie."
+          ],
+          "H2": [
+            "De leerling toont begrip van beluisterde, bekeken teksten, kan een tekst analyseren. (3 en 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Reflectie."
+          ],
+          "H3": [
+            "De leerling toont begrip van beluisterde, bekeken teksten, kan een tekst analyseren. (3 en 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Reflectie."
+          ],
+          "H4": [
+            "Reflectie."
+          ],
+          "H5": [
+            "Reflectie."
+          ]
+        }
+      },
+      "literatuur": {
+        "naam": "Literatuur",
+        "kerndoelen": "17, 18, 19, 20, 21",
+        "leerdoelen": {
+          "H1": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Ontwikkeling verhaal Hoofdpersoon Perspectief.",
+            "Verschillende genres nl. ….",
+            "4 boeken."
+          ],
+          "H2": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Omstandigheden Tijd titel.",
+            "Verschillende genres nl. ….",
+            "4 boeken."
+          ],
+          "H3": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Motto, motieven, context.",
+            "Verschillende genres nl. ….",
+            "4 boeken."
+          ],
+          "H4": [
+            "Kan beargumenteerd verslag uitbrengen van leeservaringen met een aantal door hem geselecteerde werken Minimaal 8, oorspronkelijke Nederlands Kan literaire tekstsoorten onderscheiden, literaire begrippen hanteren. Kan een overzicht van de hoofdlijnen van de literatuurgeschiedenis en de gelezen werken plaatsen in dit historisch perspectief.",
+            "4 boeken.",
+            "Literatuur- geschiedenis."
+          ],
+          "H5": [
+            "Kan beargumenteerd verslag uitbrengen van leeservaringen met een aantal door hem geselecteerde werken Minimaal 8, oorspronkelijke Nederlands Kan literaire tekstsoorten onderscheiden, literaire begrippen hanteren. Kan een overzicht van de hoofdlijnen van de literatuurgeschiedenis en de gelezen werken plaatsen in dit historisch perspectief.",
+            "4 boeken."
+          ]
+        }
+      }
+    }
+  },
+  "mavo": {
+    "leerjaren": [
+      "M1",
+      "M2",
+      "M3",
+      "M4"
+    ],
+    "domeinen": {
+      "leesvaardigheid": {
+        "naam": "Leesvaardigheid",
+        "kerndoelen": "7, 8, 9",
+        "leerdoelen": {
+          "M1": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Uiteenzetting Verslag Kort verhaal.",
+            "verschillende bronnen, nl ..",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "Reflectie."
+          ],
+          "M2": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Betoog Argumenten Kort verhaal.",
+            "verschillende bronnen, nl. e-mails /brieven.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "Reflectie."
+          ],
+          "M3": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Licht opiniërend Kort verhaal.",
+            "verschillende bronnen, nl ..",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "Reflectie."
+          ],
+          "M4": [
+            "De leerling toont begrip van zakelijke en literaire teksten; passend bij leesdoel (eindterm 1) De leerling evalueert zakelijke en literaire teksten, passend bij leesdoel (eindterm 2).",
+            "(Eindterm 9).",
+            "Examenteksten (Eindterm 9).",
+            "Verschillende bronnen.",
+            "Hoofdgedachte, perspectieven, hoofd- en bijzaken, relaties binnen teksten.",
+            "Reflectie."
+          ]
+        }
+      },
+      "mondelinge_taalvaardigheid": {
+        "naam": "Mondelinge taalvaardigheid",
+        "kerndoelen": "4, 5, 7, 8, 9, 10, 11",
+        "leerdoelen": {
+          "M1": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Uiteenzetting Verslag.",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "M2": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Betoog Argumenten.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "M3": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Beschouwing.",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "M4": [
+            "Leerling voert gesprekken afgestemd op doel, gesprekspartner(s) en context (eindterm 7, 12 en 13) De leerling verwerft doelgerichte informatie uit mondelinge, schriftelijke en digitale bronnen (eindterm 3) De leerling spreekt afgestemd op doel, publiek en context (eindterm 5).",
+            "(Eindterm 12,13).",
+            "Leerling voert gesprekken met anderen om tot kennisopbouw, begrip of een aanpak te komen (eindterm 8) De leerling beoordeelt de overtuigingskracht van argumentatie (eindterm 10).",
+            "Debat over een aan school gerelateerde of maatschappelijke kwesties, met focus op duidelijk spreken en respectvolle interactie.",
+            "Groepsgesprek over verschillende boeken.",
+            "Collectie actuele teksten aanleggen over een onderwerp voor het debat.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ]
+        }
+      },
+      "schrijfvaardigheid": {
+        "naam": "Schrijfvaardigheid",
+        "kerndoelen": "4, 5, 6, 7, 8, 9",
+        "leerdoelen": {
+          "M1": [
+            "Je schrijft afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Uiteenzetting Verslag Kort verhaal.",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica) werkwoorden.",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "M2": [
+            "Je schrijft afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Betoog Argumenten Kort verhaal.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica) Overige woorden.",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "M3": [
+            "Je schrijft afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Beschouwing Kort verhaal.",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica).",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "M4": [
+            "De leerling schrijft afgestemd op doel, publiek en context (eindterm 4) De leerling legt verbanden tussen eigen ervaringen, persoonlijke interesses en kwaliteiten, vervolgopleidingen en toekomst (eindterm 14).",
+            "Eindterm (11,12,113).",
+            "De leerling gebruikt taal op een creatieve manier (eindterm 6 en 11) De leerling beoordeelt de overtuigingskracht van argumentatie (eindterm 10).",
+            "Zakelijke e-mail Artikel Stagebrief.",
+            "Argumenten.",
+            "Structuren.",
+            "reviseren.",
+            "spellingeisen(grammatica).",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ]
+        }
+      },
+      "luistervaardigheid": {
+        "naam": "Luistervaardigheid",
+        "kerndoelen": "9",
+        "leerdoelen": {
+          "M1": [
+            "De leerling toont begrip van beluisterde, bekeken teksten, kan een tekst analyseren. (3 en 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Informatie halen uit videobeelden.",
+            "Reflectie."
+          ],
+          "M2": [
+            "De leerling toont begrip van beluisterde, bekeken teksten, kan een tekst analyseren. (3 en 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Informatie halen uit videobeelden.",
+            "Reflectie."
+          ],
+          "M3": [
+            "De leerling toont begrip van beluisterde, bekeken teksten, kan een tekst analyseren. (3 en 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Reflectie."
+          ],
+          "M4": [
+            "De leerling toont begrip van zakelijke en literaire teksten; passend bij lees- of luisterdoel (eindterm 1).",
+            "De leerling beoordeelt de overtuigingskracht van argumentatie (eindterm 10).",
+            "Kijk- en luistertoets (CITO, digitaal).",
+            "Aantekeningen maken vanuit een specifiek doel."
+          ]
+        }
+      },
+      "literatuur": {
+        "naam": "Literatuur",
+        "kerndoelen": "17, 18, 19, 20, 21",
+        "leerdoelen": {
+          "M1": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Ontwikkeling verhaal Hoofdpersoon Perspectief.",
+            "Verschillende genres nl. ….",
+            "4 boeken."
+          ],
+          "M2": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Omstandigheden Tijd titel.",
+            "Verschillende genres nl. ….",
+            "4 boeken."
+          ],
+          "M3": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Motto, motieven, context.",
+            "Verschillende genres nl. ….",
+            "4 boeken."
+          ],
+          "M4": [
+            "De leerling toont inzicht in het gebruik van literaire middelen bij de interpretatie van literaire teksten (eindterm 15) De leerling evalueert diens literaire ontwikkeling aan de hand van literaire teksten (eindterm 16) De leerling legt verbanden tussen literatuur, maatschappij en cultuur (eindterm 17) De leerling toont inzicht in zakelijke en literaire genres (eindterm 9).",
+            "Herhaling begrippen jaar 1,2 en 3, toegepast op de nieuwe boeken.",
+            "Verschillende genres.",
+            "6 boeken (waarvan 4 minimaal van een Nederlandse auteur).",
+            "De leerling kan het beschrijven van thema, inhoud en vorm van verhalende en lyrische teksten."
+          ]
+        }
+      }
+    }
+  },
+  "vwo": {
+    "leerjaren": [
+      "V1",
+      "V2",
+      "V3",
+      "V4",
+      "V5",
+      "V6"
+    ],
+    "domeinen": {
+      "leesvaardigheid": {
+        "naam": "Leesvaardigheid",
+        "kerndoelen": "7, 8, 9",
+        "leerdoelen": {
+          "V1": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Uiteenzetting Verslag Kort verhaal.",
+            "Verschillende bronnen, nl ..",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "Reflectie."
+          ],
+          "V2": [
+            "Je toont begrip van gelezen teksten, kan een tekst analyseren. (3 en 8) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Betoog Argumenten Kort verhaal.",
+            "Verschillende bronnen, nl. e-mails /brieven.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "Reflectie."
+          ],
+          "V3": [
+            "Kan vaststellen tot welke tekstsoort een tekst(gedeelte) behoort. Kan hoofdgedachte weergeven. Kan de relaties tussen delen van een tekst aangeven. Kan conclusies trekken over intenties, opvattingen en gevoelens van de auteur. Kan standpunten en verschillende soorten argumenten onderscheiden. Kan argumentatieschema’s herkennen. Kan aanvaardbaarheid van een betoog beoordelen en drogredenen herkennen Kan teksten en tekstgedeeltes beknopt samenvatten.",
+            "Beschouwing Kort verhaal.",
+            "Verschillende bronnen, nl ..",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "Reflectie."
+          ],
+          "V4": [
+            "Kan vaststellen tot welke tekstsoort een tekst(gedeelte) behoort. Kan hoofdgedachte weergeven. Kan de relaties tussen delen van een tekst aangeven. Kan conclusies trekken over intenties, opvattingen en gevoelens van de auteur. Kan standpunten en verschillende soorten argumenten onderscheiden. Kan argumentatieschema’s herkennen. Kan aanvaardbaarheid van een betoog beoordelen en drogredenen herkennen Kan teksten en tekstgedeeltes beknopt samenvatten.",
+            "Relatief complexe uiteenzetting en betoog.",
+            "Verschillende bronnen, nl. Parool, regionale kranten.",
+            "Argumentatie-structuren: enkelvoudig, onder- en nevenschikkend.",
+            "Alle structuren, expliciete structuur Samenvatten.",
+            "Reflectie."
+          ],
+          "V5": [
+            "Kan vaststellen tot welke tekstsoort een tekst(gedeelte) behoort. Kan hoofdgedachte weergeven. Kan de relaties tussen delen van een tekst aangeven. Kan conclusies trekken over intenties, opvattingen en gevoelens van de auteur. Kan standpunten en verschillende soorten argumenten onderscheiden. Kan argumentatieschema’s herkennen. Kan aanvaardbaarheid van een betoog beoordelen en drogredenen herkennen Kan teksten en tekstgedeeltes beknopt samenvatten.",
+            "Beschouwing, synthesetekst.",
+            "Verschillende bronnen richting vwo 6.",
+            "Argumentatieschema’s (oorzaak-gevolg, vergelijking, enz.) Drogreden herkennen.",
+            "Reflectie."
+          ],
+          "V6": [
+            "Einddoelen zijn hetzelfde als voor 3F maar de doelen van de taakuitvoering zijn anders (zie hieronder).",
+            "Complexe uiteenzetting, betoog en beschouwing.",
+            "Verschillende bronnen nl. Elsevier, NRC, Groene Amsterdammer, Correspondent.",
+            "Soorten argumentatie onderscheiden. Argumentatie interpreteren & beoordelen Impliciete bedoeling herkennen. Consistentie beoordelen.",
+            "Goed geformuleerde, beknopte samenvatting schrijven.",
+            "Reflectie."
+          ]
+        }
+      },
+      "mondelinge_taalvaardigheid": {
+        "naam": "Mondelinge taalvaardigheid",
+        "kerndoelen": "4, 5, 7, 8, 9, 10, 11",
+        "leerdoelen": {
+          "V1": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Uiteenzetting Verslag.",
+            "Inleiding -kern-slot Kernzinnen Verbanden Hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "V2": [
+            "Je spreekt afgestemd op doel, publiek en context (uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9) Je voert gesprekken afgestemd op doel, gesprekspartner en context (10) Je voert gesprekken om tot kennisopbouw te komen. (11).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Betoog Argumenten.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "V3": [
+            "Kan een voordracht, discussie of debat voeren. Kan een betoog opzetten. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (taalconventies, doel en publiek). Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers.",
+            "Beschouwing.",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "(creatieve) formulering (grammatica).",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "V4": [
+            "Kan een voordracht, discussie of debat voeren. Kan een betoog opzetten. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (taalconventies, doel en publiek). Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers.",
+            "Uiteenzetting en betoog.",
+            "Argumentatie-structuren: enkelvoudig, onder- en nevenschikkend.",
+            "Alle structuren, expliciete structuur.",
+            "formulering.",
+            "Informatie verzamelen en vergelijken.",
+            "Reflectie."
+          ],
+          "V5": [
+            "Kan een voordracht, discussie of debat voeren. Kan een betoog opzetten. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (taalconventies, doel en publiek). Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers Kan adequaat reageren op bijdragen van luisteraars of gespreksdeelnemers.",
+            "Beschouwing over complex onderwerp.",
+            "Argumentatieschema’s (oorzaak-gevolg, vergelijking, enz.) Drogreden herkennen.",
+            "Reageren.",
+            "formulering.",
+            "Informatie verzamelen.",
+            "Reflectie."
+          ],
+          "V6": [
+            "Einddoelen zijn hetzelfde als voor 3F maar de doelen van de taakuitvoering zijn anders (zie hieronder).",
+            "Besluitvormende gesprekken Geanimeerde discussie Beschouwende gesprekken Meningvormend gesprek.",
+            "Kan speculeren over oorzaken en gevolgen Afwegen voor- en nadelen Kan uitgesproken en en overtuigende argumenten geven.",
+            "Taal inzetten om adequaat te presenteren en/of te reageren.",
+            "formulering.",
+            "Informatie verzamelen & beoordelen.",
+            "Reflectie."
+          ]
+        }
+      },
+      "schrijfvaardigheid": {
+        "naam": "Schrijfvaardigheid",
+        "kerndoelen": "4, 5, 6, 7, 8, 9",
+        "leerdoelen": {
+          "V1": [
+            "Je schrijft afgestemd op doel, publiek en context(uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Uiteenzetting Verslag Kort verhaal.",
+            "Inleiding -kern-slot Kernzinnen Verbanden hoofdgedachte.",
+            "Uiteenzettings-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica) werkwoorden.",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "V2": [
+            "Je schrijft afgestemd op doel, publiek en context(uiteenzettende of beschouwende tekst over een verschijnsel of kwestie (4) Je gebruikt taal op een creatieve manier (5) Je schrijft om te komen tot kennisopbouw (6) Je onderzoekt, verwerkt en vergelijkt verschillende bronnen (7, 8) Je reflecteert op taalactiviteit (9).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12) Je verzorgt het taalgebruik (13) Je verkent hoe je met taal uiting geeft aan je talige identiteiten (14) Je beschouwt het bestaan en gebruik van verschillende talen en taalvariëteiten in relatie tot het Nederlands (15) Je verkent de verandering van het Nederlands onder invloed van tijd en maatschappelijke ontwikkelingen (16).",
+            "Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Betoog Argumenten Kort verhaal.",
+            "Standpunten Argumenten.",
+            "Betoog-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica) Overige woorden.",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "V3": [
+            "Kan een gedocumenteerde uiteenzetting, beschouwing en betoog schrijven en reviseren. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (spellingconventies, doel en publiek).",
+            "Beschouwing Kort verhaal.",
+            "Feitelijke en waarderende argumenten.",
+            "Beschouwings-structuren.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "spellingeisen (grammatica).",
+            "(creatieve) formulering (grammatica).",
+            "Reflectie."
+          ],
+          "V4": [
+            "Kan een gedocumenteerde uiteenzetting, beschouwing en betoog schrijven en reviseren. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (spellingconventies, doel en publiek).",
+            "Uiteenzetting en betoog.",
+            "Argumentatie-structuren: enkelvoudig, onder- en nevenschikkend.",
+            "Alle structuren, expliciete structuur.",
+            "Informatie verzamelen en vergelijken.",
+            "reviseren.",
+            "Spellingeisen (word jij / wordt je broer Beoordeelt /beoordeeld) Tussenklanken, trema, koppelteken Aaneenschrijven lastige woorden spellingeisen.",
+            "formulering Samengestelde zinnen.",
+            "Reflectie."
+          ],
+          "V5": [
+            "Kan een gedocumenteerde uiteenzetting, beschouwing en betoog schrijven en reviseren. Kan relevante informatie verzamelen en verwerken. Kan de juiste taal hanteren (spellingconventies, doel en publiek).",
+            "Beschouwing.",
+            "Argumentatieschema’s (oorzaak-gevolg, vergelijking, enz.) Drogreden opzoeken.",
+            "Informatie verzamelen.",
+            "reviseren.",
+            "Formulering.",
+            "Reflectie."
+          ],
+          "V6": [
+            "Kan teksten schrijven over complexe onderwerpen.",
+            "Alle tekstgenres in complexe vorm.",
+            "Verschillende soorten argumentatie toepassen. Consistent schrijven.",
+            "Alle structuren, impliciete structuur.",
+            "Informatie verzamelen en beoordelen.",
+            "reviseren.",
+            "Kan foutloos schrijven.",
+            "formulering.",
+            "Reflectie."
+          ]
+        }
+      },
+      "luistervaardigheid": {
+        "naam": "Luistervaardigheid",
+        "kerndoelen": "17, 18, 19, 20, 21",
+        "leerdoelen": {
+          "V1": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Ontwikkeling verhaal Hoofdpersoon Perspectief.",
+            "Verschillende genres nl. Jeugdliteratuur, spanning, griezelverhaal, vriendschap & verliefd, sport.",
+            "4 boeken."
+          ],
+          "V2": [
+            "Je toont inzicht in verhalende teksten mbv kennis over verteltechnieken (17) Je verkent genrekenmerken van literatuur (18) Je kiest nieuwe teksten obv eerdere ervaringen (19) Je verkent welke functies literatuur heeft. (20) Je verwoordt verbanden tussen literatuur en de periode/context waarin literaire werken zijn ontstaan (21).",
+            "Je beschouwt de relatie tussen vorm en betekenis van taal (12).",
+            "Ontwikkeling verhaal Hoofdpersoon Perspectief.",
+            "Verschillende genres nl. Jeugdliteratuur, spanning, fantasy, sciencefiction, sport.",
+            "4 boeken.",
+            "Eenvoudige literaire procedés komen voor.",
+            "Beschrijft het verhaal."
+          ],
+          "V3": [
+            "Kan belevend, herkennend, kritisch en reflecterend lezen Kan beargumenteerd verslag uitbrengen van leeservaringen met een aantal door hem geselecteerde werken Minimaal 8, oorspronkelijke Nederlands Kan literaire tekstsoorten onderscheiden, literaire begrippen hanteren. Kan een overzicht van de hoofdlijnen van de literatuurgeschiedenis en de gelezen werken plaatsen in dit historisch perspectief.",
+            "Motto, motieven, context.",
+            "Verschillende genres nl. Young adult, thrillers, psychologische roman, fantasy, sciencefiction.",
+            "4 boeken.",
+            "Herkent en interpreteert relatief complexe structuur.",
+            "Tamelijk expliciete literaire procedés.",
+            "Legt verbanden binnen het verhaal."
+          ],
+          "V4": [
+            "Kan belevend, herkennend, kritisch en reflecterend lezen Kan beargumenteerd verslag uitbrengen van leeservaringen met een aantal door hem geselecteerde werken Minimaal 8, oorspronkelijke Nederlands Kan literaire tekstsoorten onderscheiden, literaire begrippen hanteren. Kan een overzicht van de hoofdlijnen van de literatuurgeschiedenis en de gelezen werken plaatsen in dit historisch perspectief.",
+            "Motto, motieven, context.",
+            "Verschillende genres nl. Oorlogsromans, historische romans, psychologische roman, dystopische roman,.",
+            "6 boeken.",
+            "Literatuur- geschiedenis.",
+            "Geeft waardeoordelen over het gelezen werk."
+          ],
+          "V5": [
+            "Kan belevend, herkennend, kritisch en reflecterend lezen Kan beargumenteerd verslag uitbrengen van leeservaringen met een aantal door hem geselecteerde werken Minimaal 8, oorspronkelijke Nederlands Kan literaire tekstsoorten onderscheiden, literaire begrippen hanteren. Kan een overzicht van de hoofdlijnen van de literatuurgeschiedenis en de gelezen werken plaatsen in dit historisch perspectief.",
+            "Motto, motieven, context.",
+            "Verschillende genres, nl. psychologische roman, dystopische roman, historische roman, briefroman, reisverhaal.",
+            "8 boeken.",
+            "Literatuur- geschiedenis.",
+            "Vergelijkt teksten naar vorm en inhoud."
+          ],
+          "V6": [
+            "Kan belevend, herkennend, kritisch, reflecterend, interpreterend en esthetisch lezen.",
+            "Verschillende genres, nl. Historische romans, oude werken, oorlogsromans, briefroman, bildungsroman, psychologische roman, reisverhaal.",
+            "12 boeken.",
+            "Literatuur- geschiedenis.",
+            "Herkent en interpreteert complexe structuur.",
+            "Complexe literaire procedés.",
+            "Identificeert zich empathisch met personages, cultuurhistorisch perspectief. Beoordelen waardeoordelen van anderen."
+          ]
+        }
+      }
+    }
+  }
+}
