@@ -334,85 +334,282 @@ function ToetsenMakerContent() {
   }
 
   /* ───── Print ───── */
-  function handlePrint(version: 'leerling' | 'antwoordmodel') {
+  function handlePrint(version: 'leerling' | 'antwoordmodel', previewOnly = false) {
     if (!toets) return;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    let html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${toets.naam}</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 40px; line-height: 1.6; color: #333; }
-          .header { margin-bottom: 30px; border-bottom: 2px solid #1e3a5f; padding-bottom: 20px; }
-          .title { font-size: 24px; font-weight: bold; color: #1e3a5f; margin: 0; }
-          .meta { font-size: 13px; color: #666; margin-top: 8px; }
-          .klas-badge { display: inline-block; background: ${klasKleur}; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 10px; }
-          .question { margin: 25px 0; page-break-inside: avoid; }
-          .q-number { font-weight: 600; color: #1e3a5f; margin-bottom: 5px; }
-          .q-text { margin: 8px 0; }
-          .q-type { font-size: 11px; color: #999; margin: 5px 0; }
-          .bloom-badge { display: inline-block; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; font-size: 11px; color: #666; margin: 0 5px 0 0; }
-          .points { display: inline-block; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; font-size: 11px; color: #666; }
-          .answer-lines { margin-top: 15px; }
-          .answer-line { border-bottom: 1px solid #999; height: 20px; margin: 10px 0; }
-          .antwoord { margin-top: 10px; padding: 10px; background: #f9f9f9; border-left: 3px solid ${klasKleur}; }
-          .antwoord-text { font-size: 14px; color: #333; }
-          .page-break { page-break-after: always; }
-          .footer { font-size: 11px; color: #999; margin-top: 30px; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="title">${toets.naam}</div>
-          <div class="meta">
-            <span class="klas-badge">${klas?.naam || 'Onbekend'}</span>
-            <span>${new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-          </div>
-        </div>
-    `;
+    const totalPoints = vragen.reduce((sum, v) => sum + v.punten, 0);
+    const totalTime = Math.round(vragen.reduce((sum, v) => sum + (estimatedMinutesPerType[v.vraag_type] || 1), 0));
+    const toetsType = toetsLabels[toets.type] || toets.type;
+    const datum = toets.datum
+      ? new Date(toets.datum).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 
+    const isAntwoordmodel = version === 'antwoordmodel';
+
+    let html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>${toets.naam}${isAntwoordmodel ? ' - Antwoordmodel' : ''}</title>
+      <style>
+        @page { margin: 1.8cm 2cm; size: A4 portrait; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; font-size: 11pt; line-height: 1.55; color: #222; }
+
+        /* ── Header ── */
+        .header { margin-bottom: 22px; padding-bottom: 14px; border-bottom: 2.5px solid #1e3a5f; }
+        .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        .header-left { flex: 1; }
+        .header-right { text-align: right; font-size: 9pt; color: #555; line-height: 1.7; }
+        .title { font-size: 20pt; font-weight: 700; color: #1e3a5f; letter-spacing: -0.3px; margin-bottom: 2px; }
+        .subtitle { font-size: 10pt; color: #555; font-weight: 400; }
+        .antwoordmodel-badge { display: inline-block; background: #1e3a5f; color: white; font-size: 9pt; font-weight: 600; padding: 3px 12px; border-radius: 3px; margin-left: 10px; vertical-align: middle; letter-spacing: 0.5px; text-transform: uppercase; }
+
+        /* ── Naamveld ── */
+        .name-row { display: flex; gap: 20px; margin-bottom: 18px; padding: 10px 14px; background: #f5f7fa; border: 1px solid #dde1e8; border-radius: 4px; }
+        .name-field { flex: 1; }
+        .name-label { font-size: 8.5pt; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+        .name-line { border-bottom: 1.5px solid #999; height: 22px; }
+
+        /* ── Instructies ── */
+        .instructions { margin-bottom: 20px; padding: 12px 16px; background: #fafbfc; border-left: 3px solid #1e3a5f; border-radius: 0 4px 4px 0; font-size: 9.5pt; color: #444; line-height: 1.7; }
+        .instructions strong { color: #1e3a5f; }
+        .instructions ul { margin: 4px 0 0 16px; padding: 0; }
+        .instructions li { margin-bottom: 2px; }
+
+        /* ── Vragen ── */
+        .question { margin-bottom: 20px; page-break-inside: avoid; }
+        .q-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #e8eaed; }
+        .q-number { font-size: 10.5pt; font-weight: 700; color: #1e3a5f; white-space: nowrap; }
+        .q-points { font-size: 8.5pt; color: #888; font-weight: 500; margin-left: auto; white-space: nowrap; }
+        .q-text { font-size: 11pt; line-height: 1.6; margin-bottom: 8px; color: #222; }
+        .q-bron { font-size: 9.5pt; color: #444; margin-bottom: 10px; padding: 8px 12px; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 3px; font-style: italic; line-height: 1.5; }
+
+        /* ── Meerkeuze ── */
+        .mc-options { margin: 8px 0 4px 0; }
+        .mc-option { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; font-size: 10.5pt; line-height: 1.5; }
+        .mc-letter { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1.5px solid #aaa; border-radius: 50%; font-size: 9pt; font-weight: 600; color: #555; flex-shrink: 0; margin-top: 1px; }
+        .mc-letter-correct { background: #1e3a5f; color: white; border-color: #1e3a5f; }
+        .mc-text { flex: 1; padding-top: 1px; }
+
+        /* ── Waar/Onwaar ── */
+        .wo-row { display: flex; gap: 24px; margin: 8px 0; }
+        .wo-option { display: flex; align-items: center; gap: 8px; font-size: 10.5pt; }
+        .wo-circle { width: 18px; height: 18px; border: 1.5px solid #aaa; border-radius: 50%; flex-shrink: 0; }
+        .wo-circle-correct { background: #1e3a5f; border-color: #1e3a5f; }
+
+        /* ── Koppel ── */
+        .koppel-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt; }
+        .koppel-table th { background: #f0f2f5; font-size: 8.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #555; padding: 6px 10px; text-align: left; border: 1px solid #ddd; }
+        .koppel-table td { padding: 7px 10px; border: 1px solid #ddd; vertical-align: top; }
+        .koppel-table td:last-child { ${isAntwoordmodel ? '' : 'border-bottom-style: dotted;'} }
+
+        /* ── Open vragen - antwoordlijnen ── */
+        .answer-space { margin: 8px 0; }
+        .answer-line { border-bottom: 1px dotted #bbb; height: 28px; }
+        .answer-box { border: 1px solid #ccc; border-radius: 3px; min-height: 60px; }
+        .answer-box-large { min-height: 120px; }
+
+        /* ── Antwoordmodel blok ── */
+        .answer-model { margin-top: 8px; padding: 10px 14px; background: #f0faf4; border: 1px solid #b8e6cc; border-left: 4px solid #2d8a4e; border-radius: 0 4px 4px 0; page-break-inside: avoid; }
+        .answer-model-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .answer-model-label { font-size: 8.5pt; font-weight: 700; color: #2d8a4e; text-transform: uppercase; letter-spacing: 0.8px; }
+        .answer-model-bloom { font-size: 8pt; padding: 2px 8px; border-radius: 3px; font-weight: 600; color: white; }
+        .answer-model-text { font-size: 10pt; color: #333; line-height: 1.6; }
+        .answer-model-rubric { font-size: 9pt; color: #555; margin-top: 6px; font-style: italic; }
+
+        /* ── Footer ── */
+        .page-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; color: #bbb; padding: 8px 0; }
+        .page-footer::after { content: counter(page) " / " counter(pages); }
+
+        /* ── Antwoordmodel overzicht ── */
+        .summary-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 16px 0; }
+        .summary-table th { background: #1e3a5f; color: white; font-size: 8.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; text-align: left; }
+        .summary-table td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
+        .summary-table tr:nth-child(even) td { background: #f9fafb; }
+        .summary-table .pts { text-align: center; font-weight: 600; }
+      </style></head><body>`;
+
+    /* ── HEADER ── */
+    html += `<div class="header"><div class="header-top">
+      <div class="header-left">
+        <div class="title">${toets.naam}${isAntwoordmodel ? '<span class="antwoordmodel-badge">Antwoordmodel</span>' : ''}</div>
+        <div class="subtitle">${toetsType} &mdash; ${klas?.vak || ''}</div>
+      </div>
+      <div class="header-right">
+        <div><strong>Klas:</strong> ${klas?.naam || 'Onbekend'}</div>
+        <div><strong>Datum:</strong> ${datum}</div>
+        <div><strong>Tijd:</strong> ~${totalTime} minuten</div>
+        <div><strong>Totaal:</strong> ${totalPoints} punten</div>
+      </div>
+    </div></div>`;
+
+    /* ── NAAMVELD (alleen leerlingversie) ── */
+    if (!isAntwoordmodel) {
+      html += `<div class="name-row">
+        <div class="name-field"><div class="name-label">Naam</div><div class="name-line"></div></div>
+        <div class="name-field"><div class="name-label">Klas</div><div class="name-line"></div></div>
+        <div class="name-field" style="flex:0.5"><div class="name-label">Nr.</div><div class="name-line"></div></div>
+        <div class="name-field" style="flex:0.5"><div class="name-label">Cijfer</div><div class="name-line"></div></div>
+      </div>`;
+    }
+
+    /* ── INSTRUCTIES (alleen leerlingversie) ── */
+    if (!isAntwoordmodel) {
+      html += `<div class="instructions">
+        <strong>Instructies</strong>
+        <ul>
+          <li>Deze toets bestaat uit <strong>${vragen.length} vragen</strong> en telt <strong>${totalPoints} punten</strong>.</li>
+          <li>Lees elke vraag zorgvuldig voordat je antwoord geeft.</li>
+          <li>Schrijf duidelijk en leesbaar. Onleesbare antwoorden worden niet beoordeeld.</li>
+          ${vragen.some(v => v.vraag_type === 'meerkeuze') ? '<li>Bij meerkeuzevragen: omcirkel het juiste antwoord of vul de letter in.</li>' : ''}
+          ${vragen.some(v => v.vraag_type === 'open_lang') ? '<li>Bij open vragen: gebruik volledige zinnen tenzij anders aangegeven.</li>' : ''}
+        </ul>
+      </div>`;
+    }
+
+    /* ── OVERZICHTSTABEL (alleen antwoordmodel) ── */
+    if (isAntwoordmodel) {
+      html += `<div style="margin-bottom:20px">
+        <table class="summary-table"><thead><tr>
+          <th>Nr.</th><th>Vraagtype</th><th>Bloom</th><th style="text-align:center">Punten</th><th>Antwoord (kort)</th>
+        </tr></thead><tbody>`;
+      vragen.forEach((v, idx) => {
+        const typeL = vraagTypes.find(t => t.key === v.vraag_type)?.label || v.vraag_type;
+        const shortAnswer = v.antwoord_model ? v.antwoord_model.substring(0, 50) + (v.antwoord_model.length > 50 ? '...' : '') : '-';
+        html += `<tr>
+          <td>${idx + 1}</td><td>${typeL}</td>
+          <td><span style="display:inline-block;background:${bloomColors[v.bloom_niveau]};color:white;padding:1px 8px;border-radius:3px;font-size:8.5pt;font-weight:600">${bloomLabels[v.bloom_niveau]}</span></td>
+          <td class="pts">${v.punten}</td><td style="font-size:9pt;color:#555">${shortAnswer}</td>
+        </tr>`;
+      });
+      html += `<tr style="font-weight:700;border-top:2px solid #1e3a5f">
+        <td colspan="3">Totaal</td><td class="pts">${totalPoints}</td><td></td>
+      </tr></tbody></table></div>`;
+    }
+
+    /* ── VRAGEN ── */
     vragen.forEach((vraag, idx) => {
-      const typeLabel = vraagTypes.find((t) => t.key === vraag.vraag_type)?.label || vraag.vraag_type;
-      html += `
-        <div class="question">
-          <div class="q-number">Vraag ${idx + 1}</div>
-          <div class="q-text">${vraag.vraag_tekst}</div>
-          <div class="q-type">
-            <span class="bloom-badge">${bloomLabels[vraag.bloom_niveau]}</span>
-            <span class="points">${vraag.punten} pt.</span>
-          </div>
-      `;
+      html += `<div class="question">`;
 
-      if (vraag.vraag_type === 'meerkeuze') {
-        html += `<div class="answer-lines">`;
-        vraag.antwoorden.forEach((a, i) => {
-          const letter = String.fromCharCode(65 + i);
-          html += `<div class="answer-line"><strong>${letter}.</strong> ${a.antwoord_tekst}</div>`;
-        });
-        html += `</div>`;
-      } else if (vraag.vraag_type === 'waar_onwaar') {
-        html += `<div class="answer-lines"><strong>Waar</strong> / <strong>Onwaar</strong></div>`;
-      } else {
-        html += `<div class="answer-lines"><div class="answer-line"></div><div class="answer-line"></div></div>`;
+      // Vraag header
+      html += `<div class="q-header">
+        <span class="q-number">Vraag ${idx + 1}</span>
+        <span class="q-points">${vraag.punten} ${vraag.punten === 1 ? 'punt' : 'punten'}</span>
+      </div>`;
+
+      // Brontekst
+      if (vraag.bron_tekst) {
+        html += `<div class="q-bron">${vraag.bron_tekst}</div>`;
       }
 
-      if (version === 'antwoordmodel' && vraag.antwoord_model) {
-        html += `<div class="antwoord"><strong>Antwoord:</strong><div class="antwoord-text">${vraag.antwoord_model}</div></div>`;
+      // Vraagtekst
+      html += `<div class="q-text">${vraag.vraag_tekst}</div>`;
+
+      // Per vraagtype
+      if (vraag.vraag_type === 'meerkeuze') {
+        html += `<div class="mc-options">`;
+        vraag.antwoorden.forEach((a, i) => {
+          const letter = String.fromCharCode(65 + i);
+          const isCorrect = isAntwoordmodel && a.is_correct;
+          html += `<div class="mc-option">
+            <span class="mc-letter ${isCorrect ? 'mc-letter-correct' : ''}">${letter}</span>
+            <span class="mc-text">${a.antwoord_tekst}</span>
+          </div>`;
+        });
+        html += `</div>`;
+
+      } else if (vraag.vraag_type === 'waar_onwaar') {
+        const correctAntwoord = vraag.antwoorden.find(a => a.is_correct);
+        html += `<div class="wo-row">
+          <div class="wo-option">
+            <span class="wo-circle ${isAntwoordmodel && correctAntwoord?.antwoord_tekst === 'Waar' ? 'wo-circle-correct' : ''}"></span>
+            <span>Waar</span>
+          </div>
+          <div class="wo-option">
+            <span class="wo-circle ${isAntwoordmodel && correctAntwoord?.antwoord_tekst === 'Onwaar' ? 'wo-circle-correct' : ''}"></span>
+            <span>Onwaar</span>
+          </div>
+        </div>`;
+
+      } else if (vraag.vraag_type === 'koppel') {
+        html += `<table class="koppel-table"><thead><tr><th style="width:45%">Term</th><th style="width:10%"></th><th style="width:45%">${isAntwoordmodel ? 'Koppeling' : 'Antwoord'}</th></tr></thead><tbody>`;
+        vraag.antwoorden.forEach(a => {
+          html += `<tr><td>${a.antwoord_tekst}</td><td style="text-align:center;color:#999">→</td><td>${isAntwoordmodel ? (a.koppel_tekst || '') : ''}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+
+      } else if (vraag.vraag_type === 'invul') {
+        if (!isAntwoordmodel) {
+          html += `<div class="answer-space"><div class="answer-line"></div></div>`;
+        }
+
+      } else if (vraag.vraag_type === 'open_kort') {
+        if (!isAntwoordmodel) {
+          html += `<div class="answer-space">
+            <div class="answer-line"></div>
+            <div class="answer-line"></div>
+            <div class="answer-line"></div>
+          </div>`;
+        }
+
+      } else if (vraag.vraag_type === 'open_lang') {
+        if (!isAntwoordmodel) {
+          html += `<div class="answer-space">
+            <div class="answer-line"></div><div class="answer-line"></div>
+            <div class="answer-line"></div><div class="answer-line"></div>
+            <div class="answer-line"></div><div class="answer-line"></div>
+            <div class="answer-line"></div><div class="answer-line"></div>
+          </div>`;
+        }
+      }
+
+      // Antwoordmodel per vraag
+      if (isAntwoordmodel && (vraag.antwoord_model || vraag.vraag_type === 'meerkeuze' || vraag.vraag_type === 'waar_onwaar')) {
+        html += `<div class="answer-model">
+          <div class="answer-model-header">
+            <span class="answer-model-label">Antwoord</span>
+            <span class="answer-model-bloom" style="background:${bloomColors[vraag.bloom_niveau]}">${bloomLabels[vraag.bloom_niveau]}</span>
+          </div>`;
+
+        if (vraag.vraag_type === 'meerkeuze') {
+          const correct = vraag.antwoorden.find(a => a.is_correct);
+          const correctIdx = vraag.antwoorden.findIndex(a => a.is_correct);
+          html += `<div class="answer-model-text"><strong>${String.fromCharCode(65 + correctIdx)}</strong>. ${correct?.antwoord_tekst || ''}</div>`;
+        } else if (vraag.vraag_type === 'waar_onwaar') {
+          const correct = vraag.antwoorden.find(a => a.is_correct);
+          html += `<div class="answer-model-text"><strong>${correct?.antwoord_tekst || ''}</strong></div>`;
+        }
+
+        if (vraag.antwoord_model) {
+          html += `<div class="answer-model-text" style="margin-top:4px">${vraag.antwoord_model}</div>`;
+        }
+
+        html += `</div>`;
       }
 
       html += `</div>`;
     });
 
-    html += `<div class="footer">Gegenereerd met docentenplanner</div></body></html>`;
+    /* ── PUNTENTELLING (alleen leerlingversie) ── */
+    if (!isAntwoordmodel) {
+      html += `<div style="margin-top:30px;padding-top:16px;border-top:2px solid #1e3a5f">
+        <table style="width:100%;border-collapse:collapse;font-size:10pt">
+          <tr><td style="padding:6px 0;font-weight:600;color:#1e3a5f">Totaal behaald</td>
+          <td style="padding:6px 0;text-align:right;font-size:9pt;color:#888">_____ / ${totalPoints} punten</td></tr>
+          <tr><td style="padding:6px 0;font-weight:600;color:#1e3a5f">Cijfer</td>
+          <td style="padding:6px 0;text-align:right;font-size:9pt;color:#888">_____</td></tr>
+        </table>
+      </div>`;
+    }
+
+    html += `</body></html>`;
 
     printWindow.document.write(html);
     printWindow.document.close();
-    setTimeout(() => printWindow.print(), 100);
+    if (!previewOnly) {
+      setTimeout(() => printWindow.print(), 200);
+    }
   }
 
   if (loading) {
@@ -550,47 +747,43 @@ function ToetsenMakerContent() {
                   minWidth: '180px',
                 }}
               >
-                <button
-                  onClick={() => {
-                    handlePrint('leerling');
-                    setShowPrintMenu(false);
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '10px 16px',
-                    background: 'none',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    borderBottom: '1px solid #e5e7eb',
-                  }}
-                  onMouseEnter={(e) => ((e.target as HTMLElement).style.background = '#f9fafb')}
-                  onMouseLeave={(e) => ((e.target as HTMLElement).style.background = 'none')}
-                >
-                  Print leerlingversie
-                </button>
-                <button
-                  onClick={() => {
-                    handlePrint('antwoordmodel');
-                    setShowPrintMenu(false);
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '10px 16px',
-                    background: 'none',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                  }}
-                  onMouseEnter={(e) => ((e.target as HTMLElement).style.background = '#f9fafb')}
-                  onMouseLeave={(e) => ((e.target as HTMLElement).style.background = 'none')}
-                >
-                  Print antwoordmodel
-                </button>
+                {[
+                  { label: 'Voorbeeld leerlingversie', action: () => handlePrint('leerling', true), icon: '👁' },
+                  { label: 'Voorbeeld antwoordmodel', action: () => handlePrint('antwoordmodel', true), icon: '👁' },
+                  { label: '', action: () => {}, icon: '', divider: true },
+                  { label: 'Print leerlingversie', action: () => handlePrint('leerling'), icon: '🖨' },
+                  { label: 'Print antwoordmodel', action: () => handlePrint('antwoordmodel'), icon: '🖨' },
+                ].map((item, i) =>
+                  item.divider ? (
+                    <div key={i} style={{ borderBottom: '1px solid #e5e7eb', margin: '4px 0' }} />
+                  ) : (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        item.action();
+                        setShowPrintMenu(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '10px 16px',
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        color: '#333',
+                      }}
+                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = '#f9fafb')}
+                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'none')}
+                    >
+                      <span style={{ fontSize: '14px' }}>{item.icon}</span>
+                      {item.label}
+                    </button>
+                  )
+                )}
               </div>
             )}
           </div>
