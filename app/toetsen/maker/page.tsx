@@ -122,7 +122,7 @@ function ToetsenMakerContent() {
   const [toets, setToets] = useState<Toets | null>(null);
   const [klassen, setKlassen] = useState<Klas[]>([]);
   const [vragen, setVragen] = useState<Vraag[]>([]);
-  const [expandedVraagId, setExpandedVraagId] = useState<number | null>(null);
+  const [expandedVraagId, setExpandedVraagId] = useState<number | string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -209,27 +209,14 @@ function ToetsenMakerContent() {
     try {
       setSaving(true);
       if (vraag.id) {
-        // Update
+        // Update existing question
         await fetch('/api/toets-vragen', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(vraag),
         });
-      } else {
-        // Create new with volgorde
-        const newVraag = {
-          ...vraag,
-          volgorde: vragen.length,
-        };
-        const res = await fetch('/api/toets-vragen', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newVraag),
-        });
-        const created = await res.json();
-        vraag.id = created.id;
       }
-      // Refresh vragen
+      // Refresh vragen from DB
       const res = await fetch(`/api/toets-vragen?toets_id=${toetsId}`);
       setVragen(await res.json());
     } finally {
@@ -643,12 +630,12 @@ function ToetsenMakerContent() {
             ) : (
               vragen.map((vraag, idx) => (
                 <VraagCard
-                  key={vraag.id || idx}
+                  key={vraag.id}
                   vraag={vraag}
                   index={idx}
-                  isExpanded={expandedVraagId === (vraag.id || idx)}
+                  isExpanded={expandedVraagId === vraag.id}
                   onToggleExpand={() =>
-                    setExpandedVraagId(expandedVraagId === (vraag.id || idx) ? null : (vraag.id || idx))
+                    setExpandedVraagId(expandedVraagId === vraag.id ? null : vraag.id!)
                   }
                   onSave={(updated) => saveVraag(updated)}
                   onDelete={() => deleteVraag(vraag.id)}
@@ -673,8 +660,24 @@ function ToetsenMakerContent() {
                   antwoord_model: '',
                   antwoorden: [],
                 };
-                setVragen([...vragen, newVraag]);
-                setExpandedVraagId(vragen.length);
+                try {
+                  setSaving(true);
+                  const res = await fetch('/api/toets-vragen', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newVraag),
+                  });
+                  const created = await res.json();
+                  // Refresh all questions from DB so state is always in sync
+                  const refreshRes = await fetch(`/api/toets-vragen?toets_id=${toetsId}`);
+                  const refreshed = await refreshRes.json();
+                  setVragen(refreshed);
+                  setExpandedVraagId(created.id);
+                } catch (e) {
+                  console.error('Error creating question:', e);
+                } finally {
+                  setSaving(false);
+                }
               }}
               style={{
                 marginTop: '20px',
@@ -1095,6 +1098,11 @@ function VraagCard({
   totalQuestions,
 }: VraagCardProps) {
   const [edited, setEdited] = useState(vraag);
+
+  // Sync edited state when vraag prop changes (after DB refresh)
+  useEffect(() => {
+    setEdited(vraag);
+  }, [vraag.id, vraag.vraag_tekst, vraag.vraag_type, vraag.bloom_niveau, vraag.punten, vraag.volgorde]);
 
   const typeLabel = vraagTypes.find((t) => t.key === vraag.vraag_type)?.label || vraag.vraag_type;
 
