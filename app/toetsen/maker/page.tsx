@@ -3,27 +3,13 @@
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-/* ───── Types ───── */
+// ===================== TYPES =====================
 interface Klas {
   id: number;
   naam: string;
   vak: string;
   jaarlaag: string;
   lokaal: string;
-  aantal_leerlingen: number;
-}
-
-interface Toets {
-  id: number;
-  klas_id: number;
-  naam: string;
-  type: string;
-  datum: string;
-  weging: number;
-  max_score: number;
-  omschrijving: string;
-  kleur: string;
-  les_id: number | null;
 }
 
 interface Antwoord {
@@ -40,7 +26,9 @@ interface Vraag {
   toets_id: number;
   vraag_tekst: string;
   vraag_type: 'meerkeuze' | 'open_kort' | 'open_lang' | 'invul' | 'koppel' | 'waar_onwaar';
-  bloom_niveau: 'onthouden' | 'begrijpen' | 'toepassen' | 'analyseren' | 'evalueren' | 'creeren';
+  wds_niveau: 'weten' | 'doen' | 'snappen';
+  bloom_niveau: string;
+  doel_id: number | null;
   punten: number;
   volgorde: number;
   bron_tekst: string;
@@ -48,22 +36,54 @@ interface Vraag {
   antwoorden: Antwoord[];
 }
 
-interface GeneratedQuestion {
-  vraag_tekst: string;
-  vraag_type: 'meerkeuze' | 'open_kort' | 'open_lang' | 'invul' | 'koppel' | 'waar_onwaar';
-  bloom_niveau: 'onthouden' | 'begrijpen' | 'toepassen' | 'analyseren' | 'evalueren' | 'creeren';
-  punten: number;
-  antwoorden?: Antwoord[];
+interface Doel {
+  id?: number;
+  toets_id: number;
+  naam: string;
+  omschrijving: string;
+  weten_punten: number;
+  doen_punten: number;
+  snappen_punten: number;
+  volgorde: number;
 }
 
-/* ───── Constants ───── */
-const toetsKleuren: Record<string, string> = {
-  PW: '#c95555',
-  SO: '#c4892e',
-  PO: '#8b5ec0',
-  MO: '#2d8a4e',
-  SE: '#4a80d4',
-  overig: '#8b95a5',
+interface Toets {
+  id: number;
+  klas_id: number;
+  naam: string;
+  type: string;
+  datum: string;
+  weging: number;
+  max_score: number;
+  omschrijving: string;
+  kleur: string;
+  les_id: number | null;
+  cesuur_percentage: number;
+  cesuur_cijfer: number;
+  wizard_stap: number;
+  tijd_minuten: number;
+  wds_weten_pct: number;
+  wds_doen_pct: number;
+  wds_snappen_pct: number;
+}
+
+// ===================== CONSTANTS =====================
+const wdsLeerlijn: Record<string, { weten: number; doen: number; snappen: number }> = {
+  V1: { weten: 30, doen: 45, snappen: 25 },
+  V2: { weten: 20, doen: 45, snappen: 35 },
+  V3: { weten: 15, doen: 40, snappen: 45 },
+  V4: { weten: 10, doen: 35, snappen: 55 },
+  V5: { weten: 5, doen: 30, snappen: 65 },
+  V6: { weten: 5, doen: 25, snappen: 70 },
+  H1: { weten: 40, doen: 40, snappen: 20 },
+  H2: { weten: 30, doen: 40, snappen: 30 },
+  H3: { weten: 20, doen: 40, snappen: 40 },
+  H4: { weten: 10, doen: 40, snappen: 50 },
+  H5: { weten: 0, doen: 40, snappen: 60 },
+  M1: { weten: 45, doen: 45, snappen: 10 },
+  M2: { weten: 35, doen: 55, snappen: 10 },
+  M3: { weten: 20, doen: 65, snappen: 15 },
+  M4: { weten: 10, doen: 75, snappen: 15 },
 };
 
 const toetsLabels: Record<string, string> = {
@@ -75,24 +95,13 @@ const toetsLabels: Record<string, string> = {
   overig: 'Overig',
 };
 
-const klasKleuren = ['#2d8a4e', '#4a80d4', '#8b5ec0', '#c95555', '#c4892e', '#2ba0b0', '#b04e7a', '#6060c0'];
-
-const bloomColors: Record<string, string> = {
-  onthouden: '#94a3b8',
-  begrijpen: '#60a5fa',
-  toepassen: '#34d399',
-  analyseren: '#fbbf24',
-  evalueren: '#f97316',
-  creeren: '#ef4444',
-};
-
-const bloomLabels: Record<string, string> = {
-  onthouden: 'Onthouden',
-  begrijpen: 'Begrijpen',
-  toepassen: 'Toepassen',
-  analyseren: 'Analyseren',
-  evalueren: 'Evalueren',
-  creeren: 'Creëren',
+const toetsKleuren: Record<string, string> = {
+  PW: '#c95555',
+  SO: '#c4892e',
+  PO: '#8b5ec0',
+  MO: '#2d8a4e',
+  SE: '#4a80d4',
+  overig: '#8b95a5',
 };
 
 const vraagTypes = [
@@ -113,297 +122,1121 @@ const estimatedMinutesPerType: Record<string, number> = {
   waar_onwaar: 0.5,
 };
 
-/* ───── Page Content ───── */
-function ToetsenMakerContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const toetsId = searchParams.get('id');
+// ===================== HELPER FUNCTIONS =====================
+function extractJaarlaag(klasNaam: string, jaarlaag?: string): string {
+  if (jaarlaag && jaarlaag.match(/^[VHM]\d+$/)) return jaarlaag;
+  const match = klasNaam.match(/([VHM])(\d)/);
+  return match ? `${match[1]}${match[2]}` : 'V3';
+}
 
-  const [toets, setToets] = useState<Toets | null>(null);
-  const [klassen, setKlassen] = useState<Klas[]>([]);
-  const [vragen, setVragen] = useState<Vraag[]>([]);
-  const [expandedVraagId, setExpandedVraagId] = useState<number | string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+function bloomMapFromWDS(wds: 'weten' | 'doen' | 'snappen'): string {
+  const map = {
+    weten: 'onthouden',
+    doen: 'toepassen',
+    snappen: 'evalueren',
+  };
+  return map[wds];
+}
 
-  // New toets form (when no id provided)
-  const [isNewMode, setIsNewMode] = useState(!toetsId);
-  const [newForm, setNewForm] = useState({
-    naam: '',
-    type: 'SO',
-    klas_id: 0,
-    datum: '',
-    weging: 1.0,
-    max_score: 10,
-    omschrijving: '',
-  });
-  const [creatingToets, setCreatingToets] = useState(false);
+// ===================== WDS BAR COMPONENT =====================
+function WDSBar({ weten, doen, snappen }: { weten: number; doen: number; snappen: number }) {
+  const total = weten + doen + snappen || 1;
+  const wetenPct = ((weten / total) * 100) | 0;
+  const doenPct = ((doen / total) * 100) | 0;
+  const snappenPct = ((snappen / total) * 100) | 0;
 
-  // AI States
-  const [showAIPanel, setShowAIPanel] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState('');
-  const [aiForm, setAiForm] = useState({
-    onderwerp: '',
-    aantalVragen: 5,
-    vraagTypes: {
-      meerkeuze: true,
-      open_kort: true,
-      open_lang: true,
-      invul: true,
-      koppel: false,
-      waar_onwaar: false,
-    },
-    bloomVerdeling: 'mix',
-    extraInstructies: '',
-  });
-  const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
-  const [selectedGenerated, setSelectedGenerated] = useState<Set<number>>(new Set());
+  return (
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', flex: 1, height: '24px', borderRadius: '4px', overflow: 'hidden', border: '1px solid #d0d0d0' }}>
+        <div style={{ flex: wetenPct, backgroundColor: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>
+          {wetenPct > 5 ? `${wetenPct}%` : ''}
+        </div>
+        <div style={{ flex: doenPct, backgroundColor: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>
+          {doenPct > 5 ? `${doenPct}%` : ''}
+        </div>
+        <div style={{ flex: snappenPct, backgroundColor: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>
+          {snappenPct > 5 ? `${snappenPct}%` : ''}
+        </div>
+      </div>
+      <div style={{ minWidth: '100px', fontSize: '12px', color: '#666' }}>
+        W:{wetenPct}% D:{doenPct}% S:{snappenPct}%
+      </div>
+    </div>
+  );
+}
 
-  // Print state
-  const [showPrintMenu, setShowPrintMenu] = useState(false);
+// ===================== STEP 1: BASISGEGEVENS =====================
+function Step1({ toets, setToets, klassen, onNext }: {
+  toets: Partial<Toets>;
+  setToets: (t: Partial<Toets>) => void;
+  klassen: Klas[];
+  onNext: () => void;
+}) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (isNewMode) {
-      // Only fetch klassen for the new toets form
-      fetch('/api/klassen')
-        .then(r => r.json())
-        .then(data => {
-          setKlassen(data || []);
-          if (data.length > 0 && newForm.klas_id === 0) {
-            setNewForm(prev => ({ ...prev, klas_id: data[0].id }));
-          }
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    } else if (toetsId) {
-      fetchData();
-    }
-  }, [toetsId, isNewMode]);
+  const selectedKlas = klassen.find((k) => k.id === toets.klas_id);
+  const jaarlaag = extractJaarlaag(selectedKlas?.naam || '', selectedKlas?.jaarlaag);
+  const recommended = wdsLeerlijn[jaarlaag] || { weten: 15, doen: 40, snappen: 45 };
 
-  async function fetchData() {
-    try {
-      setLoading(true);
-      const [toetsenRes, klassenRes, vragenRes] = await Promise.all([
-        fetch(`/api/toetsen?id=${toetsId}`),
-        fetch('/api/klassen'),
-        fetch(`/api/toets-vragen?toets_id=${toetsId}`),
-      ]);
+  const handleValidateAndNext = () => {
+    const newErrors: Record<string, string> = {};
+    if (!toets.klas_id) newErrors.klas_id = 'Selecteer een klas';
+    if (!toets.naam || toets.naam.trim() === '') newErrors.naam = 'Naam is verplicht';
+    if (!toets.type) newErrors.type = 'Type is verplicht';
+    if (!toets.datum) newErrors.datum = 'Datum is verplicht';
 
-      const toetsenData = await toetsenRes.json();
-      setToets(toetsenData[0] || null);
-      const klassenData = await klassenRes.json();
-      setKlassen(klassenData || []);
-      const vragenData = await vragenRes.json();
-      setVragen(vragenData || []);
-    } catch (e) {
-      console.error('Error loading toets:', e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function createNewToets() {
-    if (!newForm.naam.trim() || !newForm.klas_id) return;
-    try {
-      setCreatingToets(true);
-      const res = await fetch('/api/toetsen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newForm,
-          kleur: toetsKleuren[newForm.type] || '#8b95a5',
-        }),
-      });
-      const created = await res.json();
-      // Switch to edit mode with the new toets
-      window.history.replaceState(null, '', `/toetsen/maker?id=${created.id}`);
-      setIsNewMode(false);
-      // Fetch full data for the newly created toets
-      const [toetsenRes, vragenRes] = await Promise.all([
-        fetch(`/api/toetsen?id=${created.id}`),
-        fetch(`/api/toets-vragen?toets_id=${created.id}`),
-      ]);
-      const toetsenData = await toetsenRes.json();
-      setToets(toetsenData[0] || null);
-      setVragen(await vragenRes.json());
-    } catch (e) {
-      console.error('Error creating toets:', e);
-    } finally {
-      setCreatingToets(false);
-    }
-  }
-
-  const klas = klassen.find((k) => k.id === toets?.klas_id);
-  const klasKleur = klas ? klasKleuren[klassen.indexOf(klas) % klasKleuren.length] : '#999';
-
-  /* ───── Calculate Stats ───── */
-  const stats = useMemo(() => {
-    const totalPoints = vragen.reduce((sum, v) => sum + v.punten, 0);
-    const totalTime = vragen.reduce((sum, v) => sum + (estimatedMinutesPerType[v.vraag_type] || 1), 0);
-    const bloomDist: Record<string, { count: number; points: number; percentage: number }> = {};
-    const typeDist: Record<string, number> = {};
-
-    Object.keys(bloomLabels).forEach((level) => {
-      bloomDist[level] = { count: 0, points: 0, percentage: 0 };
-    });
-
-    vragen.forEach((v) => {
-      bloomDist[v.bloom_niveau].count += 1;
-      bloomDist[v.bloom_niveau].points += v.punten;
-      typeDist[v.vraag_type] = (typeDist[v.vraag_type] || 0) + 1;
-    });
-
-    Object.keys(bloomDist).forEach((level) => {
-      bloomDist[level].percentage = totalPoints > 0 ? Math.round((bloomDist[level].points / totalPoints) * 100) : 0;
-    });
-
-    return { totalPoints, totalTime, bloomDist, typeDist };
-  }, [vragen]);
-
-  /* ───── Save Question ───── */
-  async function saveVraag(vraag: Vraag) {
-    try {
-      setSaving(true);
-      if (vraag.id) {
-        // Update existing question
-        await fetch('/api/toets-vragen', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(vraag),
-        });
-      }
-      // Refresh vragen from DB
-      const res = await fetch(`/api/toets-vragen?toets_id=${toetsId}`);
-      setVragen(await res.json());
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function deleteVraag(vraagId: number | undefined) {
-    if (!vraagId) return;
-    try {
-      setSaving(true);
-      await fetch(`/api/toets-vragen?id=${vraagId}`, { method: 'DELETE' });
-      setVragen(vragen.filter((v) => v.id !== vraagId));
-      setExpandedVraagId(null);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function moveVraag(index: number, direction: 'up' | 'down') {
-    if ((direction === 'up' && index === 0) || (direction === 'down' && index === vragen.length - 1)) return;
-    const newVragen = [...vragen];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    [newVragen[index], newVragen[targetIndex]] = [newVragen[targetIndex], newVragen[index]];
-    setVragen(newVragen);
-    // Update all volgorde values
-    await Promise.all(
-      newVragen.map((v, i) =>
-        fetch('/api/toets-vragen', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...v, volgorde: i }),
-        })
-      )
-    );
-  }
-
-  /* ───── AI Generation ───── */
-  async function generateAIQuestions() {
-    if (!aiForm.onderwerp.trim()) {
-      setAiError('Vul een onderwerp in');
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    try {
-      setAiError('');
-      setAiLoading(true);
+    setErrors({});
+    onNext();
+  };
 
-      const enabledTypes = Object.entries(aiForm.vraagTypes)
-        .filter(([_, enabled]) => enabled)
-        .map(([type]) => type);
+  return (
+    <div style={{ padding: '24px', maxWidth: '800px' }}>
+      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1e3a5f' }}>Stap 1: Basisgegevens</h2>
 
-      if (enabledTypes.length === 0) {
-        setAiError('Selecteer minstens één vraagtype');
-        return;
-      }
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Klas *</label>
+        <select
+          value={toets.klas_id || ''}
+          onChange={(e) => setToets({ ...toets, klas_id: Number(e.target.value) })}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            borderRadius: '6px',
+            border: errors.klas_id ? '2px solid #ef4444' : '1px solid #d0d0d0',
+            fontSize: '14px',
+            fontFamily: 'inherit',
+          }}
+        >
+          <option value="">-- Selecteer een klas --</option>
+          {klassen.map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.naam} ({k.vak})
+            </option>
+          ))}
+        </select>
+        {errors.klas_id && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.klas_id}</div>}
+      </div>
 
-      const res = await fetch('/api/toets-ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vak: klas?.vak || '',
-          onderwerp: aiForm.onderwerp,
-          niveau: klas?.jaarlaag || '',
-          aantalVragen: aiForm.aantalVragen,
-          vraagTypes: enabledTypes,
-          bloomVerdeling: aiForm.bloomVerdeling,
-          extraInstructies: aiForm.extraInstructies,
-        }),
-      });
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Naam *</label>
+          <input
+            type="text"
+            value={toets.naam || ''}
+            onChange={(e) => setToets({ ...toets, naam: e.target.value })}
+            placeholder="bijv. Toets hoofdstuk 5"
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: '6px',
+              border: errors.naam ? '2px solid #ef4444' : '1px solid #d0d0d0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+          {errors.naam && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.naam}</div>}
+        </div>
 
-      const data = await res.json();
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Type *</label>
+          <select
+            value={toets.type || ''}
+            onChange={(e) => setToets({ ...toets, type: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: '6px',
+              border: errors.type ? '2px solid #ef4444' : '1px solid #d0d0d0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          >
+            <option value="">-- Selecteer type --</option>
+            {Object.entries(toetsLabels).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {errors.type && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.type}</div>}
+        </div>
+      </div>
 
-      if (res.status === 400 && data.error?.includes('ANTHROPIC_API_KEY')) {
-        setAiError('AI is nog niet geconfigureerd. Voeg een ANTHROPIC_API_KEY toe aan je Vercel environment variables.');
-      } else if (!res.ok) {
-        setAiError(data.error || 'Fout bij genereren van vragen');
-      } else {
-        setGeneratedQuestions(data.questions || []);
-        setSelectedGenerated(new Set(Array.from({ length: (data.questions || []).length }, (_, i) => i)));
-      }
-    } catch (e) {
-      setAiError('Fout bij verbinden met AI');
-      console.error(e);
-    } finally {
-      setAiLoading(false);
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Datum *</label>
+          <input
+            type="date"
+            value={toets.datum || ''}
+            onChange={(e) => setToets({ ...toets, datum: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: '6px',
+              border: errors.datum ? '2px solid #ef4444' : '1px solid #d0d0d0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+          {errors.datum && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{errors.datum}</div>}
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Tijd (minuten)</label>
+          <input
+            type="number"
+            value={toets.tijd_minuten || 45}
+            onChange={(e) => setToets({ ...toets, tijd_minuten: Number(e.target.value) })}
+            min="0"
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: '6px',
+              border: '1px solid #d0d0d0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+      </div>
+
+      <div style={{ backgroundColor: '#EEF2FF', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f', margin: '0 0 12px 0' }}>Cesuur</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#1e3a5f' }}>Percentage</label>
+            <input
+              type="number"
+              value={Math.round((toets.cesuur_percentage || 0.6) * 100)}
+              onChange={(e) => setToets({ ...toets, cesuur_percentage: Number(e.target.value) / 100 })}
+              min="0"
+              max="100"
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: '1px solid #d0d0d0',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#1e3a5f' }}>Cesuur cijfer</label>
+            <input
+              type="number"
+              value={toets.cesuur_cijfer || 5.5}
+              onChange={(e) => setToets({ ...toets, cesuur_cijfer: Number(e.target.value) })}
+              min="1"
+              max="10"
+              step="0.1"
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: '1px solid #d0d0d0',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ backgroundColor: '#f7f8fa', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f', margin: '0 0 12px 0' }}>WDS-verdeling doel (jaar {jaarlaag})</h3>
+        <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px', margin: '0 0 12px 0' }}>Aanbevolen: Weten {recommended.weten}% | Doen {recommended.doen}% | Snappen {recommended.snappen}%</p>
+
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px', fontWeight: '600', alignItems: 'center' }}>
+            <span style={{ color: '#60a5fa', minWidth: '80px' }}>Weten {toets.wds_weten_pct || 0}%</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={toets.wds_weten_pct || recommended.weten}
+              onChange={(e) => {
+                const newWeten = Number(e.target.value);
+                const remaining = 100 - newWeten;
+                const doenVal = Math.round((remaining * (toets.wds_doen_pct || recommended.doen)) / ((toets.wds_doen_pct || recommended.doen) + (toets.wds_snappen_pct || recommended.snappen)));
+                setToets({ ...toets, wds_weten_pct: newWeten, wds_doen_pct: doenVal, wds_snappen_pct: remaining - doenVal });
+              }}
+              style={{ width: '100%', margin: '0 12px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px', fontWeight: '600', alignItems: 'center' }}>
+            <span style={{ color: '#34d399', minWidth: '80px' }}>Doen {toets.wds_doen_pct || 0}%</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={toets.wds_doen_pct || recommended.doen}
+              onChange={(e) => {
+                const newDoen = Number(e.target.value);
+                const remaining = 100 - newDoen;
+                const wetenVal = Math.round((remaining * (toets.wds_weten_pct || recommended.weten)) / ((toets.wds_weten_pct || recommended.weten) + (toets.wds_snappen_pct || recommended.snappen)));
+                setToets({ ...toets, wds_doen_pct: newDoen, wds_weten_pct: wetenVal, wds_snappen_pct: remaining - wetenVal });
+              }}
+              style={{ width: '100%', margin: '0 12px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '12px', fontWeight: '600', alignItems: 'center' }}>
+            <span style={{ color: '#f59e0b', minWidth: '80px' }}>Snappen {toets.wds_snappen_pct || 0}%</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={toets.wds_snappen_pct || recommended.snappen}
+              onChange={(e) => {
+                const newSnappen = Number(e.target.value);
+                const remaining = 100 - newSnappen;
+                const wetenVal = Math.round((remaining * (toets.wds_weten_pct || recommended.weten)) / ((toets.wds_weten_pct || recommended.weten) + (toets.wds_doen_pct || recommended.doen)));
+                setToets({ ...toets, wds_snappen_pct: newSnappen, wds_weten_pct: wetenVal, wds_doen_pct: remaining - wetenVal });
+              }}
+              style={{ width: '100%', margin: '0 12px' }}
+            />
+          </div>
+        </div>
+
+        <WDSBar weten={toets.wds_weten_pct || recommended.weten} doen={toets.wds_doen_pct || recommended.doen} snappen={toets.wds_snappen_pct || recommended.snappen} />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+        <button
+          onClick={handleValidateAndNext}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#2B5BA0',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+          }}
+        >
+          Volgende →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===================== STEP 2: TOETSDOELEN =====================
+function Step2({ toets, doelen, setDoelen, onPrev, onNext }: {
+  toets: Partial<Toets>;
+  doelen: Doel[];
+  setDoelen: (d: Doel[]) => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const [newGoal, setNewGoal] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<Partial<Doel>>({});
+
+  const handleAddGoal = () => {
+    if (!newGoal.trim()) return;
+    const goal: Doel = {
+      toets_id: toets.id || 0,
+      naam: newGoal,
+      omschrijving: '',
+      weten_punten: 0,
+      doen_punten: 0,
+      snappen_punten: 0,
+      volgorde: doelen.length,
+    };
+    setDoelen([...doelen, goal]);
+    setNewGoal('');
+  };
+
+  const handleStartEdit = (goal: Doel, index: number) => {
+    setEditingId(index);
+    setEditValues(goal);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingId !== null) {
+      setDoelen(doelen.map((d, i) => (i === editingId ? { ...d, ...editValues } : d)));
+      setEditingId(null);
+      setEditValues({});
     }
-  }
+  };
 
-  async function addGeneratedQuestions() {
-    if (selectedGenerated.size === 0 || !toetsId) return;
+  const handleDeleteGoal = (index: number) => {
+    setDoelen(doelen.filter((_, i) => i !== index));
+  };
 
-    try {
-      setSaving(true);
-      const questionsToAdd = Array.from(selectedGenerated).map((idx) => ({
-        ...generatedQuestions[idx],
-        toets_id: Number(toetsId),
-        volgorde: vragen.length + idx,
-      }));
+  const handleMoveGoal = (index: number, direction: 'up' | 'down') => {
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === doelen.length - 1)) return;
+    const newDoelen = [...doelen];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    [newDoelen[index], newDoelen[targetIndex]] = [newDoelen[targetIndex], newDoelen[index]];
+    setDoelen(newDoelen);
+  };
 
-      await fetch('/api/toets-vragen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(questionsToAdd),
-      });
+  return (
+    <div style={{ padding: '24px', maxWidth: '900px' }}>
+      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1e3a5f' }}>Stap 2: Toetsdoelen</h2>
 
-      // Refresh
-      const res = await fetch(`/api/toets-vragen?toets_id=${toetsId}`);
-      setVragen(await res.json());
-      setGeneratedQuestions([]);
-      setSelectedGenerated(new Set());
-    } finally {
-      setSaving(false);
-    }
-  }
+      <div style={{ backgroundColor: '#f0f4ff', padding: '12px', borderRadius: '6px', marginBottom: '24px', fontSize: '12px', color: '#1e3a5f' }}>
+        💡 Formuleer concrete, meetbare doelen. Bijvoorbeeld: "De leerling kan de onvoltooid tegenwoordige tijd correct vervoegen."
+      </div>
 
-  /* ───── Print ───── */
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e3a5f' }}>Nieuw doel toevoegen</label>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input
+            type="text"
+            value={newGoal}
+            onChange={(e) => setNewGoal(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleAddGoal()}
+            placeholder="Beschrijf het leerdoel..."
+            style={{
+              flex: 1,
+              padding: '10px 12px',
+              borderRadius: '6px',
+              border: '1px solid #d0d0d0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+          <button
+            onClick={handleAddGoal}
+            disabled={doelen.length >= 10}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: doelen.length >= 10 ? '#999' : '#2B5BA0',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: doelen.length >= 10 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            + Toevoegen
+          </button>
+        </div>
+        {doelen.length >= 10 && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>Maximum 10 doelen bereikt</div>}
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        {doelen.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#f7f8fa', borderRadius: '6px', color: '#999' }}>Nog geen doelen toegevoegd</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {doelen.map((goal, idx) => (
+              <div key={idx} style={{ border: '1px solid #d0d0d0', borderRadius: '6px', padding: '16px', backgroundColor: '#fff' }}>
+                {editingId === idx ? (
+                  <div>
+                    <input
+                      type="text"
+                      value={editValues.naam || ''}
+                      onChange={(e) => setEditValues({ ...editValues, naam: e.target.value })}
+                      placeholder="Doelnaam"
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '4px',
+                        border: '1px solid #d0d0d0',
+                        fontSize: '14px',
+                        marginBottom: '8px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <textarea
+                      value={editValues.omschrijving || ''}
+                      onChange={(e) => setEditValues({ ...editValues, omschrijving: e.target.value })}
+                      placeholder="Omschrijving (optioneel)"
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '4px',
+                        border: '1px solid #d0d0d0',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                        minHeight: '60px',
+                        marginBottom: '8px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={handleSaveEdit}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#2B5BA0',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Opslaan
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#999',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Annuleren
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a5f', margin: 0 }}>{goal.naam}</h4>
+                      <span style={{ fontSize: '11px', color: '#999' }}>#{idx + 1}</span>
+                    </div>
+                    {goal.omschrijving && <p style={{ fontSize: '13px', color: '#666', margin: '6px 0', fontStyle: 'italic' }}>{goal.omschrijving}</p>}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button onClick={() => handleStartEdit(goal, idx)} style={{ padding: '4px 8px', backgroundColor: '#2B5BA0', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                        Bewerk
+                      </button>
+                      <button onClick={() => handleMoveGoal(idx, 'up')} disabled={idx === 0} style={{ padding: '4px 8px', backgroundColor: idx === 0 ? '#ddd' : '#4a80d4', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}>
+                        ↑
+                      </button>
+                      <button onClick={() => handleMoveGoal(idx, 'down')} disabled={idx === doelen.length - 1} style={{ padding: '4px 8px', backgroundColor: idx === doelen.length - 1 ? '#ddd' : '#4a80d4', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: idx === doelen.length - 1 ? 'not-allowed' : 'pointer' }}>
+                        ↓
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGoal(idx)}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#ef4444',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          marginLeft: 'auto',
+                        }}
+                      >
+                        Verwijder
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+        <button onClick={onPrev} style={{ padding: '10px 20px', backgroundColor: '#999', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+          ← Vorige
+        </button>
+        <button
+          onClick={onNext}
+          disabled={doelen.length === 0}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: doelen.length === 0 ? '#999' : '#2B5BA0',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: doelen.length === 0 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Volgende →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===================== STEP 3: TOETSMATRIJS =====================
+function Step3({ toets, doelen, matrijsData, setMatrijsData, onPrev, onNext }: {
+  toets: Partial<Toets>;
+  doelen: Doel[];
+  matrijsData: Record<number, { weten: number; doen: number; snappen: number }>;
+  setMatrijsData: (data: Record<number, { weten: number; doen: number; snappen: number }>) => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const updateCell = (doelIdx: number, wdsType: 'weten' | 'doen' | 'snappen', value: number) => {
+    const newData = { ...matrijsData };
+    if (!newData[doelIdx]) newData[doelIdx] = { weten: 0, doen: 0, snappen: 0 };
+    newData[doelIdx][wdsType] = Math.max(0, value);
+    setMatrijsData(newData);
+  };
+
+  const getTotalWeten = () => Object.values(matrijsData).reduce((sum, d) => sum + d.weten, 0);
+  const getTotalDoen = () => Object.values(matrijsData).reduce((sum, d) => sum + d.doen, 0);
+  const getTotalSnappen = () => Object.values(matrijsData).reduce((sum, d) => sum + d.snappen, 0);
+  const getTotalPoints = () => getTotalWeten() + getTotalDoen() + getTotalSnappen();
+
+  const currentWeten = getTotalWeten();
+  const currentDoen = getTotalDoen();
+  const currentSnappen = getTotalSnappen();
+  const totalPoints = getTotalPoints() || 1;
+
+  const currentWetenPct = Math.round((currentWeten / totalPoints) * 100);
+  const currentDoenPct = Math.round((currentDoen / totalPoints) * 100);
+  const currentSnappenPct = Math.round((currentSnappen / totalPoints) * 100);
+
+  const targetWetenPct = toets.wds_weten_pct || 15;
+  const targetDoenPct = toets.wds_doen_pct || 40;
+  const targetSnappenPct = toets.wds_snappen_pct || 45;
+
+  const wetenDeviation = Math.abs(currentWetenPct - targetWetenPct);
+  const doenDeviation = Math.abs(currentDoenPct - targetDoenPct);
+  const snappenDeviation = Math.abs(currentSnappenPct - targetSnappenPct);
+
+  const hasDeviation = wetenDeviation > 10 || doenDeviation > 10 || snappenDeviation > 10;
+
+  return (
+    <div style={{ padding: '24px', maxWidth: '1200px' }}>
+      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1e3a5f' }}>Stap 3: Toetsmatrijs</h2>
+
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f' }}>WDS-verdeling</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+          <div>
+            <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Doel-verdeling</p>
+            <WDSBar weten={targetWetenPct} doen={targetDoenPct} snappen={targetSnappenPct} />
+          </div>
+          <div>
+            <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Huidige verdeling</p>
+            <WDSBar weten={currentWetenPct} doen={currentDoenPct} snappen={currentSnappenPct} />
+            {hasDeviation && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fef08a', borderRadius: '4px', fontSize: '12px', color: '#92400e' }}>⚠ Verdeling wijkt > 10% af van doel</div>}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto', marginBottom: '24px', border: '1px solid #d0d0d0', borderRadius: '6px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f7f8fa', borderBottom: '2px solid #d0d0d0' }}>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#1e3a5f', minWidth: '150px' }}>Doel</th>
+              <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#60a5fa', minWidth: '80px', backgroundColor: '#f0f4ff' }}>Weten</th>
+              <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#34d399', minWidth: '80px', backgroundColor: '#f0f8f6' }}>Doen</th>
+              <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#f59e0b', minWidth: '80px', backgroundColor: '#fffbf0' }}>Snappen</th>
+              <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#666', minWidth: '80px' }}>Totaal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {doelen.map((doel, doelIdx) => {
+              const data = matrijsData[doelIdx] || { weten: 0, doen: 0, snappen: 0 };
+              const doelTotal = data.weten + data.doen + data.snappen;
+              return (
+                <tr key={doelIdx} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                  <td style={{ padding: '12px', fontWeight: '500', color: '#1e3a5f' }}>{doel.naam}</td>
+                  <td style={{ padding: '8px', textAlign: 'center', backgroundColor: '#f0f4ff' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      value={data.weten}
+                      onChange={(e) => updateCell(doelIdx, 'weten', Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        border: '1px solid #60a5fa',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        fontFamily: 'inherit',
+                        fontSize: '13px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: '8px', textAlign: 'center', backgroundColor: '#f0f8f6' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      value={data.doen}
+                      onChange={(e) => updateCell(doelIdx, 'doen', Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        border: '1px solid #34d399',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        fontFamily: 'inherit',
+                        fontSize: '13px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: '8px', textAlign: 'center', backgroundColor: '#fffbf0' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      value={data.snappen}
+                      onChange={(e) => updateCell(doelIdx, 'snappen', Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        border: '1px solid #f59e0b',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        fontFamily: 'inherit',
+                        fontSize: '13px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#1e3a5f' }}>{doelTotal}</td>
+                </tr>
+              );
+            })}
+            <tr style={{ backgroundColor: '#f7f8fa', fontWeight: '600', borderTop: '2px solid #d0d0d0' }}>
+              <td style={{ padding: '12px', color: '#1e3a5f' }}>Totaal</td>
+              <td style={{ padding: '12px', textAlign: 'center', color: '#60a5fa', backgroundColor: '#f0f4ff' }}>{currentWeten}</td>
+              <td style={{ padding: '12px', textAlign: 'center', color: '#34d399', backgroundColor: '#f0f8f6' }}>{currentDoen}</td>
+              <td style={{ padding: '12px', textAlign: 'center', color: '#f59e0b', backgroundColor: '#fffbf0' }}>{currentSnappen}</td>
+              <td style={{ padding: '12px', textAlign: 'center', color: '#1e3a5f' }}>{getTotalPoints()}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+        <button onClick={onPrev} style={{ padding: '10px 20px', backgroundColor: '#999', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+          ← Vorige
+        </button>
+        <button
+          onClick={onNext}
+          disabled={getTotalPoints() === 0}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: getTotalPoints() === 0 ? '#999' : '#2B5BA0',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: getTotalPoints() === 0 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Volgende →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===================== STEP 4: VRAGEN MAKEN =====================
+function Step4({ toets, doelen, matrijsData, vragen, setVragen, onPrev, onNext }: {
+  toets: Partial<Toets>;
+  doelen: Doel[];
+  matrijsData: Record<number, { weten: number; doen: number; snappen: number }>;
+  vragen: Vraag[];
+  setVragen: (v: Vraag[]) => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const [selectedDoelIdx, setSelectedDoelIdx] = useState<number>(0);
+  const [showNewQuestionForm, setShowNewQuestionForm] = useState(false);
+  const [newQuestion, setNewQuestion] = useState<Partial<Vraag>>({
+    vraag_tekst: '',
+    vraag_type: 'meerkeuze',
+    wds_niveau: 'weten',
+    punten: 1,
+    bron_tekst: '',
+    antwoord_model: '',
+    antwoorden: [],
+  });
+
+  const selectedDoel = doelen[selectedDoelIdx];
+  const doelMatrix = matrijsData[selectedDoelIdx] || { weten: 0, doen: 0, snappen: 0 };
+  const doelVragen = vragen.filter((v) => v.doel_id === selectedDoelIdx);
+
+  const getDoelStatus = (idx: number) => {
+    const doelQuestions = vragen.filter((v) => v.doel_id === idx);
+    const totalPunten = doelQuestions.reduce((sum, v) => sum + v.punten, 0);
+    const targetPunten = (matrijsData[idx]?.weten || 0) + (matrijsData[idx]?.doen || 0) + (matrijsData[idx]?.snappen || 0);
+    return { current: totalPunten, target: targetPunten };
+  };
+
+  const handleAddQuestion = () => {
+    if (!newQuestion.vraag_tekst?.trim()) return;
+    const question: Vraag = {
+      toets_id: toets.id || 0,
+      vraag_tekst: newQuestion.vraag_tekst || '',
+      vraag_type: newQuestion.vraag_type || 'meerkeuze',
+      wds_niveau: newQuestion.wds_niveau || 'weten',
+      bloom_niveau: bloomMapFromWDS(newQuestion.wds_niveau || 'weten'),
+      doel_id: selectedDoelIdx,
+      punten: newQuestion.punten || 1,
+      volgorde: doelVragen.length,
+      bron_tekst: newQuestion.bron_tekst || '',
+      antwoord_model: newQuestion.antwoord_model || '',
+      antwoorden: newQuestion.antwoorden || [],
+    };
+    setVragen([...vragen, question]);
+    setNewQuestion({
+      vraag_tekst: '',
+      vraag_type: 'meerkeuze',
+      wds_niveau: 'weten',
+      punten: 1,
+      bron_tekst: '',
+      antwoord_model: '',
+      antwoorden: [],
+    });
+    setShowNewQuestionForm(false);
+  };
+
+  const handleDeleteQuestion = (idx: number) => {
+    setVragen(vragen.filter((_, i) => i !== idx));
+  };
+
+  const wdsColors: Record<string, string> = {
+    weten: '#60a5fa',
+    doen: '#34d399',
+    snappen: '#f59e0b',
+  };
+
+  return (
+    <div style={{ padding: '24px', maxWidth: '1200px' }}>
+      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1e3a5f' }}>Stap 4: Vragen maken</h2>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: '24px' }}>
+        <div style={{ borderRight: '1px solid #d0d0d0', paddingRight: '24px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f' }}>Toetsdoelen</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {doelen.map((doel, idx) => {
+              const status = getDoelStatus(idx);
+              const isSelected = selectedDoelIdx === idx;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedDoelIdx(idx)}
+                  style={{
+                    padding: '12px',
+                    backgroundColor: isSelected ? '#2B5BA0' : '#f7f8fa',
+                    color: isSelected ? '#fff' : '#1e3a5f',
+                    border: isSelected ? '2px solid #2B5BA0' : '1px solid #d0d0d0',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div>{doel.naam}</div>
+                  <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.9 }}>
+                    {status.current}/{status.target} punten
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          {selectedDoel && (
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f' }}>{selectedDoel.naam}</h3>
+              {selectedDoel.omschrijving && <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px', fontStyle: 'italic' }}>{selectedDoel.omschrijving}</p>}
+
+              <div style={{ backgroundColor: '#f7f8fa', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '12px' }}>
+                <p style={{ margin: 0, marginBottom: '6px', fontWeight: '600', color: '#1e3a5f' }}>Vereenvoudigde WDS-verdeling:</p>
+                <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
+                  <span>
+                    <span style={{ color: '#60a5fa', fontWeight: '600' }}>Weten:</span> {doelMatrix.weten} punten
+                  </span>
+                  <span>
+                    <span style={{ color: '#34d399', fontWeight: '600' }}>Doen:</span> {doelMatrix.doen} punten
+                  </span>
+                  <span>
+                    <span style={{ color: '#f59e0b', fontWeight: '600' }}>Snappen:</span> {doelMatrix.snappen} punten
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f' }}>Vragen ({doelVragen.length})</h4>
+
+                {doelVragen.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#f7f8fa', borderRadius: '6px', color: '#999', fontSize: '13px' }}>Geen vragen voor dit doel</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                    {doelVragen.map((question, idx) => (
+                      <div key={idx} style={{ border: '1px solid #d0d0d0', borderRadius: '6px', padding: '12px', backgroundColor: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: '13px', margin: 0, color: '#1e3a5f', marginBottom: '4px' }}>{question.vraag_tekst}</p>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  backgroundColor: wdsColors[question.wds_niveau],
+                                  color: '#fff',
+                                  padding: '2px 8px',
+                                  borderRadius: '3px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {question.wds_niveau.charAt(0).toUpperCase() + question.wds_niveau.slice(1)}
+                              </span>
+                              <span style={{ fontSize: '12px', color: '#999' }}>
+                                {question.vraag_type} • {question.punten} ptn
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteQuestion(vragen.indexOf(question))}
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#ef4444',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Del
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setShowNewQuestionForm(!showNewQuestionForm)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    backgroundColor: '#2B5BA0',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Nieuwe vraag
+                </button>
+
+                {showNewQuestionForm && (
+                  <div style={{ marginTop: '16px', border: '1px solid #d0d0d0', padding: '16px', borderRadius: '6px', backgroundColor: '#f7f8fa' }}>
+                    <input
+                      type="text"
+                      placeholder="Vraag tekst"
+                      value={newQuestion.vraag_tekst || ''}
+                      onChange={(e) => setNewQuestion({ ...newQuestion, vraag_tekst: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '4px',
+                        border: '1px solid #d0d0d0',
+                        fontSize: '13px',
+                        marginBottom: '8px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                      <select
+                        value={newQuestion.vraag_type || 'meerkeuze'}
+                        onChange={(e) => setNewQuestion({ ...newQuestion, vraag_type: e.target.value as any })}
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #d0d0d0',
+                          fontSize: '12px',
+                          fontFamily: 'inherit',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <option value="meerkeuze">Meerkeuze</option>
+                        <option value="open_kort">Open kort</option>
+                        <option value="open_lang">Open lang</option>
+                        <option value="waar_onwaar">Waar/Onwaar</option>
+                        <option value="invul">Invul</option>
+                        <option value="koppel">Koppel</option>
+                      </select>
+
+                      <select
+                        value={newQuestion.wds_niveau || 'weten'}
+                        onChange={(e) => setNewQuestion({ ...newQuestion, wds_niveau: e.target.value as any })}
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #d0d0d0',
+                          fontSize: '12px',
+                          fontFamily: 'inherit',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <option value="weten">Weten</option>
+                        <option value="doen">Doen</option>
+                        <option value="snappen">Snappen</option>
+                      </select>
+
+                      <input
+                        type="number"
+                        min="1"
+                        value={newQuestion.punten || 1}
+                        onChange={(e) => setNewQuestion({ ...newQuestion, punten: Number(e.target.value) })}
+                        placeholder="Punten"
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #d0d0d0',
+                          fontSize: '12px',
+                          fontFamily: 'inherit',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={handleAddQuestion}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          backgroundColor: '#2B5BA0',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Voeg toe
+                      </button>
+                      <button
+                        onClick={() => setShowNewQuestionForm(false)}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          backgroundColor: '#999',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Annuleren
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginTop: '24px' }}>
+        <button onClick={onPrev} style={{ padding: '10px 20px', backgroundColor: '#999', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+          ← Vorige
+        </button>
+        <button
+          onClick={onNext}
+          disabled={vragen.length < 5}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: vragen.length < 5 ? '#999' : '#2B5BA0',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: vragen.length < 5 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Volgende →
+        </button>
+      </div>
+      {vragen.length < 5 && <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '12px' }}>Minimaal 5 vragen benodigd ({vragen.length}/5)</div>}
+    </div>
+  );
+}
+
+// ===================== STEP 5: REVIEW & EXPORT =====================
+function Step5({ toets, doelen, vragen, matrijsData, klassen, onPrev, onComplete }: {
+  toets: Partial<Toets>;
+  doelen: Doel[];
+  vragen: Vraag[];
+  matrijsData: Record<number, { weten: number; doen: number; snappen: number }>;
+  klassen: Klas[];
+  onPrev: () => void;
+  onComplete: () => void;
+}) {
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
+
+  const getTotalWeten = () => Object.values(matrijsData).reduce((sum, d) => sum + d.weten, 0);
+  const getTotalDoen = () => Object.values(matrijsData).reduce((sum, d) => sum + d.doen, 0);
+  const getTotalSnappen = () => Object.values(matrijsData).reduce((sum, d) => sum + d.snappen, 0);
+  const getTotalPoints = () => getTotalWeten() + getTotalDoen() + getTotalSnappen();
+
+  const currentWetenPct = Math.round((getTotalWeten() / (getTotalPoints() || 1)) * 100);
+  const currentDoenPct = Math.round((getTotalDoen() / (getTotalPoints() || 1)) * 100);
+  const currentSnappenPct = Math.round((getTotalSnappen() / (getTotalPoints() || 1)) * 100);
+
+  const targetWetenPct = toets.wds_weten_pct || 15;
+  const targetDoenPct = toets.wds_doen_pct || 40;
+  const targetSnappenPct = toets.wds_snappen_pct || 45;
+
+  const wetenDeviation = Math.abs(currentWetenPct - targetWetenPct);
+  const doenDeviation = Math.abs(currentDoenPct - targetDoenPct);
+  const snappenDeviation = Math.abs(currentSnappenPct - targetSnappenPct);
+
+  const checks = {
+    minimalVragen: vragen.length >= 5,
+    alleDoelen: doelen.every((d, idx) => vragen.some((v) => v.doel_id === idx)),
+    wdsBalance: wetenDeviation <= 10 && doenDeviation <= 10 && snappenDeviation <= 10,
+    alleVragenTekst: vragen.every((v) => v.vraag_tekst?.trim()),
+    antwoordmodel: vragen.filter((v) => v.vraag_type === 'meerkeuze').length === 0 || vragen.filter((v) => v.vraag_type === 'meerkeuze').every((v) => v.antwoorden?.some((a) => a.is_correct)),
+    totaalPunten: getTotalPoints() > 0,
+  };
+
+  const allChecksPassed = Object.values(checks).every((c) => c);
+
+  const klas = klassen.find(k => k.id === toets.klas_id);
+  const totalPoints = getTotalPoints();
+  const totalTime = toets.tijd_minuten || Math.round(vragen.reduce((sum, v) => sum + (estimatedMinutesPerType[v.vraag_type] || 1), 0));
+
   function handlePrint(version: 'leerling' | 'antwoordmodel', previewOnly = false) {
-    if (!toets) return;
-
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const totalPoints = vragen.reduce((sum, v) => sum + v.punten, 0);
-    const totalTime = Math.round(vragen.reduce((sum, v) => sum + (estimatedMinutesPerType[v.vraag_type] || 1), 0));
-    const toetsType = toetsLabels[toets.type] || toets.type;
+    const toetsType = toetsLabels[toets.type || 'overig'];
     const datum = toets.datum
       ? new Date(toets.datum).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
       : new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-
     const isAntwoordmodel = version === 'antwoordmodel';
 
     let html = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -412,8 +1245,6 @@ function ToetsenMakerContent() {
         @page { margin: 1.8cm 2cm; size: A4 portrait; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; font-size: 11pt; line-height: 1.55; color: #222; }
-
-        /* ── Header ── */
         .header { margin-bottom: 22px; padding-bottom: 14px; border-bottom: 2.5px solid #1e3a5f; }
         .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
         .header-left { flex: 1; }
@@ -421,65 +1252,39 @@ function ToetsenMakerContent() {
         .title { font-size: 20pt; font-weight: 700; color: #1e3a5f; letter-spacing: -0.3px; margin-bottom: 2px; }
         .subtitle { font-size: 10pt; color: #555; font-weight: 400; }
         .antwoordmodel-badge { display: inline-block; background: #1e3a5f; color: white; font-size: 9pt; font-weight: 600; padding: 3px 12px; border-radius: 3px; margin-left: 10px; vertical-align: middle; letter-spacing: 0.5px; text-transform: uppercase; }
-
-        /* ── Naamveld ── */
         .name-row { display: flex; gap: 20px; margin-bottom: 18px; padding: 10px 14px; background: #f5f7fa; border: 1px solid #dde1e8; border-radius: 4px; }
         .name-field { flex: 1; }
         .name-label { font-size: 8.5pt; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
         .name-line { border-bottom: 1.5px solid #999; height: 22px; }
-
-        /* ── Instructies ── */
         .instructions { margin-bottom: 20px; padding: 12px 16px; background: #fafbfc; border-left: 3px solid #1e3a5f; border-radius: 0 4px 4px 0; font-size: 9.5pt; color: #444; line-height: 1.7; }
         .instructions strong { color: #1e3a5f; }
         .instructions ul { margin: 4px 0 0 16px; padding: 0; }
         .instructions li { margin-bottom: 2px; }
-
-        /* ── Vragen ── */
         .question { margin-bottom: 20px; page-break-inside: avoid; }
         .q-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #e8eaed; }
         .q-number { font-size: 10.5pt; font-weight: 700; color: #1e3a5f; white-space: nowrap; }
         .q-points { font-size: 8.5pt; color: #888; font-weight: 500; margin-left: auto; white-space: nowrap; }
         .q-text { font-size: 11pt; line-height: 1.6; margin-bottom: 8px; color: #222; }
         .q-bron { font-size: 9.5pt; color: #444; margin-bottom: 10px; padding: 8px 12px; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 3px; font-style: italic; line-height: 1.5; }
-
-        /* ── Meerkeuze ── */
         .mc-options { margin: 8px 0 4px 0; }
         .mc-option { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; font-size: 10.5pt; line-height: 1.5; }
         .mc-letter { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1.5px solid #aaa; border-radius: 50%; font-size: 9pt; font-weight: 600; color: #555; flex-shrink: 0; margin-top: 1px; }
         .mc-letter-correct { background: #1e3a5f; color: white; border-color: #1e3a5f; }
         .mc-text { flex: 1; padding-top: 1px; }
-
-        /* ── Waar/Onwaar ── */
         .wo-row { display: flex; gap: 24px; margin: 8px 0; }
         .wo-option { display: flex; align-items: center; gap: 8px; font-size: 10.5pt; }
         .wo-circle { width: 18px; height: 18px; border: 1.5px solid #aaa; border-radius: 50%; flex-shrink: 0; }
         .wo-circle-correct { background: #1e3a5f; border-color: #1e3a5f; }
-
-        /* ── Koppel ── */
         .koppel-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt; }
         .koppel-table th { background: #f0f2f5; font-size: 8.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #555; padding: 6px 10px; text-align: left; border: 1px solid #ddd; }
         .koppel-table td { padding: 7px 10px; border: 1px solid #ddd; vertical-align: top; }
-        .koppel-table td:last-child { ${isAntwoordmodel ? '' : 'border-bottom-style: dotted;'} }
-
-        /* ── Open vragen - antwoordlijnen ── */
         .answer-space { margin: 8px 0; }
         .answer-line { border-bottom: 1px dotted #bbb; height: 28px; }
-        .answer-box { border: 1px solid #ccc; border-radius: 3px; min-height: 60px; }
-        .answer-box-large { min-height: 120px; }
-
-        /* ── Antwoordmodel blok ── */
         .answer-model { margin-top: 8px; padding: 10px 14px; background: #f0faf4; border: 1px solid #b8e6cc; border-left: 4px solid #2d8a4e; border-radius: 0 4px 4px 0; page-break-inside: avoid; }
         .answer-model-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
         .answer-model-label { font-size: 8.5pt; font-weight: 700; color: #2d8a4e; text-transform: uppercase; letter-spacing: 0.8px; }
-        .answer-model-bloom { font-size: 8pt; padding: 2px 8px; border-radius: 3px; font-weight: 600; color: white; }
         .answer-model-text { font-size: 10pt; color: #333; line-height: 1.6; }
-        .answer-model-rubric { font-size: 9pt; color: #555; margin-top: 6px; font-style: italic; }
-
-        /* ── Footer ── */
-        .page-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; color: #bbb; padding: 8px 0; }
-        .page-footer::after { content: counter(page) " / " counter(pages); }
-
-        /* ── Antwoordmodel overzicht ── */
+        .wds-badge { font-size: 8pt; padding: 2px 8px; border-radius: 3px; font-weight: 600; color: white; }
         .summary-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 16px 0; }
         .summary-table th { background: #1e3a5f; color: white; font-size: 8.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; text-align: left; }
         .summary-table td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
@@ -487,7 +1292,7 @@ function ToetsenMakerContent() {
         .summary-table .pts { text-align: center; font-weight: 600; }
       </style></head><body>`;
 
-    /* ── HEADER ── */
+    // HEADER
     html += `<div class="header"><div class="header-top">
       <div class="header-left">
         <div class="title">${toets.naam}${isAntwoordmodel ? '<span class="antwoordmodel-badge">Antwoordmodel</span>' : ''}</div>
@@ -501,7 +1306,7 @@ function ToetsenMakerContent() {
       </div>
     </div></div>`;
 
-    /* ── NAAMVELD (alleen leerlingversie) ── */
+    // NAAMVELD (alleen leerlingversie)
     if (!isAntwoordmodel) {
       html += `<div class="name-row">
         <div class="name-field"><div class="name-label">Naam</div><div class="name-line"></div></div>
@@ -511,7 +1316,7 @@ function ToetsenMakerContent() {
       </div>`;
     }
 
-    /* ── INSTRUCTIES (alleen leerlingversie) ── */
+    // INSTRUCTIES (alleen leerlingversie)
     if (!isAntwoordmodel) {
       html += `<div class="instructions">
         <strong>Instructies</strong>
@@ -525,18 +1330,20 @@ function ToetsenMakerContent() {
       </div>`;
     }
 
-    /* ── OVERZICHTSTABEL (alleen antwoordmodel) ── */
+    // OVERZICHTSTABEL (alleen antwoordmodel)
     if (isAntwoordmodel) {
       html += `<div style="margin-bottom:20px">
         <table class="summary-table"><thead><tr>
-          <th>Nr.</th><th>Vraagtype</th><th>Bloom</th><th style="text-align:center">Punten</th><th>Antwoord (kort)</th>
+          <th>Nr.</th><th>Vraagtype</th><th>WDS</th><th style="text-align:center">Punten</th><th>Antwoord (kort)</th>
         </tr></thead><tbody>`;
       vragen.forEach((v, idx) => {
         const typeL = vraagTypes.find(t => t.key === v.vraag_type)?.label || v.vraag_type;
+        const wdsColor = v.wds_niveau === 'weten' ? '#60a5fa' : v.wds_niveau === 'doen' ? '#34d399' : '#f59e0b';
+        const wdsLabel = v.wds_niveau === 'weten' ? 'Weten' : v.wds_niveau === 'doen' ? 'Doen' : 'Snappen';
         const shortAnswer = v.antwoord_model ? v.antwoord_model.substring(0, 50) + (v.antwoord_model.length > 50 ? '...' : '') : '-';
         html += `<tr>
           <td>${idx + 1}</td><td>${typeL}</td>
-          <td><span style="display:inline-block;background:${bloomColors[v.bloom_niveau]};color:white;padding:1px 8px;border-radius:3px;font-size:8.5pt;font-weight:600">${bloomLabels[v.bloom_niveau]}</span></td>
+          <td><span style="display:inline-block;background:${wdsColor};color:white;padding:1px 8px;border-radius:3px;font-size:8.5pt;font-weight:600">${wdsLabel}</span></td>
           <td class="pts">${v.punten}</td><td style="font-size:9pt;color:#555">${shortAnswer}</td>
         </tr>`;
       });
@@ -545,28 +1352,22 @@ function ToetsenMakerContent() {
       </tr></tbody></table></div>`;
     }
 
-    /* ── VRAGEN ── */
+    // VRAGEN
     vragen.forEach((vraag, idx) => {
       html += `<div class="question">`;
-
-      // Vraag header
       html += `<div class="q-header">
         <span class="q-number">Vraag ${idx + 1}</span>
         <span class="q-points">${vraag.punten} ${vraag.punten === 1 ? 'punt' : 'punten'}</span>
       </div>`;
 
-      // Brontekst
       if (vraag.bron_tekst) {
         html += `<div class="q-bron">${vraag.bron_tekst}</div>`;
       }
-
-      // Vraagtekst
       html += `<div class="q-text">${vraag.vraag_tekst}</div>`;
 
-      // Per vraagtype
       if (vraag.vraag_type === 'meerkeuze') {
         html += `<div class="mc-options">`;
-        vraag.antwoorden.forEach((a, i) => {
+        (vraag.antwoorden || []).forEach((a, i) => {
           const letter = String.fromCharCode(65 + i);
           const isCorrect = isAntwoordmodel && a.is_correct;
           html += `<div class="mc-option">
@@ -575,9 +1376,8 @@ function ToetsenMakerContent() {
           </div>`;
         });
         html += `</div>`;
-
       } else if (vraag.vraag_type === 'waar_onwaar') {
-        const correctAntwoord = vraag.antwoorden.find(a => a.is_correct);
+        const correctAntwoord = (vraag.antwoorden || []).find(a => a.is_correct);
         html += `<div class="wo-row">
           <div class="wo-option">
             <span class="wo-circle ${isAntwoordmodel && correctAntwoord?.antwoord_tekst === 'Waar' ? 'wo-circle-correct' : ''}"></span>
@@ -588,67 +1388,57 @@ function ToetsenMakerContent() {
             <span>Onwaar</span>
           </div>
         </div>`;
-
       } else if (vraag.vraag_type === 'koppel') {
         html += `<table class="koppel-table"><thead><tr><th style="width:45%">Term</th><th style="width:10%"></th><th style="width:45%">${isAntwoordmodel ? 'Koppeling' : 'Antwoord'}</th></tr></thead><tbody>`;
-        vraag.antwoorden.forEach(a => {
-          html += `<tr><td>${a.antwoord_tekst}</td><td style="text-align:center;color:#999">→</td><td>${isAntwoordmodel ? (a.koppel_tekst || '') : ''}</td></tr>`;
+        (vraag.antwoorden || []).forEach(a => {
+          html += `<tr><td>${a.antwoord_tekst}</td><td style="text-align:center;color:#999">&rarr;</td><td>${isAntwoordmodel ? (a.koppel_tekst || '') : ''}</td></tr>`;
         });
         html += `</tbody></table>`;
-
       } else if (vraag.vraag_type === 'invul') {
         if (!isAntwoordmodel) {
           html += `<div class="answer-space"><div class="answer-line"></div></div>`;
         }
-
       } else if (vraag.vraag_type === 'open_kort') {
         if (!isAntwoordmodel) {
-          html += `<div class="answer-space">
-            <div class="answer-line"></div>
-            <div class="answer-line"></div>
-            <div class="answer-line"></div>
-          </div>`;
+          html += `<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>`;
         }
-
       } else if (vraag.vraag_type === 'open_lang') {
         if (!isAntwoordmodel) {
-          html += `<div class="answer-space">
-            <div class="answer-line"></div><div class="answer-line"></div>
-            <div class="answer-line"></div><div class="answer-line"></div>
-            <div class="answer-line"></div><div class="answer-line"></div>
-            <div class="answer-line"></div><div class="answer-line"></div>
-          </div>`;
+          html += `<div class="answer-space">`;
+          for (let i = 0; i < 8; i++) html += `<div class="answer-line"></div>`;
+          html += `</div>`;
         }
       }
 
       // Antwoordmodel per vraag
       if (isAntwoordmodel && (vraag.antwoord_model || vraag.vraag_type === 'meerkeuze' || vraag.vraag_type === 'waar_onwaar')) {
+        const wdsColor = vraag.wds_niveau === 'weten' ? '#60a5fa' : vraag.wds_niveau === 'doen' ? '#34d399' : '#f59e0b';
+        const wdsLabel = vraag.wds_niveau === 'weten' ? 'Weten' : vraag.wds_niveau === 'doen' ? 'Doen' : 'Snappen';
         html += `<div class="answer-model">
           <div class="answer-model-header">
             <span class="answer-model-label">Antwoord</span>
-            <span class="answer-model-bloom" style="background:${bloomColors[vraag.bloom_niveau]}">${bloomLabels[vraag.bloom_niveau]}</span>
+            <span class="wds-badge" style="background:${wdsColor}">${wdsLabel}</span>
           </div>`;
 
         if (vraag.vraag_type === 'meerkeuze') {
-          const correct = vraag.antwoorden.find(a => a.is_correct);
-          const correctIdx = vraag.antwoorden.findIndex(a => a.is_correct);
+          const correct = (vraag.antwoorden || []).find(a => a.is_correct);
+          const correctIdx = (vraag.antwoorden || []).findIndex(a => a.is_correct);
           html += `<div class="answer-model-text"><strong>${String.fromCharCode(65 + correctIdx)}</strong>. ${correct?.antwoord_tekst || ''}</div>`;
         } else if (vraag.vraag_type === 'waar_onwaar') {
-          const correct = vraag.antwoorden.find(a => a.is_correct);
+          const correct = (vraag.antwoorden || []).find(a => a.is_correct);
           html += `<div class="answer-model-text"><strong>${correct?.antwoord_tekst || ''}</strong></div>`;
         }
 
         if (vraag.antwoord_model) {
           html += `<div class="answer-model-text" style="margin-top:4px">${vraag.antwoord_model}</div>`;
         }
-
         html += `</div>`;
       }
 
       html += `</div>`;
     });
 
-    /* ── PUNTENTELLING (alleen leerlingversie) ── */
+    // PUNTENTELLING (alleen leerlingversie)
     if (!isAntwoordmodel) {
       html += `<div style="margin-top:30px;padding-top:16px;border-top:2px solid #1e3a5f">
         <table style="width:100%;border-collapse:collapse;font-size:10pt">
@@ -661,7 +1451,6 @@ function ToetsenMakerContent() {
     }
 
     html += `</body></html>`;
-
     printWindow.document.write(html);
     printWindow.document.close();
     if (!previewOnly) {
@@ -669,1528 +1458,346 @@ function ToetsenMakerContent() {
     }
   }
 
+  return (
+    <div style={{ padding: '24px', maxWidth: '1000px' }}>
+      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1e3a5f' }}>Stap 5: Review & Afronden</h2>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+        <div>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f' }}>Doel-verdeling</h3>
+          <WDSBar weten={targetWetenPct} doen={targetDoenPct} snappen={targetSnappenPct} />
+        </div>
+        <div>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f' }}>Huidige verdeling</h3>
+          <WDSBar weten={currentWetenPct} doen={currentDoenPct} snappen={currentSnappenPct} />
+        </div>
+      </div>
+
+      <div style={{ backgroundColor: '#f7f8fa', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f', margin: '0 0 12px 0' }}>Kwaliteitschecklist</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {[
+            { check: checks.minimalVragen, label: `Minimaal 5 vragen (${vragen.length}/5)`, warn: false },
+            { check: checks.alleDoelen, label: 'Alle doelen hebben vragen', warn: false },
+            { check: checks.wdsBalance, label: 'WDS-verdeling binnen 10% van doel', warn: true },
+            { check: checks.alleVragenTekst, label: 'Alle vragen hebben tekst', warn: false },
+            { check: checks.antwoordmodel, label: 'Meerkeuze vragen hebben correct antwoord', warn: false },
+            { check: checks.totaalPunten, label: `Totaal punten > 0 (${getTotalPoints()})`, warn: false },
+          ].map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+              <span style={{ color: item.check ? '#34d399' : item.warn ? '#f59e0b' : '#ef4444', fontWeight: '600' }}>
+                {item.check ? '✓' : item.warn ? '⚠' : '✗'}
+              </span>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ backgroundColor: '#EEF2FF', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f', margin: '0 0 12px 0' }}>Toets samenvatting</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+          <div><span style={{ color: '#666' }}>Naam:</span> {toets.naam}</div>
+          <div><span style={{ color: '#666' }}>Type:</span> {toetsLabels[toets.type || 'overig']}</div>
+          <div><span style={{ color: '#666' }}>Datum:</span> {toets.datum}</div>
+          <div><span style={{ color: '#666' }}>Tijd:</span> {totalTime} minuten</div>
+          <div><span style={{ color: '#666' }}>Doelen:</span> {doelen.length}</div>
+          <div><span style={{ color: '#666' }}>Vragen:</span> {vragen.length}</div>
+          <div><span style={{ color: '#666' }}>Totaal punten:</span> {totalPoints}</div>
+          <div><span style={{ color: '#666' }}>Cesuur:</span> {Math.round((toets.cesuur_percentage || 0.6) * 100)}% ({toets.cesuur_cijfer})</div>
+        </div>
+      </div>
+
+      {/* Print knoppen */}
+      <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e3a5f', margin: '0 0 12px 0' }}>Afdrukken</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <button onClick={() => handlePrint('leerling', true)} style={{ padding: '12px', background: '#f7f8fa', border: '1px solid #d1d5db', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', color: '#333', textAlign: 'left' }}>
+            <div style={{ fontWeight: '600', marginBottom: '4px' }}>Voorbeeld leerlingversie</div>
+            <div style={{ fontSize: '11px', color: '#888' }}>Bekijk hoe de toets eruitziet voor leerlingen</div>
+          </button>
+          <button onClick={() => handlePrint('antwoordmodel', true)} style={{ padding: '12px', background: '#f7f8fa', border: '1px solid #d1d5db', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', color: '#333', textAlign: 'left' }}>
+            <div style={{ fontWeight: '600', marginBottom: '4px' }}>Voorbeeld antwoordmodel</div>
+            <div style={{ fontSize: '11px', color: '#888' }}>Bekijk het antwoordmodel met WDS-niveaus</div>
+          </button>
+          <button onClick={() => handlePrint('leerling')} style={{ padding: '12px', background: '#1e3a5f', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: 'white' }}>
+            Print leerlingversie
+          </button>
+          <button onClick={() => handlePrint('antwoordmodel')} style={{ padding: '12px', background: '#1e3a5f', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: 'white' }}>
+            Print antwoordmodel
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+        <button onClick={onPrev} style={{ padding: '10px 20px', backgroundColor: '#999', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+          ← Vorige
+        </button>
+        <button
+          onClick={onComplete}
+          disabled={!allChecksPassed}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: allChecksPassed ? '#2d8a4e' : '#999',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: allChecksPassed ? 'pointer' : 'not-allowed',
+          }}
+        >
+          Toets afronden
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===================== PROGRESS BAR =====================
+function ProgressBar({ currentStep }: { currentStep: number }) {
+  const steps = ['Basisgegevens', 'Doelen', 'Matrijs', 'Vragen', 'Review'];
+  return (
+    <div style={{ padding: '16px 24px', backgroundColor: '#fff', borderBottom: '1px solid #d0d0d0', marginBottom: '0' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {steps.map((step, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: idx < currentStep ? '#2B5BA0' : idx === currentStep ? '#2B5BA0' : '#e0e0e0',
+                  color: idx < currentStep || idx === currentStep ? '#fff' : '#999',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  flexShrink: 0,
+                }}
+              >
+                {idx < currentStep ? '✓' : idx + 1}
+              </div>
+              <span style={{ marginLeft: '12px', fontSize: '12px', fontWeight: '600', color: idx <= currentStep ? '#1e3a5f' : '#999' }}>{step}</span>
+              {idx < steps.length - 1 && (
+                <div style={{ flex: 1, height: '2px', backgroundColor: idx < currentStep ? '#2B5BA0' : '#e0e0e0', margin: '0 12px' }} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===================== MAIN PAGE COMPONENT =====================
+function ToetsenMakerContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const toetsId = searchParams.get('id');
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const [toets, setToets] = useState<Partial<Toets>>({
+    klas_id: undefined,
+    naam: '',
+    type: '',
+    datum: new Date().toISOString().split('T')[0],
+    cesuur_percentage: 0.6,
+    cesuur_cijfer: 5.5,
+    wizard_stap: 1,
+    tijd_minuten: 45,
+    wds_weten_pct: 15,
+    wds_doen_pct: 40,
+    wds_snappen_pct: 45,
+  });
+  const [klassen, setKlassen] = useState<Klas[]>([]);
+  const [doelen, setDoelen] = useState<Doel[]>([]);
+  const [vragen, setVragen] = useState<Vraag[]>([]);
+  const [matrijsData, setMatrijsData] = useState<Record<number, { weten: number; doen: number; snappen: number }>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Load initial data
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const klasRes = await fetch('/api/klassen');
+        if (klasRes.ok) {
+          const klasData = await klasRes.json();
+          setKlassen(klasData);
+        }
+
+        if (toetsId) {
+          const toetsRes = await fetch(`/api/toetsen?id=${toetsId}`);
+          if (toetsRes.ok) {
+            const toetsData = await toetsRes.json();
+            setToets(toetsData[0]);
+            setCurrentStep(toetsData[0].wizard_stap || 1);
+
+            const doelRes = await fetch(`/api/toets-doelen?toets_id=${toetsId}`);
+            if (doelRes.ok) {
+              const doelData = await doelRes.json();
+              setDoelen(doelData);
+              // Initialize matrijsData from saved doelen
+              const mData: Record<number, { weten: number; doen: number; snappen: number }> = {};
+              doelData.forEach((d: Doel, idx: number) => {
+                mData[idx] = { weten: d.weten_punten || 0, doen: d.doen_punten || 0, snappen: d.snappen_punten || 0 };
+              });
+              setMatrijsData(mData);
+            }
+
+            const vragenRes = await fetch(`/api/toets-vragen?toets_id=${toetsId}`);
+            if (vragenRes.ok) {
+              const vragenData = await vragenRes.json();
+              setVragen(vragenData);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [toetsId]);
+
+  const handleSaveAndNext = async (nextStep: number) => {
+    setSaving(true);
+    try {
+      let savedToets = toets;
+
+      if (toets.id) {
+        // Update existing toets
+        await fetch('/api/toetsen', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...toets, wizard_stap: nextStep }),
+        });
+        savedToets = { ...toets, wizard_stap: nextStep };
+      } else {
+        // Create new toets
+        const res = await fetch('/api/toetsen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...toets,
+            wizard_stap: nextStep,
+            kleur: toetsKleuren[toets.type || 'overig'] || '#8b95a5',
+          }),
+        });
+        if (res.ok) {
+          savedToets = await res.json();
+          // Update URL without reload
+          window.history.replaceState(null, '', `/toetsen/maker?id=${savedToets.id}`);
+        }
+      }
+
+      setToets(savedToets);
+      const toetsIdToUse = savedToets.id;
+
+      if (toetsIdToUse && doelen.length > 0) {
+        // Merge matrijsData into doelen before saving
+        const doelenToSave = doelen.map((d, idx) => ({
+          ...d,
+          toets_id: toetsIdToUse,
+          volgorde: idx,
+          weten_punten: matrijsData[idx]?.weten ?? d.weten_punten ?? 0,
+          doen_punten: matrijsData[idx]?.doen ?? d.doen_punten ?? 0,
+          snappen_punten: matrijsData[idx]?.snappen ?? d.snappen_punten ?? 0,
+        }));
+
+        const savedDoelen: Doel[] = [];
+        for (const d of doelenToSave) {
+          const method = d.id ? 'PUT' : 'POST';
+          const res = await fetch('/api/toets-doelen', {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(d),
+          });
+          if (res.ok) {
+            const saved = await res.json();
+            savedDoelen.push(method === 'POST' ? saved : d);
+          }
+        }
+        if (savedDoelen.length > 0) setDoelen(savedDoelen);
+      }
+
+      if (toetsIdToUse && vragen.length > 0) {
+        for (let idx = 0; idx < vragen.length; idx++) {
+          const v = vragen[idx];
+          await fetch('/api/toets-vragen', {
+            method: v.id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...v, toets_id: toetsIdToUse, volgorde: idx }),
+          });
+        }
+      }
+
+      setCurrentStep(nextStep);
+    } catch (error) {
+      console.error('Error saving:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    setSaving(true);
+    try {
+      if (toets.id) {
+        await fetch('/api/toetsen', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...toets, wizard_stap: 5 }),
+        });
+      }
+      router.push('/toetsen');
+    } catch (error) {
+      console.error('Error completing:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          fontSize: '16px',
-          color: '#666',
-        }}
-      >
-        Toets laden...
-      </div>
-    );
-  }
-
-  /* ───── New Toets Form ───── */
-  if (isNewMode) {
-    const selectedKlas = klassen.find(k => k.id === newForm.klas_id);
-    const selectedKlasKleur = selectedKlas ? klasKleuren[klassen.indexOf(selectedKlas) % klasKleuren.length] : '#999';
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f7f8fa' }}>
-        {/* Top Bar */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '20px 24px', background: 'white', borderBottom: '1px solid #e5e7eb',
-        }}>
-          <button onClick={() => router.push('/toetsen')} style={{
-            background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer',
-            color: '#1e3a5f', padding: '4px 8px', borderRadius: '4px',
-          }}>
-            ← Terug naar toetsen
-          </button>
-          <div style={{ fontSize: '18px', fontWeight: '600', color: '#1e3a5f' }}>Nieuwe toets maken</div>
-          <div style={{ width: '160px' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f7f8fa' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a5f', marginBottom: '16px' }}>Toets Wizard</div>
+          <div style={{ color: '#666' }}>Laden...</div>
         </div>
-
-        {/* Form */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 24px' }}>
-          <div style={{
-            background: 'white', borderRadius: '16px', padding: '32px', maxWidth: '600px', width: '100%',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: '1px solid #e5e7eb',
-          }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1e3a5f', margin: '0 0 24px 0' }}>
-              Toetsgegevens
-            </h2>
-
-            {/* Naam */}
-            <label style={{ display: 'block', marginBottom: '16px' }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Naam *</div>
-              <input type="text" value={newForm.naam}
-                onChange={e => setNewForm({ ...newForm, naam: e.target.value })}
-                onKeyDown={e => { if (e.key === 'Enter' && newForm.naam.trim()) createNewToets(); }}
-                placeholder="bijv. Grammatica hoofdstuk 3"
-                autoFocus
-                style={{
-                  width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-                  borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
-                }}
-              />
-            </label>
-
-            {/* Klas + Type */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <label>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Klas *</div>
-                <select value={newForm.klas_id}
-                  onChange={e => setNewForm({ ...newForm, klas_id: Number(e.target.value) })}
-                  style={{
-                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
-                  }}
-                >
-                  {klassen.map((k, idx) => (
-                    <option key={k.id} value={k.id}>
-                      {k.naam} — {k.vak}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Type</div>
-                <select value={newForm.type}
-                  onChange={e => setNewForm({ ...newForm, type: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
-                  }}
-                >
-                  {Object.entries(toetsLabels).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            {/* Datum + Weging + Max score */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <label>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Datum</div>
-                <input type="date" value={newForm.datum}
-                  onChange={e => setNewForm({ ...newForm, datum: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
-                  }}
-                />
-              </label>
-              <label>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Weging</div>
-                <input type="number" step="0.5" min="0.5" value={newForm.weging}
-                  onChange={e => setNewForm({ ...newForm, weging: Number(e.target.value) })}
-                  style={{
-                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
-                  }}
-                />
-              </label>
-              <label>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Max score</div>
-                <input type="number" min="1" value={newForm.max_score}
-                  onChange={e => setNewForm({ ...newForm, max_score: Number(e.target.value) })}
-                  style={{
-                    width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-                    borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
-                  }}
-                />
-              </label>
-            </div>
-
-            {/* Omschrijving */}
-            <label style={{ display: 'block', marginBottom: '24px' }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Omschrijving (optioneel)</div>
-              <input type="text" value={newForm.omschrijving}
-                onChange={e => setNewForm({ ...newForm, omschrijving: e.target.value })}
-                placeholder="Hoofdstuk 3 + 4, schrijfvaardigheid..."
-                style={{
-                  width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-                  borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
-                }}
-              />
-            </label>
-
-            {/* Preview badge */}
-            {newForm.naam && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px',
-                background: '#f9fafb', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e5e7eb',
-              }}>
-                <span style={{
-                  display: 'inline-block', background: toetsKleuren[newForm.type] || '#8b95a5',
-                  color: 'white', padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
-                }}>{toetsLabels[newForm.type] || newForm.type}</span>
-                <span style={{ fontWeight: '600', color: '#1e3a5f', fontSize: '14px' }}>{newForm.naam}</span>
-                {selectedKlas && (
-                  <span style={{
-                    display: 'inline-block', background: selectedKlasKleur,
-                    color: 'white', padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
-                  }}>{selectedKlas.naam}</span>
-                )}
-              </div>
-            )}
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={createNewToets} disabled={!newForm.naam.trim() || creatingToets}
-                style={{
-                  flex: 1, padding: '12px 20px', background: !newForm.naam.trim() ? '#ccc' : '#2B5BA0',
-                  color: 'white', border: 'none', borderRadius: '8px', cursor: !newForm.naam.trim() ? 'default' : 'pointer',
-                  fontSize: '14px', fontWeight: '600',
-                }}
-              >
-                {creatingToets ? 'Aanmaken...' : 'Toets aanmaken & vragen toevoegen →'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!toets) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          color: '#666',
-        }}
-      >
-        <div style={{ fontSize: '18px', marginBottom: '20px' }}>Toets niet gevonden</div>
-        <button
-          onClick={() => router.push('/toetsen')}
-          style={{
-            padding: '10px 20px',
-            background: '#1e3a5f',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-          }}
-        >
-          Terug naar toetsen
-        </button>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f7f8fa' }}>
-      {/* Top Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '20px 24px',
-          background: 'white',
-          borderBottom: '1px solid #e5e7eb',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button
-            onClick={() => router.push('/toetsen')}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '18px',
-              cursor: 'pointer',
-              color: '#1e3a5f',
-              padding: '4px 8px',
-              borderRadius: '4px',
-            }}
-            onMouseEnter={(e) => ((e.target as HTMLElement).style.background = '#f0f0f0')}
-            onMouseLeave={(e) => ((e.target as HTMLElement).style.background = 'none')}
-          >
-            ← Terug naar toetsen
-          </button>
-        </div>
+    <div style={{ backgroundColor: '#f7f8fa', minHeight: '100vh' }}>
+      <ProgressBar currentStep={currentStep} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: '600', color: '#1e3a5f' }}>{toets.naam}</div>
-            <div style={{ fontSize: '13px', color: '#666' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  background: klasKleur,
-                  color: 'white',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  marginRight: '10px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                }}
-              >
-                {klas?.naam}
-              </span>
-              <span style={{ marginRight: '20px' }}>{vragen.length} vragen</span>
-              <span style={{ marginRight: '20px' }}>{stats.totalPoints} punten</span>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowPrintMenu(!showPrintMenu)}
-              style={{
-                padding: '8px 16px',
-                background: '#1e3a5f',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-              }}
-            >
-              🖨️ Print
-            </button>
-            {showPrintMenu && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '8px',
-                  background: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  zIndex: 100,
-                  minWidth: '180px',
-                }}
-              >
-                {[
-                  { label: 'Voorbeeld leerlingversie', action: () => handlePrint('leerling', true), icon: '👁' },
-                  { label: 'Voorbeeld antwoordmodel', action: () => handlePrint('antwoordmodel', true), icon: '👁' },
-                  { label: '', action: () => {}, icon: '', divider: true },
-                  { label: 'Print leerlingversie', action: () => handlePrint('leerling'), icon: '🖨' },
-                  { label: 'Print antwoordmodel', action: () => handlePrint('antwoordmodel'), icon: '🖨' },
-                ].map((item, i) =>
-                  item.divider ? (
-                    <div key={i} style={{ borderBottom: '1px solid #e5e7eb', margin: '4px 0' }} />
-                  ) : (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        item.action();
-                        setShowPrintMenu(false);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '10px 16px',
-                        background: 'none',
-                        border: 'none',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        color: '#333',
-                      }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = '#f9fafb')}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'none')}
-                    >
-                      <span style={{ fontSize: '14px' }}>{item.icon}</span>
-                      {item.label}
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+      <div style={{ paddingBottom: '40px' }}>
+        {currentStep === 1 && <Step1 toets={toets} setToets={setToets} klassen={klassen} onNext={() => handleSaveAndNext(2)} />}
+        {currentStep === 2 && <Step2 toets={toets} doelen={doelen} setDoelen={setDoelen} onPrev={() => setCurrentStep(1)} onNext={() => handleSaveAndNext(3)} />}
+        {currentStep === 3 && <Step3 toets={toets} doelen={doelen} matrijsData={matrijsData} setMatrijsData={setMatrijsData} onPrev={() => setCurrentStep(2)} onNext={() => handleSaveAndNext(4)} />}
+        {currentStep === 4 && <Step4 toets={toets} doelen={doelen} matrijsData={matrijsData} vragen={vragen} setVragen={setVragen} onPrev={() => setCurrentStep(3)} onNext={() => handleSaveAndNext(5)} />}
+        {currentStep === 5 && <Step5 toets={toets} doelen={doelen} vragen={vragen} matrijsData={matrijsData} klassen={klassen} onPrev={() => setCurrentStep(4)} onComplete={handleComplete} />}
       </div>
 
-      {/* Main Content */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Left Panel: Question List */}
-        <div
-          style={{
-            flex: '0 0 65%',
-            display: 'flex',
-            flexDirection: 'column',
-            borderRight: '1px solid #e5e7eb',
-            background: '#f7f8fa',
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              overflow: 'auto',
-              padding: '20px 24px',
-            }}
-          >
-            {vragen.length === 0 ? (
-              <div
-                style={{
-                  textAlign: 'center',
-                  color: '#999',
-                  paddingTop: '40px',
-              }}
-              >
-                <div style={{ fontSize: '14px', marginBottom: '10px' }}>Nog geen vragen</div>
-                <div style={{ fontSize: '12px' }}>Klik op het + pictogram om een vraag toe te voegen</div>
-              </div>
-            ) : (
-              vragen.map((vraag, idx) => (
-                <VraagCard
-                  key={vraag.id}
-                  vraag={vraag}
-                  index={idx}
-                  isExpanded={expandedVraagId === vraag.id}
-                  onToggleExpand={() =>
-                    setExpandedVraagId(expandedVraagId === vraag.id ? null : vraag.id!)
-                  }
-                  onSave={(updated) => saveVraag(updated)}
-                  onDelete={() => deleteVraag(vraag.id)}
-                  onMoveUp={() => moveVraag(idx, 'up')}
-                  onMoveDown={() => moveVraag(idx, 'down')}
-                  totalQuestions={vragen.length}
-                />
-              ))
-            )}
-
-            {/* Add Question Button */}
-            <button
-              onClick={async () => {
-                const newVraag: Vraag = {
-                  toets_id: Number(toetsId),
-                  vraag_tekst: '',
-                  vraag_type: 'open_kort',
-                  bloom_niveau: 'begrijpen',
-                  punten: 1,
-                  volgorde: vragen.length,
-                  bron_tekst: '',
-                  antwoord_model: '',
-                  antwoorden: [],
-                };
-                try {
-                  setSaving(true);
-                  const res = await fetch('/api/toets-vragen', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newVraag),
-                  });
-                  const created = await res.json();
-                  // Refresh all questions from DB so state is always in sync
-                  const refreshRes = await fetch(`/api/toets-vragen?toets_id=${toetsId}`);
-                  const refreshed = await refreshRes.json();
-                  setVragen(refreshed);
-                  setExpandedVraagId(created.id);
-                } catch (e) {
-                  console.error('Error creating question:', e);
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              style={{
-                marginTop: '20px',
-                width: '100%',
-                padding: '30px 20px',
-                border: '2px dashed #ccc',
-                background: 'transparent',
-                borderRadius: '14px',
-                cursor: 'pointer',
-                fontSize: '24px',
-                color: '#999',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.borderColor = '#1e3a5f';
-                (e.target as HTMLElement).style.color = '#1e3a5f';
-              }}
-              onMouseLeave={(e) => {
-                (e.target as HTMLElement).style.borderColor = '#ccc';
-                (e.target as HTMLElement).style.color = '#999';
-              }}
-            >
-              +
-            </button>
-          </div>
+      {saving && (
+        <div style={{ position: 'fixed', bottom: '24px', right: '24px', backgroundColor: '#2B5BA0', color: '#fff', padding: '12px 16px', borderRadius: '6px', fontSize: '13px' }}>
+          Aan het opslaan...
         </div>
-
-        {/* Right Panel: Sidebar */}
-        <div
-          style={{
-            flex: '0 0 35%',
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'white',
-            borderLeft: '1px solid #e5e7eb',
-            overflow: 'auto',
-          }}
-        >
-          <div style={{ padding: '24px', borderBottom: '1px solid #e5e7eb' }}>
-            {/* Overzicht */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: '600', color: '#1e3a5f', margin: '0 0 12px 0', textTransform: 'uppercase' }}>Overzicht</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div
-                  style={{
-                    padding: '12px',
-                    background: '#f9fafb',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e3a5f' }}>{vragen.length}</div>
-                  <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>vragen</div>
-                </div>
-                <div
-                  style={{
-                    padding: '12px',
-                    background: '#f9fafb',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e3a5f' }}>{stats.totalPoints}</div>
-                  <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>punten</div>
-                </div>
-              </div>
-              <div
-                style={{
-                  marginTop: '12px',
-                  padding: '12px',
-                  background: '#f9fafb',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a5f' }}>~{Math.round(stats.totalTime)} min</div>
-                <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>geschatte tijd</div>
-              </div>
-            </div>
-
-            {/* Bloom Verdeling */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: '600', color: '#1e3a5f', margin: '0 0 12px 0', textTransform: 'uppercase' }}>Bloom Verdeling</h3>
-
-              {/* Stacked bar */}
-              <div
-                style={{
-                  display: 'flex',
-                  height: '24px',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  marginBottom: '12px',
-                  background: '#f0f0f0',
-                }}
-              >
-                {Object.entries(stats.bloomDist).map(([level, data]) =>
-                  data.points > 0 ? (
-                    <div
-                      key={level}
-                      style={{
-                        flex: data.points,
-                        background: bloomColors[level],
-                        minWidth: '2px',
-                      }}
-                      title={`${bloomLabels[level]}: ${data.percentage}%`}
-                    />
-                  ) : null
-                )}
-              </div>
-
-              {/* Legend */}
-              <div style={{ fontSize: '12px' }}>
-                {Object.entries(stats.bloomDist).map(([level, data]) => (
-                  <div
-                    key={level}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '12px',
-                        height: '12px',
-                        background: bloomColors[level],
-                        borderRadius: '3px',
-                      }}
-                    />
-                    <span style={{ color: '#666' }}>
-                      {bloomLabels[level]}: {data.count} ({data.percentage}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Vraagtype Verdeling */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: '600', color: '#1e3a5f', margin: '0 0 12px 0', textTransform: 'uppercase' }}>Vraagtype</h3>
-              <div style={{ fontSize: '12px' }}>
-                {Object.entries(stats.typeDist).map(([type, count]) => (
-                  <div key={type} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#666' }}>
-                    <span>{vraagTypes.find((t) => t.key === type)?.label || type}</span>
-                    <span style={{ fontWeight: '600' }}>{count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* AI Panel */}
-          <div style={{ padding: '24px', borderTop: '1px solid #e5e7eb', flex: 1, overflow: 'auto' }}>
-            <button
-              onClick={() => setShowAIPanel(!showAIPanel)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                background: '#EEF2FF',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#1e3a5f',
-                marginBottom: '12px',
-              }}
-            >
-              {showAIPanel ? '▼' : '▶'} AI Vraag Generator
-            </button>
-
-            {showAIPanel && (
-              <div
-                style={{
-                  padding: '16px',
-                  background: '#f9fafb',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
-                }}
-              >
-                {/* Onderwerp */}
-                <label style={{ display: 'block', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Onderwerp</div>
-                  <input
-                    type="text"
-                    value={aiForm.onderwerp}
-                    onChange={(e) => setAiForm({ ...aiForm, onderwerp: e.target.value })}
-                    placeholder="bijv. Fotosynthese"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </label>
-
-                {/* Aantal vragen */}
-                <label style={{ display: 'block', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Aantal vragen</div>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={aiForm.aantalVragen}
-                    onChange={(e) => setAiForm({ ...aiForm, aantalVragen: parseInt(e.target.value) || 5 })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </label>
-
-                {/* Vraag types */}
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Vraagtypen</div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '8px',
-                    }}
-                  >
-                    {vraagTypes.map((type) => (
-                      <label key={type.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
-                        <input
-                          type="checkbox"
-                          checked={aiForm.vraagTypes[type.key as keyof typeof aiForm.vraagTypes]}
-                          onChange={(e) =>
-                            setAiForm({
-                              ...aiForm,
-                              vraagTypes: {
-                                ...aiForm.vraagTypes,
-                                [type.key]: e.target.checked,
-                              },
-                            })
-                          }
-                        />
-                        {type.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bloom verdeling */}
-                <label style={{ display: 'block', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Bloom verdeling</div>
-                  <select
-                    value={aiForm.bloomVerdeling}
-                    onChange={(e) => setAiForm({ ...aiForm, bloomVerdeling: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    <option value="laag">Vooral kennis</option>
-                    <option value="mix">Mix laag/hoog</option>
-                    <option value="hoog">Vooral hogere orde</option>
-                  </select>
-                </label>
-
-                {/* Extra instructies */}
-                <label style={{ display: 'block', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Extra instructies (optioneel)</div>
-                  <textarea
-                    value={aiForm.extraInstructies}
-                    onChange={(e) => setAiForm({ ...aiForm, extraInstructies: e.target.value })}
-                    placeholder="bijv. Focus op werkwoordsspelling"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      minHeight: '60px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </label>
-
-                {/* Error */}
-                {aiError && (
-                  <div
-                    style={{
-                      padding: '10px 12px',
-                      background: '#fee',
-                      border: '1px solid #fcc',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      color: '#c33',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    {aiError}
-                  </div>
-                )}
-
-                {/* Generate Button */}
-                <button
-                  onClick={generateAIQuestions}
-                  disabled={aiLoading}
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    background: aiLoading ? '#ccc' : '#2B5BA0',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: aiLoading ? 'default' : 'pointer',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                  }}
-                >
-                  {aiLoading ? '⏳ Genereren...' : '✨ Genereer vragen met AI'}
-                </button>
-
-                {/* Generated questions preview */}
-                {generatedQuestions.length > 0 && (
-                  <div style={{ marginTop: '16px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>
-                      {generatedQuestions.length} gegenereerde vragen
-                    </div>
-                    <div style={{ maxHeight: '200px', overflow: 'auto', marginBottom: '12px' }}>
-                      {generatedQuestions.map((q, idx) => (
-                        <label
-                          key={idx}
-                          style={{
-                            display: 'block',
-                            padding: '8px',
-                            background: 'white',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '4px',
-                            marginBottom: '6px',
-                            cursor: 'pointer',
-                            fontSize: '11px',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedGenerated.has(idx)}
-                            onChange={(e) => {
-                              const newSelected = new Set(selectedGenerated);
-                              if (e.target.checked) {
-                                newSelected.add(idx);
-                              } else {
-                                newSelected.delete(idx);
-                              }
-                              setSelectedGenerated(newSelected);
-                            }}
-                            style={{ marginRight: '6px' }}
-                          />
-                          {q.vraag_tekst.substring(0, 50)}...
-                        </label>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={addGeneratedQuestions}
-                      disabled={selectedGenerated.size === 0}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        background: selectedGenerated.size === 0 ? '#ccc' : '#34d399',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: selectedGenerated.size === 0 ? 'default' : 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                      }}
-                    >
-                      Voeg {selectedGenerated.size} geselecteerde vragen toe
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-/* ───── Question Card Component ───── */
-interface VraagCardProps {
-  vraag: Vraag;
-  index: number;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-  onSave: (vraag: Vraag) => void;
-  onDelete: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  totalQuestions: number;
-}
-
-function VraagCard({
-  vraag,
-  index,
-  isExpanded,
-  onToggleExpand,
-  onSave,
-  onDelete,
-  onMoveUp,
-  onMoveDown,
-  totalQuestions,
-}: VraagCardProps) {
-  const [edited, setEdited] = useState(vraag);
-
-  // Sync edited state when vraag prop changes (after DB refresh)
-  useEffect(() => {
-    setEdited(vraag);
-  }, [vraag.id, vraag.vraag_tekst, vraag.vraag_type, vraag.bloom_niveau, vraag.punten, vraag.volgorde]);
-
-  const typeLabel = vraagTypes.find((t) => t.key === vraag.vraag_type)?.label || vraag.vraag_type;
-
-  if (!isExpanded) {
-    return (
-      <div
-        onClick={onToggleExpand}
-        style={{
-          padding: '16px',
-          background: 'white',
-          borderRadius: '14px',
-          marginBottom: '12px',
-          cursor: 'pointer',
-          border: '1px solid #e5e7eb',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
-          (e.currentTarget as HTMLElement).style.borderColor = '#d1d5db';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-          (e.currentTarget as HTMLElement).style.borderColor = '#e5e7eb';
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#1e3a5f', marginBottom: '8px' }}>
-              Vraag {index + 1}
-            </div>
-            <div style={{ fontSize: '14px', color: '#333', marginBottom: '8px', lineHeight: '1.4' }}>
-              {vraag.vraag_tekst.substring(0, 60)}
-              {vraag.vraag_tekst.length > 60 ? '...' : ''}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  background: '#f0f0f0',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  color: '#666',
-                }}
-              >
-                {typeLabel}
-              </span>
-              <span
-                style={{
-                  display: 'inline-block',
-                  background: bloomColors[vraag.bloom_niveau],
-                  color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                }}
-              >
-                {bloomLabels[vraag.bloom_niveau]}
-              </span>
-              <span
-                style={{
-                  display: 'inline-block',
-                  background: '#f0f0f0',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  color: '#666',
-                  marginLeft: 'auto',
-                }}
-              >
-                {vraag.punten} pt.
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Expanded form
-  return (
-    <div
-      style={{
-        padding: '20px',
-        background: 'white',
-        borderRadius: '14px',
-        marginBottom: '12px',
-        border: '1px solid #d1d5db',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e3a5f' }}>Vraag {index + 1}</div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={onMoveUp}
-            disabled={index === 0}
-            style={{
-              padding: '6px 10px',
-              background: index === 0 ? '#f0f0f0' : '#fff',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              cursor: index === 0 ? 'default' : 'pointer',
-              fontSize: '12px',
-              color: index === 0 ? '#999' : '#333',
-            }}
-          >
-            ↑
-          </button>
-          <button
-            onClick={onMoveDown}
-            disabled={index === totalQuestions - 1}
-            style={{
-              padding: '6px 10px',
-              background: index === totalQuestions - 1 ? '#f0f0f0' : '#fff',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              cursor: index === totalQuestions - 1 ? 'default' : 'pointer',
-              fontSize: '12px',
-              color: index === totalQuestions - 1 ? '#999' : '#333',
-            }}
-          >
-            ↓
-          </button>
-          <button
-            onClick={() => {
-              onToggleExpand();
-            }}
-            style={{
-              padding: '6px 10px',
-              background: '#fff',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              color: '#333',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* Vraag tekst */}
-      <label style={{ display: 'block', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Vraag tekst</div>
-        <textarea
-          value={edited.vraag_tekst}
-          onChange={(e) => setEdited({ ...edited, vraag_tekst: e.target.value })}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '13px',
-            minHeight: '60px',
-            boxSizing: 'border-box',
-          }}
-        />
-      </label>
-
-      {/* Vraag type */}
-      <label style={{ display: 'block', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Vraagtype</div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {vraagTypes.map((type) => (
-            <button
-              key={type.key}
-              onClick={() => {
-                const defaultAntwoorden: Antwoord[] =
-                  type.key === 'meerkeuze'
-                    ? [
-                        { antwoord_tekst: '', is_correct: true, volgorde: 0 },
-                        { antwoord_tekst: '', is_correct: false, volgorde: 1 },
-                        { antwoord_tekst: '', is_correct: false, volgorde: 2 },
-                        { antwoord_tekst: '', is_correct: false, volgorde: 3 },
-                      ]
-                    : type.key === 'waar_onwaar'
-                    ? [
-                        { antwoord_tekst: 'Waar', is_correct: true, volgorde: 0 },
-                        { antwoord_tekst: 'Onwaar', is_correct: false, volgorde: 1 },
-                      ]
-                    : type.key === 'invul'
-                    ? [
-                        { antwoord_tekst: '', is_correct: true, volgorde: 0 },
-                      ]
-                    : type.key === 'koppel'
-                    ? [
-                        { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: 0 },
-                        { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: 1 },
-                        { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: 2 },
-                      ]
-                    : [];
-                setEdited({ ...edited, vraag_type: type.key as any, antwoorden: defaultAntwoorden });
-              }}
-              style={{
-                padding: '8px 12px',
-                background: edited.vraag_type === type.key ? '#1e3a5f' : '#f0f0f0',
-                color: edited.vraag_type === type.key ? 'white' : '#333',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '500',
-              }}
-            >
-              {type.label}
-            </button>
-          ))}
-        </div>
-      </label>
-
-      {/* Bloom niveau */}
-      <label style={{ display: 'block', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Bloom niveau</div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {Object.entries(bloomLabels).map(([level, label]) => (
-            <button
-              key={level}
-              onClick={() => setEdited({ ...edited, bloom_niveau: level as any })}
-              style={{
-                padding: '8px 12px',
-                background: edited.bloom_niveau === level ? bloomColors[level] : '#f0f0f0',
-                color: edited.bloom_niveau === level ? 'white' : '#333',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '500',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </label>
-
-      {/* Punten */}
-      <label style={{ display: 'block', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Punten</div>
-        <input
-          type="number"
-          step="0.5"
-          min="0"
-          value={edited.punten}
-          onChange={(e) => setEdited({ ...edited, punten: parseFloat(e.target.value) || 0 })}
-          style={{
-            width: '100px',
-            padding: '8px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '13px',
-            boxSizing: 'border-box',
-          }}
-        />
-      </label>
-
-      {/* Bron tekst */}
-      <label style={{ display: 'block', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Brontekst (optioneel)</div>
-        <textarea
-          value={edited.bron_tekst}
-          onChange={(e) => setEdited({ ...edited, bron_tekst: e.target.value })}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '13px',
-            minHeight: '40px',
-            boxSizing: 'border-box',
-          }}
-          placeholder="Tekst waar de vraag op gebaseerd is"
-        />
-      </label>
-
-      {/* Question Type-Specific Fields */}
-      {edited.vraag_type === 'meerkeuze' && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Antwoordopties</div>
-          {edited.antwoorden.map((option, idx) => (
-            <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-              <input
-                type="radio"
-                name="correct"
-                checked={option.is_correct}
-                onChange={() => {
-                  const newAntwoorden = edited.antwoorden.map((a, i) => ({ ...a, is_correct: i === idx }));
-                  setEdited({ ...edited, antwoorden: newAntwoorden });
-                }}
-              />
-              <input
-                type="text"
-                value={option.antwoord_tekst}
-                onChange={(e) => {
-                  const newAntwoorden = [...edited.antwoorden];
-                  newAntwoorden[idx].antwoord_tekst = e.target.value;
-                  setEdited({ ...edited, antwoorden: newAntwoorden });
-                }}
-                placeholder={String.fromCharCode(65 + idx)}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <button
-                onClick={() => {
-                  setEdited({
-                    ...edited,
-                    antwoorden: edited.antwoorden.filter((_, i) => i !== idx),
-                  });
-                }}
-                disabled={edited.antwoorden.length <= 2}
-                style={{
-                  padding: '6px 10px',
-                  background: edited.antwoorden.length <= 2 ? '#f0f0f0' : '#fff',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  cursor: edited.antwoorden.length <= 2 ? 'default' : 'pointer',
-                  fontSize: '12px',
-                  color: edited.antwoorden.length <= 2 ? '#999' : '#c33',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={() => {
-              setEdited({
-                ...edited,
-                antwoorden: [
-                  ...edited.antwoorden,
-                  { antwoord_tekst: '', is_correct: false, volgorde: edited.antwoorden.length },
-                ],
-              });
-            }}
-            style={{
-              marginTop: '8px',
-              padding: '8px 12px',
-              background: '#f0f0f0',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              color: '#333',
-            }}
-          >
-            + Optie toevoegen
-          </button>
-        </div>
-      )}
-
-      {edited.vraag_type === 'waar_onwaar' && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Correct antwoord</div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-              <input
-                type="radio"
-                name="waar_onwaar"
-                checked={
-                  edited.antwoorden.length > 0 && edited.antwoorden.some((a) => a.antwoord_tekst === 'Waar' && a.is_correct)
-                }
-                onChange={() => {
-                  setEdited({
-                    ...edited,
-                    antwoorden: [
-                      { antwoord_tekst: 'Waar', is_correct: true, volgorde: 0 },
-                      { antwoord_tekst: 'Onwaar', is_correct: false, volgorde: 1 },
-                    ],
-                  });
-                }}
-              />
-              Waar
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-              <input
-                type="radio"
-                name="waar_onwaar"
-                checked={
-                  edited.antwoorden.length > 0 && edited.antwoorden.some((a) => a.antwoord_tekst === 'Onwaar' && a.is_correct)
-                }
-                onChange={() => {
-                  setEdited({
-                    ...edited,
-                    antwoorden: [
-                      { antwoord_tekst: 'Waar', is_correct: false, volgorde: 0 },
-                      { antwoord_tekst: 'Onwaar', is_correct: true, volgorde: 1 },
-                    ],
-                  });
-                }}
-              />
-              Onwaar
-            </label>
-          </div>
-        </div>
-      )}
-
-      {edited.vraag_type === 'invul' && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Correct antwoord(en)</div>
-          <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>
-            Gebruik een underscore (_____) in de vraagtekst om het invulvak aan te geven. Vul hieronder het juiste antwoord in.
-          </div>
-          {edited.antwoorden.length === 0 ? (
-            <button
-              onClick={() => {
-                setEdited({
-                  ...edited,
-                  antwoorden: [{ antwoord_tekst: '', is_correct: true, volgorde: 0 }],
-                });
-              }}
-              style={{
-                padding: '8px 12px',
-                background: '#f0f0f0',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                color: '#333',
-              }}
-            >
-              + Invulantwoord toevoegen
-            </button>
-          ) : (
-            edited.antwoorden.map((antw, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: '#888', fontWeight: '600', minWidth: '20px' }}>{idx + 1}.</span>
-                <input
-                  type="text"
-                  value={antw.antwoord_tekst}
-                  onChange={(e) => {
-                    const newAntwoorden = [...edited.antwoorden];
-                    newAntwoorden[idx] = { ...newAntwoorden[idx], antwoord_tekst: e.target.value };
-                    setEdited({ ...edited, antwoorden: newAntwoorden });
-                  }}
-                  placeholder="Juist antwoord"
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    setEdited({
-                      ...edited,
-                      antwoorden: edited.antwoorden.filter((_, i) => i !== idx),
-                    });
-                  }}
-                  style={{
-                    padding: '6px 10px',
-                    background: '#fff',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    color: '#c33',
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))
-          )}
-          {edited.antwoorden.length > 0 && (
-            <button
-              onClick={() => {
-                setEdited({
-                  ...edited,
-                  antwoorden: [
-                    ...edited.antwoorden,
-                    { antwoord_tekst: '', is_correct: true, volgorde: edited.antwoorden.length },
-                  ],
-                });
-              }}
-              style={{
-                marginTop: '4px',
-                padding: '8px 12px',
-                background: '#f0f0f0',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                color: '#333',
-              }}
-            >
-              + Nog een antwoord (alternatief)
-            </button>
-          )}
-        </div>
-      )}
-
-      {edited.vraag_type === 'koppel' && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Koppelingen</div>
-          {edited.antwoorden.map((pair, idx) => (
-            <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <input
-                  type="text"
-                  value={pair.antwoord_tekst}
-                  onChange={(e) => {
-                    const newAntwoorden = [...edited.antwoorden];
-                    newAntwoorden[idx].antwoord_tekst = e.target.value;
-                    setEdited({ ...edited, antwoorden: newAntwoorden });
-                  }}
-                  placeholder="Links"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <input
-                  type="text"
-                  value={pair.koppel_tekst || ''}
-                  onChange={(e) => {
-                    const newAntwoorden = [...edited.antwoorden];
-                    newAntwoorden[idx].koppel_tekst = e.target.value;
-                    setEdited({ ...edited, antwoorden: newAntwoorden });
-                  }}
-                  placeholder="Rechts"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <button
-                onClick={() => {
-                  setEdited({
-                    ...edited,
-                    antwoorden: edited.antwoorden.filter((_, i) => i !== idx),
-                  });
-                }}
-                disabled={edited.antwoorden.length <= 2}
-                style={{
-                  padding: '8px 10px',
-                  background: edited.antwoorden.length <= 2 ? '#f0f0f0' : '#fff',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  cursor: edited.antwoorden.length <= 2 ? 'default' : 'pointer',
-                  fontSize: '12px',
-                  color: edited.antwoorden.length <= 2 ? '#999' : '#c33',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={() => {
-              setEdited({
-                ...edited,
-                antwoorden: [
-                  ...edited.antwoorden,
-                  { antwoord_tekst: '', koppel_tekst: '', is_correct: false, volgorde: edited.antwoorden.length },
-                ],
-              });
-            }}
-            style={{
-              marginTop: '8px',
-              padding: '8px 12px',
-              background: '#f0f0f0',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              color: '#333',
-            }}
-          >
-            + Koppeling toevoegen
-          </button>
-        </div>
-      )}
-
-      {/* Antwoord model */}
-      <label style={{ display: 'block', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Antwoordmodel / rubric</div>
-        <textarea
-          value={edited.antwoord_model}
-          onChange={(e) => setEdited({ ...edited, antwoord_model: e.target.value })}
-          placeholder="Juiste antwoord of beoordelingscriteria"
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '13px',
-            minHeight: '60px',
-            boxSizing: 'border-box',
-          }}
-        />
-      </label>
-
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-        <button
-          onClick={() => onToggleExpand()}
-          style={{
-            padding: '8px 16px',
-            background: '#f0f0f0',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            color: '#333',
-          }}
-        >
-          Annuleren
-        </button>
-        <button
-          onClick={() => onDelete()}
-          style={{
-            padding: '8px 16px',
-            background: '#fee',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            color: '#c33',
-          }}
-        >
-          Verwijderen
-        </button>
-        <button
-          onClick={() => {
-            onSave(edited);
-            onToggleExpand();
-          }}
-          style={{
-            padding: '8px 16px',
-            background: '#34d399',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: '600',
-          }}
-        >
-          Opslaan
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ───── Page Wrapper ───── */
 export default function ToetsenMakerPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>Laden...</div>}>
+    <Suspense fallback={<div>Laden...</div>}>
       <ToetsenMakerContent />
     </Suspense>
   );
