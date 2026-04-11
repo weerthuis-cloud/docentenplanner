@@ -729,7 +729,7 @@ function Step3({ toets, doelen, matrijsData, setMatrijsData, onPrev, onNext }: {
           <div>
             <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Huidige verdeling</p>
             <WDSBar weten={currentWetenPct} doen={currentDoenPct} snappen={currentSnappenPct} />
-            {hasDeviation && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fef08a', borderRadius: '4px', fontSize: '12px', color: '#92400e' }}>⚠ Verdeling wijkt > 10% af van doel</div>}
+            {hasDeviation && <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fef08a', borderRadius: '4px', fontSize: '12px', color: '#92400e' }}>{'⚠ Verdeling wijkt >10% af van doel'}</div>}
           </div>
         </div>
       </div>
