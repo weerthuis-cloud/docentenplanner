@@ -57,6 +57,25 @@ export default function Navigation() {
         {currentPage && (
           <span className="text-white/50 text-xs">/ {currentPage.label}</span>
         )}
+
+        <div style={{ marginLeft: 'auto' }}>
+          <Link href="/toetsen/maker" onClick={() => setMenuOpen(false)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 14px',
+              backgroundColor: '#f59e0b',
+              color: '#1e3a5f',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 700,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}>
+            ✏️ Maak toets
+          </Link>
+        </div>
       </div>
     </>
   );
